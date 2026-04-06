@@ -8,17 +8,39 @@
 
 *******************************************************************************/
 
-/**
- * Initialize CSP violation listener.
- * Reports CSP violations to the background script.
- */
-export function initCSPlistener() {
-    const newEvents = new Set();
-    const allEvents = new Set();
-    let timer;
+interface SecurityPolicyViolationEvent extends Event {
+    isTrusted: boolean;
+    disposition: string;
+    blockedURL?: string;
+    blockedURI?: string;
+    originalPolicy: string;
+    effectiveDirective?: string;
+    violatedDirective?: string;
+}
 
-    const send = function() {
-        if ( self.vAPI instanceof Object === false ) { return; }
+interface ShutdownCallbacks {
+    add(callback: () => void): void;
+    remove(callback: () => void): void;
+}
+
+interface VAPIMessaging {
+    send(channel: string, message: object): Promise<unknown>;
+}
+
+interface VAPI {
+    shutdown: ShutdownCallbacks;
+    messaging: VAPIMessaging;
+}
+
+declare const vAPI: VAPI;
+
+export function initCSPlistener(): void {
+    const newEvents = new Set<string>();
+    const allEvents = new Set<string>();
+    let timer: number | undefined;
+
+    const send = function(): void {
+        if ( vAPI instanceof Object === false ) { return; }
         vAPI.messaging.send('scriptlets', {
             what: 'securityPolicyViolation',
             type: 'net',
@@ -34,28 +56,29 @@ export function initCSPlistener() {
         newEvents.clear();
     };
 
-    const sendAsync = function() {
+    const sendAsync = function(): void {
         if ( timer !== undefined ) { return; }
         timer = self.requestIdleCallback(
-            ( ) => { timer = undefined; send(); },
+            () => { timer = undefined; send(); },
             { timeout: 2063 }
         );
     };
 
-    const listener = function(ev) {
-        if ( ev.isTrusted !== true ) { return; }
-        if ( ev.disposition !== 'enforce' ) { return; }
+    const listener = function(ev: Event): void {
+        const cspEv = ev as SecurityPolicyViolationEvent;
+        if ( cspEv.isTrusted !== true ) { return; }
+        if ( cspEv.disposition !== 'enforce' ) { return; }
         const json = JSON.stringify({
-            url: ev.blockedURL || ev.blockedURI,
-            policy: ev.originalPolicy,
-            directive: ev.effectiveDirective || ev.violatedDirective,
+            url: cspEv.blockedURL || cspEv.blockedURI,
+            policy: cspEv.originalPolicy,
+            directive: cspEv.effectiveDirective || cspEv.violatedDirective,
         });
         if ( allEvents.has(json) ) { return; }
         newEvents.add(json);
         sendAsync();
     };
 
-    const stop = function() {
+    const stop = function(): void {
         newEvents.clear();
         allEvents.clear();
         if ( timer !== undefined ) {
@@ -69,8 +92,6 @@ export function initCSPlistener() {
     document.addEventListener('securitypolicyviolation', listener);
     vAPI.shutdown.add(stop);
 
-    // We need to call at least once to find out whether we really need to
-    // listen to CSP violations.
     sendAsync();
 }
 

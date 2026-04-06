@@ -7,85 +7,135 @@
 
 *******************************************************************************/
 
-/**
- * Logging helper
- */
-const epickerLog = (function() {
-    var fn = function() {};
-    fn.getLog = function() { return ''; };
-    fn.clear = function() {};
-    return fn;
-})();
+interface EpickerState {
+    pickerUniqueId: string;
+    pickerBootArgs: { zap?: boolean };
+    targetElements: Element[];
+    bestCandidateFilter: { filters: string[]; slot?: number } | null;
+    netFilterCandidates: string[];
+    cosmeticFilterCandidates: string[];
+    filtersFrom: (x: number, y: number, first?: Element) => number;
+    highlightElements: (elems: Element[], force?: boolean) => void;
+    filterToDOMInterface: {
+        preview(state: unknown, permanent?: boolean): void;
+        queryAll(details: { filter: string; compiled?: string }): unknown[];
+    };
+    elementFromPoint: (x: number, y: number) => Element | null;
+    highlightElementAtPoint: (mx: number, my: number) => void;
+    filterElementAtPoint: (mx: number, my: number, broad?: boolean) => void;
+    zapElementAtPoint: (mx: number, my: number, options?: object) => void;
+    startPicker: () => void;
+    quitPicker: () => void;
+    showDialog: (options?: object) => void;
+    epickerLog: {
+        getLog(): string;
+        clear(): void;
+    };
+    onViewportChanged: () => void;
+}
 
-/**
- * Element lookup from point (closure with state)
- */
-const elementFromPoint = (function() {
-    var lastX, lastY;
-    var pickerFrameRef = null;
+interface EpickerDeps {
+    highlightElements: (elems: Element[], force?: boolean) => void;
+    filterToDOMInterface: EpickerState['filterToDOMInterface'];
+    pickerFrame: HTMLElement | null;
+    pickerFramePort: MessagePort | null;
+    pickerCSS: string;
+    vAPI: {
+        mouseClick?: { x: number; y: number };
+        shutdown: { remove(callback: () => void): void };
+        userStylesheet: {
+            remove(css: string, now?: boolean): void;
+            apply(callback?: () => void): void;
+        };
+        pickerFrame?: boolean;
+    };
+    debugLog: (source: string, ...args: unknown[]) => void;
+    resourceURLsFromElement: (elem: Element) => string[];
+    getPageDocument: () => Document;
+}
 
-    return function(x, y) {
+let epickerState: EpickerState;
+let highlightElements: (elems: Element[], force?: boolean) => void;
+let filterToDOMInterface: EpickerState['filterToDOMInterface'];
+let pickerFrame: HTMLElement | null;
+let pickerFramePort: MessagePort | null;
+let pickerCSS: string;
+let vAPI: EpickerDeps['vAPI'];
+let debugLog: (source: string, ...args: unknown[]) => void;
+let resourceURLsFromElement: (elem: Element) => string[];
+let getPageDocument: () => Document;
+let elementFromPoint: (x: number, y: number) => Element | null;
+
+const epickerLog = {
+    getLog(): string { return ''; },
+    clear(): void {}
+};
+
+const elementFromPointFunc = (function() {
+    let lastX: number | undefined;
+    let lastY: number | undefined;
+    let pickerFrameRef: HTMLElement | null = null;
+
+    return function(x: number, y: number): Element | null {
         if ( x !== undefined ) {
             lastX = x; lastY = y;
         }
 
-        var frame = null;
-        
-        // Find picker frame by attribute
+        let frame: HTMLElement | null = null;
+
         if (pickerFrame) {
             frame = pickerFrame;
             pickerFrameRef = frame;
         }
-        
-        // Try to find by attribute pattern
+
         if ( !frame ) {
             const pageDoc = getPageDocument();
             const iframes = pageDoc.querySelectorAll('iframe');
             for ( let i = 0; i < iframes.length; i++ ) {
-                if ( iframes[i].hasAttribute && iframes[i].hasAttribute(epickerState.pickerUniqueId) ) {
-                    frame = iframes[i];
+                const iframe = iframes[i];
+                if ( iframe.hasAttribute && iframe.hasAttribute(epickerState.pickerUniqueId) ) {
+                    frame = iframe as HTMLElement;
                     pickerFrameRef = frame;
-                    debugLog('session', 'elementFromPoint: found picker frame by attribute');
                     break;
                 }
             }
         }
-        
+
         if ( !frame ) {
-            debugLog('session', 'elementFromPoint: still no pickerFrame');
-            var pageDoc = getPageDocument();
-            var elem = pageDoc.elementFromPoint(x, y);
-            debugLog('session', 'elementFromPoint fallback result:', elem ? elem.tagName : 'null');
-            return elem;
+            const pageDoc = getPageDocument();
+            const elem = pageDoc.elementFromPoint(x, y);
+            return elem as Element | null;
         }
-        
-        var pageDoc = getPageDocument();
-        var magicAttr = epickerState.pickerUniqueId + '-clickblind';
-        debugLog('session', 'elementFromPoint: setting clickblind on frame (attr:', magicAttr, ')');
+
+        const pageDoc = getPageDocument();
+        const magicAttr = epickerState.pickerUniqueId + '-clickblind';
         frame.setAttribute(magicAttr, '');
-        
+
         const oldPointerEvents = frame.style.getPropertyValue('pointer-events');
         const oldPointerEventsPriority = frame.style.getPropertyPriority('pointer-events');
         frame.style.setProperty('pointer-events', 'none', 'important');
 
-        debugLog('session', 'elementFromPoint: frame has clickblind attr:', frame.hasAttribute(magicAttr));
-        
-        var elems = pageDoc.elementsFromPoint(x, y);
-        var elem = null;
-        for ( var i = 0; i < elems.length; i++ ) {
+        const elems = pageDoc.elementsFromPoint(x, y);
+        let elem: Element | null = null;
+        for ( let i = 0; i < elems.length; i++ ) {
             if ( elems[i] === frame ) { continue; }
-            if ( elems[i].hasAttribute && elems[i].hasAttribute(epickerState.pickerUniqueId) ) { continue; }
-            elem = elems[i];
+            const e = elems[i] as Element;
+            if ( e.hasAttribute && e.hasAttribute(epickerState.pickerUniqueId) ) { continue; }
+            elem = e;
             break;
         }
-        
-        debugLog('session', 'elementFromPoint: raw result:', elem ? elem.tagName + ' (id=' + (elem.id||'none') + ')' : 'null');
-        
+
         if (oldPointerEvents) {
             frame.style.setProperty('pointer-events', oldPointerEvents, oldPointerEventsPriority);
         } else {
             frame.style.removeProperty('pointer-events');
         }
+
+        const getNoCosmeticFiltering = (): boolean => {
+            if ( epickerState.pickerBootArgs && epickerState.pickerBootArgs.zap === true ) { return false; }
+            return vAPI.domFilterer instanceof Object === false ||
+                   vAPI.noSpecificCosmeticFiltering === true;
+        };
 
         if (
             elem === null ||
@@ -99,93 +149,41 @@ const elementFromPoint = (function() {
             elem = null;
         }
         frame.removeAttribute(magicAttr);
-        debugLog('session', 'elementFromPoint final result:', elem ? elem.tagName : 'null');
         return elem;
     };
 })();
 
-/**
- * Highlight element at point
- * @param {number} mx - Mouse X
- * @param {number} my - Mouse Y
- */
-const highlightElementAtPoint = function(mx, my) {
-    debugLog('session', 'highlightElementAtPoint START - page coords:', mx, my);
-    
-    const x = mx;
-    const y = my;
-    
-    debugLog('session', 'Using page coords:', x, y);
-    
-    const elem = elementFromPoint(x, y);
-    debugLog('session', 'elementFromPoint result:', elem ? elem.tagName : 'null');
-    
-    debugLog('session', 'Calling highlightElements');
+const highlightElementAtPoint = function(mx: number, my: number): void {
+    const elem = elementFromPointFunc(mx, my);
     highlightElements(elem ? [ elem ] : []);
-    
-    debugLog('session', 'highlightElementAtPoint END');
 };
 
-/**
- * Filter element at point
- * @param {number} mx - Mouse X
- * @param {number} my - Mouse Y
- * @param {boolean} broad - Use broad matching
- */
-const filterElementAtPoint = function(mx, my, broad) {
-    debugLog('session', 'filterElementAtPoint page coords:', mx, my);
+const filterElementAtPoint = function(mx: number, my: number, broad?: boolean): void {
     if ( epickerState.filtersFrom(mx, my) === 0 ) { return; }
     showDialog({ broad });
 };
 
-/**
- * Zap (remove) element at point
- * @param {number} mx - Mouse X
- * @param {number} my - Mouse Y
- * @param {Object} options - Zapper options
- */
-const zapElementAtPoint = function(mx, my, options) {
-    debugLog('session', 'zapElementAtPoint START - mx:', mx, 'my:', my, 'options:', options);
-    console.log('[ZAPPER] Starting - mx:', mx, 'my:', my, 'options:', options);
-    
+const zapElementAtPoint = function(mx: number, my: number, options: { highlight?: boolean; stay?: boolean } = {}): void {
     if ( options.highlight ) {
-        console.log('[ZAPPER] Highlight mode');
-        debugLog('session', 'zapElementAtPoint: highlight mode');
-        const elem = elementFromPoint(mx, my);
-        debugLog('session', 'zapElementAtPoint: found elem:', elem ? elem.tagName : 'null');
+        const elem = elementFromPointFunc(mx, my);
         if ( elem ) {
-            debugLog('session', 'zapElementAtPoint: calling highlightElements');
             highlightElements([ elem ]);
         }
         return;
     }
 
-    console.log('[ZAPPER] Remove mode - finding element');
-    debugLog('session', 'zapElementAtPoint: remove mode');
     let elemToRemove = epickerState.targetElements.length !== 0 && epickerState.targetElements[0] || null;
     if ( elemToRemove === null && mx !== undefined ) {
-        elemToRemove = elementFromPoint(mx, my);
+        elemToRemove = elementFromPointFunc(mx, my);
     }
 
-    console.log('[ZAPPER] Element to remove:', elemToRemove ? elemToRemove.tagName : 'NULL');
-    debugLog('session', 'zapElementAtPoint: elemToRemove:', elemToRemove ? elemToRemove.tagName : 'null');
-
-    if ( elemToRemove instanceof Element === false ) { 
-        console.log('[ZAPPER] Not an element, returning');
-        debugLog('session', 'zapElementAtPoint: not an Element, returning');
-        return; 
+    if ( elemToRemove instanceof Element === false ) {
+        return;
     }
 
-    // Get filter WHILE element still exists (before removing!)
-    console.log('[ZAPPER] Calling filtersFrom to get filter candidates...');
-    debugLog('session', 'zapElementAtPoint: calling filtersFrom to generate filter (element still exists)');
     epickerState.filtersFrom(mx, my);
-    
-    console.log('[ZAPPER] After filtersFrom - net:', epickerState.netFilterCandidates.length, 'cosmetic:', epickerState.cosmeticFilterCandidates.length);
-    debugLog('session', 'zapElementAtPoint: filtersFrom result - net:', epickerState.netFilterCandidates.length, 'cosmetic:', epickerState.cosmeticFilterCandidates.length);
-    
-    // Extract filter
-    let filterToSave = null;
+
+    let filterToSave: string | null = null;
     if (epickerState.bestCandidateFilter && epickerState.bestCandidateFilter.filters && epickerState.bestCandidateFilter.filters.length > 0) {
         const slot = epickerState.bestCandidateFilter.slot !== undefined ? epickerState.bestCandidateFilter.slot : epickerState.bestCandidateFilter.filters.length - 1;
         filterToSave = epickerState.bestCandidateFilter.filters[slot];
@@ -194,18 +192,14 @@ const zapElementAtPoint = function(mx, my, options) {
     } else if (epickerState.netFilterCandidates.length > 0) {
         filterToSave = epickerState.netFilterCandidates[0];
     }
-    
-    debugLog('session', 'zapElementAtPoint: filterToSave:', filterToSave);
-    
+
     if (!filterToSave) {
-        debugLog('session', 'zapElementAtPoint: NO FILTER FOUND - aborting');
         return;
     }
 
-    // Handle scroll lock
-    const getStyleValue = (elem, prop) => {
+    const getStyleValue = (elem: Element, prop: string): string => {
         const style = window.getComputedStyle(elem);
-        return style ? style[prop] : '';
+        return style ? String(style.getPropertyValue(prop)) : '';
     };
 
     let maybeScrollLocked = elemToRemove.shadowRoot instanceof DocumentFragment;
@@ -215,15 +209,15 @@ const zapElementAtPoint = function(mx, my, options) {
             maybeScrollLocked =
                 parseInt(getStyleValue(elem, 'zIndex'), 10) >= 1000 ||
                 getStyleValue(elem, 'position') === 'fixed';
-            elem = elem.parentElement;
+            elem = elem.parentElement!;
         } while ( elem !== null && maybeScrollLocked === false );
     }
     if ( maybeScrollLocked ) {
         const doc = document;
-        if ( getStyleValue(doc.body, 'overflowY') === 'hidden' ) {
+        if ( getStyleValue(doc.body as Element, 'overflowY') === 'hidden' ) {
             doc.body.style.setProperty('overflow', 'auto', 'important');
         }
-        if ( getStyleValue(doc.body, 'position') === 'fixed' ) {
+        if ( getStyleValue(doc.body as Element, 'position') === 'fixed' ) {
             doc.body.style.setProperty('position', 'initial', 'important');
         }
         if ( getStyleValue(doc.documentElement, 'position') === 'fixed' ) {
@@ -234,12 +228,8 @@ const zapElementAtPoint = function(mx, my, options) {
         }
     }
 
-    // Remove the element
-    console.log('[ZAPPER] Removing element');
     elemToRemove.remove();
-    
-    // Save filter
-    console.log('[ZAPPER] Generated filter:', self.location.hostname + '##' + filterToSave);
+
     if (pickerFramePort) {
         pickerFramePort.postMessage({
             what: 'saveFilterFromZapper',
@@ -247,30 +237,25 @@ const zapElementAtPoint = function(mx, my, options) {
             docURL: self.location.href,
         });
     }
-    
-    // Show dialog or stay in zapper mode
+
     if (pickerFramePort && options.stay !== true) {
         pickerFramePort.postMessage({
             what: 'dialogCreate',
             filter: filterToSave,
         });
     }
-    
+
     highlightElementAtPoint(mx, my);
-    debugLog('session', 'zapElementAtPoint END');
 };
 
-/**
- * Key press handler
- */
-const onKeyPressed = function(ev) {
+const onKeyPressed = function(ev: KeyboardEvent): void {
     if (
         (ev.key === 'Delete' || ev.key === 'Backspace') &&
         epickerState.pickerBootArgs.zap
     ) {
         ev.stopPropagation();
         ev.preventDefault();
-        zapElementAtPoint();
+        zapElementAtPoint(0, 0, {});
         return;
     }
     if ( ev.key === 'Escape' || ev.which === 27 ) {
@@ -282,29 +267,22 @@ const onKeyPressed = function(ev) {
     }
 };
 
-/**
- * Viewport change handler
- */
-const onViewportChanged = function() {
+const onViewportChanged = function(): void {
     highlightElements(epickerState.targetElements, true);
 };
 
-/**
- * Start picker
- */
-const startPicker = function() {
-    debugLog('session', 'startPicker called, pickerBootArgs:', epickerState.pickerBootArgs);
-    pickerFrame.focus();
+const startPicker = function(): void {
+    if (pickerFrame) {
+        pickerFrame.focus();
+    }
 
     self.addEventListener('scroll', onViewportChanged, { passive: true });
     self.addEventListener('resize', onViewportChanged, { passive: true });
     self.addEventListener('keydown', onKeyPressed, true);
-    self.addEventListener('click', function(ev) {
-        debugLog('session', 'Click detected in page context');
+    self.addEventListener('click', function(ev: MouseEvent) {
         if (vAPI.mouseClick instanceof Object && vAPI.mouseClick.x >= 0) {
-            debugLog('session', 'Using vAPI.mouseClick position:', vAPI.mouseClick.x, vAPI.mouseClick.y);
             if ( epickerState.filtersFrom(vAPI.mouseClick.x, vAPI.mouseClick.y) !== 0 ) {
-                return showDialog();
+                showDialog();
             }
         }
     }, true);
@@ -316,21 +294,13 @@ const startPicker = function() {
         typeof vAPI.mouseClick.y === 'number' &&
         vAPI.mouseClick.y >= 0
     ) {
-        debugLog('session', 'Initial mouse position:', vAPI.mouseClick.x, vAPI.mouseClick.y);
         if ( epickerState.filtersFrom(vAPI.mouseClick.x, vAPI.mouseClick.y) !== 0 ) {
             return showDialog();
         }
-    } else {
-        debugLog('session', 'No initial mouse position - will use UI mouse tracking');
     }
-
-    debugLog('session', 'startPicker complete - waiting for UI messages');
 };
 
-/**
- * Quit picker
- */
-const quitPicker = function() {
+const quitPicker = function(): void {
     self.removeEventListener('scroll', onViewportChanged, { passive: true });
     self.removeEventListener('resize', onViewportChanged, { passive: true });
     self.removeEventListener('keydown', onKeyPressed, true);
@@ -349,30 +319,17 @@ const quitPicker = function() {
     self.focus();
 };
 
-/**
- * Show dialog
- */
-const showDialog = function(options) {
-    debugLog('session', 'showDialog called, pickerFramePort:', pickerFramePort ? 'exists' : 'null');
-    debugLog('session', 'netFilterCandidates:', JSON.stringify(epickerState.netFilterCandidates));
-    debugLog('session', 'cosmeticFilterCandidates:', JSON.stringify(epickerState.cosmeticFilterCandidates));
-    
+const showDialog = function(options?: object): void {
     if (!pickerFramePort) {
-        debugLog('session', 'ERROR: pickerFramePort is null, cannot show dialog!');
         return;
     }
-    
+
     let selectedFilter = '';
     if (epickerState.bestCandidateFilter && epickerState.bestCandidateFilter.filters && epickerState.bestCandidateFilter.filters.length > 0) {
         const slot = epickerState.bestCandidateFilter.slot || 0;
         selectedFilter = epickerState.bestCandidateFilter.filters[slot] || epickerState.bestCandidateFilter.filters[epickerState.bestCandidateFilter.filters.length - 1];
-        debugLog('session', 'Selected filter (slot', slot, '):', selectedFilter);
     }
-    
-    if (selectedFilter) {
-        console.log('[EPICKER] Full filter: ' + self.location.hostname + '##' + selectedFilter);
-    }
-    
+
     pickerFramePort.postMessage({
         what: 'showDialog',
         url: self.location.href,
@@ -381,28 +338,9 @@ const showDialog = function(options) {
         filter: epickerState.bestCandidateFilter,
         options,
     });
-    
-    debugLog('session', 'showDialog message sent');
 };
 
-// Module-level references
-let epickerState;
-let highlightElements;
-let filterToDOMInterface;
-let pickerFrame;
-let pickerFramePort;
-let pickerCSS;
-let vAPI;
-let debugLog;
-let resourceURLsFromElement;
-let getPageDocument;
-
-/**
- * Initialize session module
- * @param {Object} state - Shared epicker state
- * @param {Object} deps - Dependencies
- */
-export function initSession(state, deps) {
+export function initSession(state: EpickerState, deps: EpickerDeps): void {
     epickerState = state;
     highlightElements = deps.highlightElements;
     filterToDOMInterface = deps.filterToDOMInterface;
@@ -413,8 +351,9 @@ export function initSession(state, deps) {
     debugLog = deps.debugLog;
     resourceURLsFromElement = deps.resourceURLsFromElement;
     getPageDocument = deps.getPageDocument;
-    
-    state.elementFromPoint = elementFromPoint;
+    elementFromPoint = elementFromPointFunc;
+
+    state.elementFromPoint = elementFromPointFunc;
     state.highlightElementAtPoint = highlightElementAtPoint;
     state.filterElementAtPoint = filterElementAtPoint;
     state.zapElementAtPoint = zapElementAtPoint;

@@ -7,13 +7,45 @@
 
 *******************************************************************************/
 
-/**
- * Handle optimize candidates request
- * @param {Object} details - Candidate details
- */
-const onOptimizeCandidates = function(details) {
+interface EpickerState {
+    targetElements: Element[];
+    onDialogMessage: (msg: object) => void;
+    onOptimizeCandidates: (details: { candidates: string[][]; slot?: number }) => void;
+}
+
+interface EpickerDeps {
+    highlightElements: (elems: Element[], force?: boolean) => void;
+    filterToDOMInterface: {
+        preview(state: unknown, permanent?: boolean): void;
+        queryAll(details: { filter: string; compiled?: string }): { elem: Element; opt?: string }[];
+    };
+    startPicker: () => void;
+    quitPicker: () => void;
+    highlightElementAtPoint: (mx: number, my: number) => void;
+    filterElementAtPoint: (mx: number, my: number, broad?: boolean) => void;
+    zapElementAtPoint: (mx: number, my: number, options?: object) => void;
+    epickerLog: { getLog(): string };
+    pickerFramePort: MessagePort | null;
+    getPageDocument: () => Document;
+    debugLog: (source: string, ...args: unknown[]) => void;
+}
+
+let epickerState: EpickerState;
+let highlightElements: (elems: Element[], force?: boolean) => void;
+let filterToDOMInterface: EpickerDeps['filterToDOMInterface'];
+let startPicker: () => void;
+let quitPicker: () => void;
+let highlightElementAtPoint: (mx: number, my: number) => void;
+let filterElementAtPoint: (mx: number, my: number, broad?: boolean) => void;
+let zapElementAtPoint: (mx: number, my: number, options?: object) => void;
+let epickerLog: { getLog(): string };
+let pickerFramePort: MessagePort | null;
+let getPageDocument: () => Document;
+let debugLog: (source: string, ...args: unknown[]) => void;
+
+const onOptimizeCandidates = function(details: { candidates: string[][]; slot?: number }): void {
     const { candidates } = details;
-    const results = [];
+    const results: { selector: string; count: number }[] = [];
     const pageDoc = getPageDocument();
     for ( const paths of candidates ) {
         let count = Number.MAX_SAFE_INTEGER;
@@ -34,18 +66,26 @@ const onOptimizeCandidates = function(details) {
         return a.selector.length - b.selector.length;
     });
 
-    pickerFramePort.postMessage({
+    pickerFramePort!.postMessage({
         what: 'candidatesOptimized',
         candidates: results.map(a => a.selector),
         slot: details.slot,
     });
 };
 
-/**
- * Main message handler - routes messages from epicker-ui
- * @param {Object} msg - Message object
- */
-const onDialogMessage = function(msg) {
+interface DialogMessage {
+    what: string;
+    mx?: number;
+    my?: number;
+    broad?: boolean;
+    options?: { highlight?: boolean; stay?: boolean };
+    state?: boolean;
+    filter?: string;
+    compiled?: string;
+    stay?: boolean;
+}
+
+const onDialogMessage = function(msg: DialogMessage): void {
     switch ( msg.what ) {
     case 'getLog':
         if (pickerFramePort) {
@@ -63,24 +103,20 @@ const onDialogMessage = function(msg) {
         }
         break;
     case 'optimizeCandidates':
-        onOptimizeCandidates(msg);
+        onOptimizeCandidates(msg as DialogMessage & { candidates: string[][]; slot?: number });
         break;
     case 'dialogCreate':
-        debugLog('message', 'dialogCreate: calling queryAll and preview');
         filterToDOMInterface.queryAll(msg);
         filterToDOMInterface.preview(true, true);
         if (msg.stay !== true) {
-            debugLog('message', 'dialogCreate: calling quitPicker');
             quitPicker();
-        } else {
-            debugLog('message', 'dialogCreate: staying in zapper mode (stay=true)');
         }
         break;
     case 'dialogSetFilter': {
         const resultset = filterToDOMInterface.queryAll(msg) || [];
         highlightElements(resultset.map(a => a.elem), true);
         if ( msg.filter === '!' ) { break; }
-        pickerFramePort.postMessage({
+        pickerFramePort!.postMessage({
             what: 'resultsetDetails',
             count: resultset.length,
             opt: resultset.length !== 0 ? resultset[0].opt : undefined,
@@ -92,20 +128,17 @@ const onDialogMessage = function(msg) {
         quitPicker();
         break;
     case 'highlightElementAtPoint':
-        debugLog('message', 'highlightElementAtPoint received:', msg.mx, msg.my);
-        highlightElementAtPoint(msg.mx, msg.my);
+        highlightElementAtPoint(msg.mx!, msg.my!);
         break;
     case 'unhighlight':
         highlightElements([]);
         break;
     case 'filterElementAtPoint':
-        filterElementAtPoint(msg.mx, msg.my, msg.broad);
+        filterElementAtPoint(msg.mx!, msg.my!, msg.broad);
         break;
     case 'zapElementAtPoint':
-        console.log('[EPICKER] Received zapElementAtPoint - mx:', msg.mx, 'my:', msg.my, 'options:', msg.options);
-        debugLog('message', 'Received zapElementAtPoint - mx:', msg.mx, 'my:', msg.my, 'options:', msg.options);
-        zapElementAtPoint(msg.mx, msg.my, msg.options);
-        if ( msg.options.highlight !== true && msg.options.stay !== true ) {
+        zapElementAtPoint(msg.mx!, msg.my!, msg.options);
+        if ( msg.options?.highlight !== true && msg.options?.stay !== true ) {
             quitPicker();
         }
         break;
@@ -120,26 +153,7 @@ const onDialogMessage = function(msg) {
     }
 };
 
-// Module-level references
-let epickerState;
-let highlightElements;
-let filterToDOMInterface;
-let startPicker;
-let quitPicker;
-let highlightElementAtPoint;
-let filterElementAtPoint;
-let zapElementAtPoint;
-let epickerLog;
-let pickerFramePort;
-let getPageDocument;
-let debugLog;
-
-/**
- * Initialize message handler module
- * @param {Object} state - Shared epicker state
- * @param {Object} deps - Dependencies
- */
-export function initMessageHandler(state, deps) {
+export function initMessageHandler(state: EpickerState, deps: EpickerDeps): void {
     epickerState = state;
     highlightElements = deps.highlightElements;
     filterToDOMInterface = deps.filterToDOMInterface;
@@ -152,7 +166,7 @@ export function initMessageHandler(state, deps) {
     pickerFramePort = deps.pickerFramePort;
     getPageDocument = deps.getPageDocument;
     debugLog = deps.debugLog;
-    
+
     state.onDialogMessage = onDialogMessage;
     state.onOptimizeCandidates = onOptimizeCandidates;
 }

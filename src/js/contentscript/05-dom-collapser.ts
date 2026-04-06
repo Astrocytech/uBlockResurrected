@@ -8,13 +8,49 @@
 
 *******************************************************************************/
 
-/**
- * Initialize DOM collapser.
- */
-export function initDOMCollapser() {
+interface Messaging {
+    send(channel: string, message: object): Promise<unknown>;
+}
+
+interface DOMWatcher {
+    addListener(listener: DOMListener): void;
+    removeListener(listener: DOMListener): void;
+}
+
+interface ShutdownCallbacks {
+    add(callback: () => void): void;
+    remove(callback: () => void): void;
+}
+
+interface VAPI {
+    messaging: Messaging;
+    domWatcher: DOMWatcher | null;
+    shutdown: ShutdownCallbacks;
+    randomToken(): string;
+    setTimeout(callback: () => void, ms: number): number;
+    userStylesheet: {
+        add(cssText: string, now?: boolean): void;
+    };
+    domCollapser: { start(): void } | null;
+}
+
+declare const vAPI: VAPI;
+
+interface DOMListener {
+    onDOMCreated(): void;
+    onDOMChanged(addedNodes: Node[], removedNodes: boolean): void;
+}
+
+interface ProcessedResponse {
+    id: number;
+    hash?: number;
+    blockedResources?: string[];
+}
+
+export function initDOMCollapser(): void {
     const messaging = vAPI.messaging;
-    const toCollapse = new Map();
-    const src1stProps = {
+    const toCollapse = new Map<number, Element[]>();
+    const src1stProps: Record<string, string> = {
         audio: 'currentSrc',
         embed: 'src',
         iframe: 'src',
@@ -22,12 +58,12 @@ export function initDOMCollapser() {
         object: 'data',
         video: 'currentSrc',
     };
-    const src2ndProps = {
+    const src2ndProps: Record<string, string> = {
         audio: 'src',
         img: 'src',
         video: 'src',
     };
-    const tagToTypeMap = {
+    const tagToTypeMap: Record<string, string> = {
         audio: 'media',
         embed: 'object',
         iframe: 'sub_frame',
@@ -35,25 +71,24 @@ export function initDOMCollapser() {
         object: 'object',
         video: 'media',
     };
-    let requestIdGenerator = 1,
-        processTimer,
-        cachedBlockedSet,
-        cachedBlockedSetHash,
-        cachedBlockedSetTimer,
-        toProcess = [],
-        toFilter = [],
-        netSelectorCacheCount = 0;
+    let requestIdGenerator = 1;
+    let processTimer: number | undefined;
+    let cachedBlockedSet: Set<string> | undefined;
+    let cachedBlockedSetHash: number | undefined;
+    let cachedBlockedSetTimer: number | undefined;
+    let toProcess: Element[] = [];
+    let toFilter: { type: string; url: string }[] = [];
+    let netSelectorCacheCount = 0;
 
-    const cachedBlockedSetClear = function() {
-        cachedBlockedSet =
-        cachedBlockedSetHash =
+    const cachedBlockedSetClear = function(): void {
+        cachedBlockedSet = undefined;
+        cachedBlockedSetHash = undefined;
         cachedBlockedSetTimer = undefined;
     };
 
-    // https://github.com/chrisaljoudi/uBlock/issues/399
-    // https://github.com/gorhill/uBlock/issues/2848
-    //   Use a user stylesheet to collapse placeholders.
-    const getCollapseToken = ( ) => {
+    let collapseToken: string | undefined;
+
+    const getCollapseToken = (): string => {
         if ( collapseToken === undefined ) {
             collapseToken = vAPI.randomToken();
             vAPI.userStylesheet.add(
@@ -63,24 +98,21 @@ export function initDOMCollapser() {
         }
         return collapseToken;
     };
-    let collapseToken;
 
-    // https://github.com/chrisaljoudi/uBlock/issues/174
-    //   Do not remove fragment from src URL
-    const onProcessed = function(response) {
-        // This happens if uBO is disabled or restarted.
+    const onProcessed = function(response: unknown): void {
         if ( response instanceof Object === false ) {
             toCollapse.clear();
             return;
         }
 
-        const targets = toCollapse.get(response.id);
+        const res = response as ProcessedResponse;
+        const targets = toCollapse.get(res.id);
         if ( targets === undefined ) { return; }
 
-        toCollapse.delete(response.id);
-        if ( cachedBlockedSetHash !== response.hash ) {
-            cachedBlockedSet = new Set(response.blockedResources);
-            cachedBlockedSetHash = response.hash;
+        toCollapse.delete(res.id);
+        if ( cachedBlockedSetHash !== res.hash ) {
+            cachedBlockedSet = new Set(res.blockedResources);
+            cachedBlockedSetHash = res.hash;
             if ( cachedBlockedSetTimer !== undefined ) {
                 clearTimeout(cachedBlockedSetTimer);
             }
@@ -90,26 +122,25 @@ export function initDOMCollapser() {
             return;
         }
 
-        const selectors = [];
-        let netSelectorCacheCountMax = response.netSelectorCacheCountMax;
+        const selectors: string[] = [];
+        const netSelectorCacheCountMax = 0;
 
         for ( const target of targets ) {
             const tag = target.localName;
+            if (tag === undefined) continue;
             let prop = src1stProps[tag];
             if ( prop === undefined ) { continue; }
-            let src = target[prop];
+            let src = (target as HTMLElement & Record<string, unknown>)[prop] as string;
             if ( typeof src !== 'string' || src.length === 0 ) {
                 prop = src2ndProps[tag];
                 if ( prop === undefined ) { continue; }
-                src = target[prop];
+                src = (target as HTMLElement & Record<string, unknown>)[prop] as string;
                 if ( typeof src !== 'string' || src.length === 0 ) { continue; }
             }
             if ( cachedBlockedSet.has(tagToTypeMap[tag] + ' ' + src) === false ) {
                 continue;
             }
             target.setAttribute(getCollapseToken(), '');
-            // https://github.com/chrisaljoudi/uBlock/issues/1048
-            //   Use attribute to construct CSS rule
             if ( netSelectorCacheCount > netSelectorCacheCountMax ) { continue; }
             const value = target.getAttribute(prop);
             if ( value ) {
@@ -127,7 +158,7 @@ export function initDOMCollapser() {
         });
     };
 
-    const send = function() {
+    const send = function(): void {
         processTimer = undefined;
         toCollapse.set(requestIdGenerator, toProcess);
         messaging.send('contentscript', {
@@ -144,7 +175,7 @@ export function initDOMCollapser() {
         requestIdGenerator += 1;
     };
 
-    const process = function(delay) {
+    const process = function(delay?: number): void {
         if ( toProcess.length === 0 ) { return; }
         if ( delay === 0 ) {
             if ( processTimer !== undefined ) {
@@ -156,31 +187,29 @@ export function initDOMCollapser() {
         }
     };
 
-    const add = function(target) {
+    const add = function(target: Element): void {
         toProcess[toProcess.length] = target;
     };
 
-    const addMany = function(targets) {
+    const addMany = function(targets: HTMLCollectionOf<Element> | Element[]): void {
         for ( const target of targets ) {
             add(target);
         }
     };
 
-    const iframeSourceModified = function(mutations) {
+    const iframeSourceModified = function(mutations: MutationRecord[]): void {
         for ( const mutation of mutations ) {
-            addIFrame(mutation.target, true);
+            addIFrame(mutation.target as HTMLIFrameElement, true);
         }
         process();
     };
     const iframeSourceObserver = new MutationObserver(iframeSourceModified);
-    const iframeSourceObserverOptions = {
+    const iframeSourceObserverOptions: MutationObserverInit = {
         attributes: true,
         attributeFilter: [ 'src' ]
     };
 
-    // https://github.com/gorhill/uBlock/issues/162
-    //   Be prepared to deal with possible change of src attribute.
-    const addIFrame = function(iframe, dontObserve) {
+    const addIFrame = function(iframe: HTMLIFrameElement, dontObserve?: boolean): void {
         if ( dontObserve !== true ) {
             iframeSourceObserver.observe(iframe, iframeSourceObserverOptions);
         }
@@ -191,20 +220,21 @@ export function initDOMCollapser() {
         add(iframe);
     };
 
-    const addIFrames = function(iframes) {
+    const addIFrames = function(iframes: HTMLCollectionOf<HTMLIFrameElement>): void {
         for ( const iframe of iframes ) {
             addIFrame(iframe);
         }
     };
 
-    const onResourceFailed = function(ev) {
-        if ( tagToTypeMap[ev.target.localName] !== undefined ) {
-            add(ev.target);
+    const onResourceFailed = function(ev: Event): void {
+        const target = ev.target as Element;
+        if ( target && tagToTypeMap[target.localName as string] !== undefined ) {
+            add(target);
             process();
         }
     };
 
-    const stop = function() {
+    const stop = function(): void {
         document.removeEventListener('error', onResourceFailed, true);
         if ( processTimer !== undefined ) {
             clearTimeout(processTimer);
@@ -216,28 +246,21 @@ export function initDOMCollapser() {
         vAPI.domCollapser = null;
     };
 
-    const start = function() {
+    const start = function(): void {
         if ( vAPI.domWatcher instanceof Object ) {
             vAPI.domWatcher.addListener(domWatcherInterface);
         }
     };
 
-    const domWatcherInterface = {
-        onDOMCreated: function() {
-            if ( self.vAPI instanceof Object === false ) { return; }
+    const domWatcherInterface: DOMListener = {
+        onDOMCreated(): void {
+            if ( vAPI instanceof Object === false ) { return; }
             if ( vAPI.domCollapser instanceof Object === false ) {
                 if ( vAPI.domWatcher instanceof Object ) {
                     vAPI.domWatcher.removeListener(domWatcherInterface);
                 }
                 return;
             }
-            // Listener to collapse blocked resources.
-            // - Future requests not blocked yet
-            // - Elements dynamically added to the page
-            // - Elements which resource URL changes
-            // https://github.com/chrisaljoudi/uBlock/issues/7
-            // Preferring getElementsByTagName over querySelectorAll:
-            //   http://jsperf.com/queryselectorall-vs-getelementsbytagname/145
             const elems = document.images ||
                           document.getElementsByTagName('img');
             for ( const elem of elems ) {
@@ -245,8 +268,9 @@ export function initDOMCollapser() {
                     add(elem);
                 }
             }
-            addMany(document.embeds || document.getElementsByTagName('embed'));
-            addMany(document.getElementsByTagName('object'));
+            const embeds = document.embeds || document.getElementsByTagName('embed');
+            addMany(Array.from(embeds));
+            addMany(Array.from(document.getElementsByTagName('object')));
             addIFrames(document.getElementsByTagName('iframe'));
             process(0);
 
@@ -254,14 +278,15 @@ export function initDOMCollapser() {
 
             vAPI.shutdown.add(stop);
         },
-        onDOMChanged: function(addedNodes) {
+        onDOMChanged(addedNodes: Node[]): void {
             if ( addedNodes.length === 0 ) { return; }
             for ( const node of addedNodes ) {
-                if ( node.localName === 'iframe' ) {
-                    addIFrame(node);
+                const elem = node as Element;
+                if ( elem.localName === 'iframe' ) {
+                    addIFrame(elem as HTMLIFrameElement);
                 }
-                if ( node.firstElementChild === null ) { continue; }
-                const iframes = node.getElementsByTagName('iframe');
+                if ( elem.firstElementChild === null ) { continue; }
+                const iframes = elem.getElementsByTagName('iframe');
                 if ( iframes.length !== 0 ) {
                     addIFrames(iframes);
                 }

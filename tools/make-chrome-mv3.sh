@@ -135,7 +135,7 @@ node tools/bundle-sw.js
 # Bundle epicker modules
 echo "*** uBlock0.chromium-mv3: Bundling epicker modules"
 cd src/js
-esbuild epicker/epicker-entry.js \
+esbuild epicker/epicker-entry.ts \
     --bundle \
     --format=iife \
     --outfile=../$DES/js/scriptlets/epicker.js \
@@ -148,7 +148,7 @@ cd - > /dev/null
 # Bundle content script modules
 echo "*** uBlock0.chromium-mv3: Bundling content script modules"
 cd src/js
-esbuild contentscript/contentscript-entry.js \
+esbuild contentscript/contentscript-entry.ts \
     --bundle \
     --format=iife \
     --outfile=../$DES/js/contentscript.js \

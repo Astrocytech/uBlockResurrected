@@ -8,29 +8,59 @@
 
 *******************************************************************************/
 
-/**
- * Initialize DOM surveyor.
- */
-export function initDOMSurveyor() {
-    const queriedHashes = new Set();
-    const newHashes = new Set();
+interface Messaging {
+    send(channel: string, message: object): Promise<unknown>;
+}
+
+interface SafeAnimationFrame {
+    start(delay?: number): void;
+    clear(): void;
+}
+
+interface DOMFilterer {
+    addCSS(css: string, details?: { mustInject?: boolean; silent?: boolean }): void;
+    exceptCSSRules(exceptions: string[]): void;
+    exceptions: string[];
+}
+
+interface VAPI {
+    messaging: Messaging;
+    domFilterer: DOMFilterer;
+    domSurveyor: { start(details: { hostname: string }): void; addHashes(hashes: number[]): void } | null;
+    SafeAnimationFrame: new (callback: () => void) => SafeAnimationFrame;
+}
+
+declare const vAPI: VAPI;
+
+interface SurveyResult {
+    result?: {
+        injectedCSS?: string;
+        excepted?: string[];
+    };
+}
+
+interface StartDetails {
+    hostname: string;
+}
+
+export function initDOMSurveyor(): void {
+    const queriedHashes = new Set<number>();
+    const newHashes = new Set<number>();
     const maxSurveyNodes = 65536;
-    const pendingLists = [];
-    const pendingNodes = [];
-    const processedSet = new Set();
-    const ignoreTags = Object.assign(Object.create(null), {
+    const pendingLists: Element[][] = [];
+    const pendingNodes: (Element | null)[] = [];
+    const processedSet = new Set<Element>();
+    const ignoreTags: Record<string, number> = Object.assign(Object.create(null), {
         br: 1, head: 1, link: 1, meta: 1, script: 1, style: 1
     });
-    let domObserver;
-    let domFilterer;
+    let domObserver: MutationObserver | undefined;
+    let domFilterer: DOMFilterer;
     let hostname = '';
     let domChanged = false;
     let scannedCount = 0;
     let stopped = false;
 
-    // http://www.cse.yorku.ca/~oz/hash.html#djb2
-    //   Must mirror cosmetic filtering compiler's version
-    const hashFromStr = (type, s) => {
+    const hashFromStr = (type: number, s: string): number => {
         const len = s.length;
         const step = len + 7 >>> 3;
         let hash = (type << 5) + type ^ len;
@@ -40,21 +70,21 @@ export function initDOMSurveyor() {
         return hash & 0xFFFFFF;
     };
 
-    const addHashes = hashes => {
+    const addHashes = (hashes: number[]): void => {
         for ( const hash of hashes ) {
             queriedHashes.add(hash);
         }
     };
 
-    const qsa = (context, selector) =>
+    const qsa = (context: Element, selector: string): Element[] =>
         Array.from(context.querySelectorAll(selector));
 
-    const addPendingList = list => {
+    const addPendingList = (list: Element[]): void => {
         if ( list.length === 0 ) { return; }
         pendingLists.push(list);
     };
 
-    const nextPendingNodes = ( ) => {
+    const nextPendingNodes = (): number => {
         if ( pendingLists.length === 0 ) { return 0; }
         const bufferSize = 256;
         let j = 0;
@@ -77,30 +107,20 @@ export function initDOMSurveyor() {
         return j;
     };
 
-    const hasPendingNodes = ( ) => {
+    const hasPendingNodes = (): boolean => {
         return pendingLists.length !== 0 || newHashes.size !== 0 ;
     };
 
-    // Extract all classes/ids: these will be passed to the cosmetic
-    // filtering engine, and in return we will obtain only the relevant
-    // CSS selectors.
-
-    // https://github.com/gorhill/uBlock/issues/672
-    // http://www.w3.org/TR/2014/REC-html5-20141028/infrastructure.html#space-separated-tokens
-    // http://jsperf.com/enumerate-classes/6
-
-    const idFromNode = node => {
+    const idFromNode = (node: Element): void => {
         const raw = node.id;
         if ( typeof raw !== 'string' || raw.length === 0 ) { return; }
-        const hash = hashFromStr(0x23 /* '#' */, raw.trim());
+        const hash = hashFromStr(0x23, raw.trim());
         if ( queriedHashes.has(hash) ) { return; }
         queriedHashes.add(hash);
         newHashes.add(hash);
     };
 
-    // https://github.com/uBlockOrigin/uBlock-issues/discussions/2076
-    //   Performance: avoid using Element.classList
-    const classesFromNode = node => {
+    const classesFromNode = (node: Element): void => {
         const s = node.getAttribute('class');
         if ( typeof s !== 'string' ) { return; }
         const len = s.length;
@@ -111,18 +131,18 @@ export function initDOMSurveyor() {
             const token = s.slice(beg, end).trimEnd();
             beg = end;
             if ( token.length === 0 ) { continue; }
-            const hash = hashFromStr(0x2E /* '.' */, token);
+            const hash = hashFromStr(0x2E, token);
             if ( queriedHashes.has(hash) ) { continue; }
             queriedHashes.add(hash);
             newHashes.add(hash);
         }
     };
 
-    const getSurveyResults = safeOnly => {
-        if ( Boolean(self.vAPI?.messaging) === false ) { return stop(); }
+    const getSurveyResults = (safeOnly: boolean): void => {
+        if ( vAPI?.messaging === undefined ) { return stop(); }
         const promise = newHashes.size === 0
             ? Promise.resolve(null)
-            : self.vAPI.messaging.send('contentscript', {
+            : vAPI.messaging.send('contentscript', {
                 what: 'retrieveGenericCosmeticSelectors',
                 hostname,
                 hashes: Array.from(newHashes),
@@ -135,7 +155,7 @@ export function initDOMSurveyor() {
         newHashes.clear();
     };
 
-    const doSurvey = ( ) => {
+    const doSurvey = (): void => {
         const t0 = performance.now();
         const nodes = pendingNodes;
         const deadline = t0 + 4;
@@ -146,11 +166,11 @@ export function initDOMSurveyor() {
             for ( let i = 0; i < n; i++ ) {
                 const node = nodes[i]; nodes[i] = null;
                 if ( domChanged ) {
-                    if ( processedSet.has(node) ) { continue; }
-                    processedSet.add(node);
+                    if ( processedSet.has(node as Element) ) { continue; }
+                    processedSet.add(node as Element);
                 }
-                idFromNode(node);
-                classesFromNode(node);
+                idFromNode(node as Element);
+                classesFromNode(node as Element);
                 scanned += 1;
             }
             if ( performance.now() >= deadline ) { break; }
@@ -160,24 +180,18 @@ export function initDOMSurveyor() {
             stop();
         }
         processedSet.clear();
-        getSurveyResults();
+        getSurveyResults(false);
     };
 
     const surveyTimer = new vAPI.SafeAnimationFrame(doSurvey);
 
-    // This is to shutdown the surveyor if result of surveying keeps being
-    // fruitless. This is useful on long-lived web page. I arbitrarily
-    // picked 5 minutes before the surveyor is allowed to shutdown. I also
-    // arbitrarily picked 256 misses before the surveyor is allowed to
-    // shutdown.
     let canShutdownAfter = Date.now() + 300000;
     let surveyResultMissCount = 0;
 
-    // Handle main process' response.
-
-    const processSurveyResults = response => {
+    const processSurveyResults = (response: unknown): void => {
         if ( stopped ) { return; }
-        const result = response && response.result;
+        const res = response as SurveyResult | null;
+        const result = res && res.result;
         let mustCommit = false;
         if ( result ) {
             const css = result.injectedCSS;
@@ -202,15 +216,14 @@ export function initDOMSurveyor() {
         if ( surveyResultMissCount < 256 || Date.now() < canShutdownAfter ) {
             return;
         }
-        //console.info(`[domSurveyor][${hostname}] Shutting down, too many misses`);
         stop();
-        self.vAPI.messaging.send('contentscript', {
+        vAPI.messaging.send('contentscript', {
             what: 'disableGenericCosmeticFilteringSurveyor',
             hostname,
         });
     };
 
-    const onDomChanged = mutations => {
+    const onDomChanged = (mutations: MutationRecord[]): void => {
         domChanged = true;
         for ( const mutation of mutations ) {
             if ( mutation.type === 'childList' ) {
@@ -218,16 +231,17 @@ export function initDOMSurveyor() {
                 if ( addedNodes.length === 0 ) { continue; }
                 for ( const node of addedNodes ) {
                     if ( node.nodeType !== 1 ) { continue; }
-                    if ( ignoreTags[node.localName] ) { continue; }
-                    if ( node.parentElement === null ) { continue; }
-                    addPendingList([ node ]);
-                    if ( node.firstElementChild === null ) { continue; }
-                    addPendingList(qsa(node, '[id],[class]'));
+                    const elem = node as Element;
+                    if ( ignoreTags[elem.localName] ) { continue; }
+                    if ( elem.parentElement === null ) { continue; }
+                    addPendingList([ elem ]);
+                    if ( elem.firstElementChild === null ) { continue; }
+                    addPendingList(qsa(elem, '[id],[class]'));
                 }
             } else if ( mutation.attributeName === 'class' ) {
-                classesFromNode(mutation.target);
+                classesFromNode(mutation.target as Element);
             } else {
-                idFromNode(mutation.target);
+                idFromNode(mutation.target as Element);
             }
         }
         if ( hasPendingNodes() ) {
@@ -235,13 +249,10 @@ export function initDOMSurveyor() {
         }
     };
 
-    const start = details => {
-        if ( Boolean(self.vAPI?.domFilterer) === false ) { return stop(); }
+    const start = (details: StartDetails): void => {
+        if ( vAPI?.domFilterer === undefined ) { return stop(); }
         hostname = details.hostname;
         domFilterer = vAPI.domFilterer;
-        // https://github.com/uBlockOrigin/uBlock-issues/issues/1692
-        //   Look-up safe-only selectors to mitigate probability of
-        //   html/body elements of erroneously being targeted.
         if ( document.documentElement !== null ) {
             idFromNode(document.documentElement);
             classesFromNode(document.documentElement);
@@ -251,7 +262,7 @@ export function initDOMSurveyor() {
             classesFromNode(document.body);
         }
         if ( newHashes.size !== 0 ) {
-            getSurveyResults(newHashes, true);
+            getSurveyResults(true);
         }
         addPendingList(qsa(document, '[id],[class]'));
         if ( hasPendingNodes() ) {
@@ -266,7 +277,7 @@ export function initDOMSurveyor() {
         });
     };
 
-    const stop = ( ) => {
+    const stop = (): void => {
         stopped = true;
         pendingLists.length = 0;
         surveyTimer.clear();
@@ -274,12 +285,12 @@ export function initDOMSurveyor() {
             domObserver.disconnect();
             domObserver = undefined;
         }
-        if ( self.vAPI?.domSurveyor ) {
-            self.vAPI.domSurveyor = null;
+        if ( vAPI?.domSurveyor ) {
+            vAPI.domSurveyor = null;
         }
     };
 
-    self.vAPI.domSurveyor = { start, addHashes };
+    vAPI.domSurveyor = { start, addHashes };
 }
 
 /******************************************************************************/

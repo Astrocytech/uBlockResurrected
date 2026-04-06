@@ -9,7 +9,7 @@
 
 const reCosmeticAnchor = /^#(\$|\?|\$\?)?#/;
 
-const netFilter1stSources = {
+const netFilter1stSources: Record<string, string> = {
     audio: 'currentSrc',
     video: 'currentSrc',
     source: 'src',
@@ -19,7 +19,7 @@ const netFilter1stSources = {
     object: 'data',
 };
 
-const netFilter2ndSrcs = {
+const netFilter2ndSrcs: Record<string, string> = {
     audio: 'src',
     video: 'src',
     img: 'src',
@@ -42,27 +42,53 @@ const filterTypes = [
 
 const hideBackgroundStyle = 'background-image:none!important;';
 
-/**
- * Merge URL strings using diff algorithm
- * @param {string[]} urls - Array of URLs to merge
- * @returns {string} - Merged URL string
- */
-const mergeStrings = function(urls) {
+interface EpickerState {
+    lastNetFilterUnion: string;
+    lastNetFilterHostname: string;
+    netFilterCandidates: string[];
+    cosmeticFilterCandidates: string[];
+    candidateElements: Element[];
+    bestCandidateFilter: { type: string; filters: string[]; slot: number } | null;
+    filtersFrom: (x: number, y: number, first?: Element) => number;
+    netFilterFromElement: (elem: Element) => void;
+    cosmeticFilterFromElement: (elem: Element) => number;
+    resourceURLsFromElement: (elem: Element) => string[];
+    filterTypes: string[];
+    hideBackgroundStyle: string;
+    reCosmeticAnchor: RegExp;
+}
+
+interface EpickerDeps {
+    safeQuerySelectorAll: (node: Node | null, selector: string) => NodeListOf<Element>;
+    getPageDocument: () => Document;
+    debugLog: (source: string, ...args: unknown[]) => void;
+    elementFromPoint: (x: number, y: number) => Element | null;
+    pickerFrame: HTMLElement | null;
+}
+
+let epickerState: EpickerState;
+let safeQuerySelectorAll: (node: Node | null, selector: string) => NodeListOf<Element>;
+let getPageDocument: () => Document;
+let debugLog: (source: string, ...args: unknown[]) => void;
+let elementFromPoint: (x: number, y: number) => Element | null;
+let pickerFrame: HTMLElement | null;
+
+const mergeStrings = function(urls: string[]): string {
     if ( urls.length === 0 ) { return ''; }
     if (
         urls.length === 1 ||
-        self.diff_match_patch instanceof Function === false
+        (self as unknown as { diff_match_patch?: unknown }).diff_match_patch instanceof Function === false
     ) {
         return urls[0];
     }
-    const differ = new self.diff_match_patch();
+    const differ = new (self as unknown as { diff_match_patch: new () => { diff_main: (a: string, b: string) => [number, string][] } }).diff_match_patch();
     let merged = urls[0];
     for ( let i = 1; i < urls.length; i++ ) {
         const diffs = differ.diff_main(
             urls[i].split('').join('\n'),
             merged.split('').join('\n')
         );
-        const result = [];
+        const result: string[] = [];
         for ( const diff of diffs ) {
             if ( diff[0] !== 0 ) {
                 result.push('*');
@@ -75,22 +101,12 @@ const mergeStrings = function(urls) {
     return merged;
 };
 
-/**
- * Trim fragment from URL
- * @param {string} url - URL to trim
- * @returns {string} - Trimmed URL
- */
-const trimFragmentFromURL = function(url) {
+const trimFragmentFromURL = function(url: string): string {
     const pos = url.indexOf('#');
     return pos !== -1 ? url.slice(0, pos) : url;
 };
 
-/**
- * Get background image URL from element
- * @param {Element} elem - Element to check
- * @returns {string} - Background image URL
- */
-const backgroundImageURLFromElement = function(elem) {
+const backgroundImageURLFromElement = function(elem: Element): string {
     const style = window.getComputedStyle(elem);
     const bgImg = style.backgroundImage || '';
     const matches = /^url\((["']?)([^"']+)\1\)$/.exec(bgImg);
@@ -100,13 +116,8 @@ const backgroundImageURLFromElement = function(elem) {
         : '';
 };
 
-/**
- * Get resource URLs from srcset attribute
- * @param {Element} elem - Element to check
- * @param {string[]} out - Output array for URLs
- */
-const resourceURLsFromSrcset = function(elem, out) {
-    let srcset = elem.srcset;
+const resourceURLsFromSrcset = function(elem: Element, out: string[]): void {
+    let srcset = (elem as HTMLSourceElement).srcset;
     if ( typeof srcset !== 'string' || srcset === '' ) { return; }
     for(;;) {
         srcset = srcset.trim();
@@ -114,7 +125,7 @@ const resourceURLsFromSrcset = function(elem, out) {
         if ( /^,/.test(srcset) ) { break; }
         let match = /^\S+/.exec(srcset);
         if ( match === null ) { break; }
-        srcset = srcset.slice(match.index + match[0].length);
+        srcset = srcset.slice(match.index! + match[0].length);
         let url = match[0];
         if ( /,$/.test(url) ) {
             url = url.replace(/,$/, '');
@@ -122,7 +133,7 @@ const resourceURLsFromSrcset = function(elem, out) {
         } else {
             match = /^[^,]*(?:\(.+?\))?[^,]*(?:,|$)/.exec(srcset);
             if ( match === null ) { break; }
-            srcset = srcset.slice(match.index + match[0].length);
+            srcset = srcset.slice(match.index! + match[0].length);
         }
         const parsedURL = new URL(url, document.baseURI);
         if ( parsedURL.pathname.length === 0 ) { continue; }
@@ -130,12 +141,7 @@ const resourceURLsFromSrcset = function(elem, out) {
     }
 };
 
-/**
- * Get resource URLs from picture element
- * @param {Element} elem - Picture or media element
- * @param {string[]} out - Output array for URLs
- */
-const resourceURLsFromPicture = function(elem, out) {
+const resourceURLsFromPicture = function(elem: Element, out: string[]): void {
     if ( elem.localName === 'source' ) { return; }
     const picture = elem.parentElement;
     if ( picture === null || picture.localName !== 'picture' ) { return; }
@@ -147,23 +153,18 @@ const resourceURLsFromPicture = function(elem, out) {
     }
 };
 
-/**
- * Get resource URLs from element
- * @param {Element} elem - Element to extract URLs from
- * @returns {string[]} - Array of resource URLs
- */
-const resourceURLsFromElement = function(elem) {
-    const urls = [];
+const resourceURLsFromElement = function(elem: Element): string[] {
+    const urls: string[] = [];
     const tagName = elem.localName;
-    const prop = netFilter1stSources[tagName];
+    const prop = netFilter1stSources[tagName || ''];
     if ( prop === undefined ) {
         const url = backgroundImageURLFromElement(elem);
         if ( url !== '' ) { urls.push(url); }
         return urls;
     }
-    let s = elem[prop];
+    let s = (elem as HTMLElement & Record<string, unknown>)[prop];
     if ( s instanceof SVGAnimatedString ) {
-        s = s.baseVal;
+        s = (s as SVGAnimatedString).baseVal;
     }
     if ( typeof s === 'string' && /^https?:\/\//.test(s) ) {
         urls.push(trimFragmentFromURL(s.slice(0, 1024)));
@@ -173,12 +174,7 @@ const resourceURLsFromElement = function(elem) {
     return urls;
 };
 
-/**
- * Generate network filter from URL union
- * @param {string} patternIn - URL pattern
- * @param {string[]} out - Output array for filters
- */
-const netFilterFromUnion = function(patternIn, out) {
+const netFilterFromUnion = function(patternIn: string, out: string[]): void {
     const currentHostname = self.location.hostname;
     if (
         epickerState.lastNetFilterUnion === '' ||
@@ -204,11 +200,7 @@ const netFilterFromUnion = function(patternIn, out) {
     epickerState.lastNetFilterUnion = patternIn;
 };
 
-/**
- * Generate network filter from element
- * @param {Element} elem - Element to generate filter from
- */
-const netFilterFromElement = function(elem) {
+const netFilterFromElement = function(elem: Element): void {
     const urls = resourceURLsFromElement(elem);
     if ( urls.length === 0 ) { return; }
     for ( const url of urls ) {
@@ -216,20 +208,12 @@ const netFilterFromElement = function(elem) {
     }
 };
 
-/**
- * Generate cosmetic filter from element
- * @param {Element} elem - Element to generate filter from
- * @returns {number} - Number of filters generated
- */
-const cosmeticFilterFromElement = function(elem) {
+const cosmeticFilterFromElement = function(elem: Element): number {
     let selector = '';
     const tagName = elem.localName;
 
-    // https://github.com/uBlockOrigin/uBlock-issues/issues/17
-    //   Ignore non-element nodes
     if ( tagName === undefined ) { return 0; }
 
-    // https://github.com/gorhill/uBlock/issues/1725
     if (
         tagName === 'a' ||
         tagName === 'body' ||
@@ -238,7 +222,6 @@ const cosmeticFilterFromElement = function(elem) {
         return 0;
     }
 
-    // https://github.com/gorhill/uBlock/issues/3456
     if ( tagName === 'link' ) {
         const rel = elem.getAttribute('rel');
         if ( typeof rel === 'string' ) {
@@ -255,22 +238,16 @@ const cosmeticFilterFromElement = function(elem) {
         return 0;
     }
 
-    // https://github.com/gorhill/uBlock/issues/1897
-    // Ignore `data:` URI, they can't be handled by an HTTP observer.
     const bgImg = backgroundImageURLFromElement(elem);
     if ( bgImg !== '' ) {
         epickerState.netFilterCandidates.push(bgImg);
     }
 
-    // https://github.com/gorhill/uBlock/issues/1143
-    //   Try to find a unique identifier for the element
     const id = elem.id;
     if ( typeof id === 'string' && id.length !== 0 ) {
         selector = '#' + CSS.escape(id);
     }
 
-    // https://github.com/gorhill/uBlock/issues/1143
-    //   Try to find a identifier from CSS classes
     const className = elem.className;
     if (
         selector === '' &&
@@ -278,7 +255,6 @@ const cosmeticFilterFromElement = function(elem) {
         className.length !== 0
     ) {
         const classList = className.trim().split(/\s+/);
-        // Collect non-single-letter CSS classes
         for ( let i = 0; i < classList.length; i++ ) {
             const c = classList[i];
             if ( c.length < 2 ) { continue; }
@@ -287,10 +263,8 @@ const cosmeticFilterFromElement = function(elem) {
         }
     }
 
-    // https://github.com/uBlockOrigin/uBlock-issues/issues/16
-    //   Use src as fallback
     const prop = netFilter1stSources[tagName];
-    const src = prop !== undefined ? elem[prop] || elem[netFilter2ndSrcs[tagName]] : undefined;
+    const src = prop !== undefined ? (elem as HTMLElement)[prop] || (elem as HTMLElement)[netFilter2ndSrcs[tagName]] : undefined;
     if (
         selector === '' &&
         typeof src === 'string' &&
@@ -306,13 +280,12 @@ const cosmeticFilterFromElement = function(elem) {
         }
     }
 
-    // For `srcset`, use img[srcset*=...] selector
     if (
         selector === '' &&
-        typeof elem.srcset === 'string' &&
-        elem.srcset.length !== 0
+        typeof (elem as HTMLImageElement).srcset === 'string' &&
+        (elem as HTMLImageElement).srcset.length !== 0
     ) {
-        const match = /([^\s,]+)[,\s]/.exec(elem.srcset);
+        const match = /([^\s,]+)[,\s]/.exec((elem as HTMLImageElement).srcset);
         if ( match !== null ) {
             const src = new URL(match[1], document.baseURI).pathname;
             const filename = src.slice(src.lastIndexOf('/') + 1);
@@ -323,7 +296,6 @@ const cosmeticFilterFromElement = function(elem) {
         }
     }
 
-    // Handle special elements
     switch ( tagName ) {
     case 'audio':
     case 'video':
@@ -379,8 +351,7 @@ const cosmeticFilterFromElement = function(elem) {
         break;
     }
 
-    // Try to extract from attributes
-    const attributes = [];
+    const attributes: { k: string; v: string }[] = [];
     const attrNames = [ 'title', 'alt', 'aria-label', 'data-ublock-hover' ];
     for ( const attrName of attrNames ) {
         let v = elem.getAttribute(attrName);
@@ -389,7 +360,6 @@ const cosmeticFilterFromElement = function(elem) {
             break;
         }
     }
-    // For inputs, try type and placeholder
     if ( tagName === 'input' || tagName === 'textarea' ) {
         let v = elem.getAttribute('type');
         if ( v && v.length !== 0 ) {
@@ -401,7 +371,6 @@ const cosmeticFilterFromElement = function(elem) {
         }
     }
 
-    // Build selector from attributes
     if ( selector === '' ) {
         let v;
         while ( (v = attributes.pop()) ) {
@@ -410,7 +379,7 @@ const cosmeticFilterFromElement = function(elem) {
             const attrVal = elem.getAttribute(v.k);
             if ( attrVal === v.v ) {
                 selector += `[${v.k}="${w}"]`;
-            } else if ( attrVal.startsWith(v.v) ) {
+            } else if ( attrVal && attrVal.startsWith(v.v) ) {
                 selector += `[${v.k}^="${w}"]`;
             } else {
                 selector += `[${v.k}*="${w}"]`;
@@ -418,7 +387,6 @@ const cosmeticFilterFromElement = function(elem) {
         }
     }
 
-    // Add tag name if selector is empty or ambiguous
     const parentNode = elem.parentNode;
     if (
         selector === '' ||
@@ -427,17 +395,17 @@ const cosmeticFilterFromElement = function(elem) {
         selector = tagName + selector;
     }
 
-    // Use nth-of-type for further specificity
     if ( safeQuerySelectorAll(parentNode, `:scope > ${selector}`).length > 1 ) {
         let i = 1;
-        while ( elem.previousSibling !== null ) {
-            elem = elem.previousSibling;
+        let sibling = elem.previousSibling;
+        while ( sibling !== null ) {
             if (
-                typeof elem.localName === 'string' &&
-                elem.localName === tagName
+                typeof (sibling as Element).localName === 'string' &&
+                (sibling as Element).localName === tagName
             ) {
                 i++;
             }
+            sibling = sibling.previousSibling;
         }
         selector += `:nth-of-type(${i})`;
     }
@@ -455,40 +423,24 @@ const cosmeticFilterFromElement = function(elem) {
     return 1;
 };
 
-/**
- * Extract filters from position
- * @param {number} x - X coordinate
- * @param {number} y - Y coordinate
- * @param {Element} [first] - Pre-selected element
- * @returns {number} - Number of filters found
- */
-const filtersFrom = function(x, y, first) {
-    debugLog('epicker', 'filtersFrom called with x:', x, 'y:', y);
-    debugLog('epicker', 'self.location.protocol:', self.location.protocol);
-    
+const filtersFrom = function(x: number | undefined, y: number | undefined, first?: Element): number {
     const pageDoc = getPageDocument();
-    debugLog('epicker', 'pageDoc elementsFromPoint:', typeof pageDoc.elementsFromPoint);
-    
+
     epickerState.bestCandidateFilter = null;
     epickerState.netFilterCandidates.length = 0;
     epickerState.cosmeticFilterCandidates.length = 0;
     epickerState.candidateElements.length = 0;
 
-    // Get first element
     let element = first;
     if ( element === undefined ) {
-        if ( typeof x === 'number' ) {
+        if ( typeof x === 'number' && typeof y === 'number' ) {
             element = elementFromPoint(x, y);
-            debugLog('epicker', 'elementFromPoint result:', element);
         }
     } else {
         x = undefined;
     }
 
-    debugLog('epicker', 'first element:', element);
-
-    // Extract network filter candidates
-    if ( typeof x === 'number' ) {
+    if ( typeof x === 'number' && typeof y === 'number' ) {
         const magicAttr = `${epickerState.pickerUniqueId}-clickblind`;
         if (pickerFrame) {
             pickerFrame.setAttribute(magicAttr, '');
@@ -497,43 +449,35 @@ const filtersFrom = function(x, y, first) {
         if (pickerFrame) {
             pickerFrame.removeAttribute(magicAttr);
         }
-        debugLog('epicker', 'elements from point:', elems.length);
         for ( const elem of elems ) {
-            netFilterFromElement(elem);
+            if (elem instanceof Element) {
+                netFilterFromElement(elem);
+            }
         }
     } else if ( element !== null ) {
         netFilterFromElement(element);
     }
 
-    // Extract cosmetic filter candidates from ancestors
-    let elem = element;
+    let elem: Node | null = element;
     while ( elem !== null ) {
-        if ( cosmeticFilterFromElement(elem) !== 0 ) {
+        if ( elem instanceof Element && cosmeticFilterFromElement(elem) !== 0 ) {
             epickerState.candidateElements.push(elem);
         }
         elem = elem.parentNode;
         if ( elem === pageDoc.body ) { break; }
     }
 
-    // Return count of total candidates
     return epickerState.netFilterCandidates.length + epickerState.cosmeticFilterCandidates.length;
 };
 
-/**
- * Initialize filter engine
- * @param {Object} state - Shared epicker state
- * @param {Object} deps - Dependencies (utilities)
- */
-export function initFilterEngine(state, deps) {
-    // Store references
+export function initFilterEngine(state: EpickerState, deps: EpickerDeps): void {
     epickerState = state;
     safeQuerySelectorAll = deps.safeQuerySelectorAll;
     getPageDocument = deps.getPageDocument;
     debugLog = deps.debugLog;
     elementFromPoint = deps.elementFromPoint;
     pickerFrame = deps.pickerFrame;
-    
-    // Export functions
+
     state.filtersFrom = filtersFrom;
     state.netFilterFromElement = netFilterFromElement;
     state.cosmeticFilterFromElement = cosmeticFilterFromElement;
@@ -543,12 +487,6 @@ export function initFilterEngine(state, deps) {
     state.reCosmeticAnchor = reCosmeticAnchor;
 }
 
-// Module-level references (will be set by initFilterEngine)
-let epickerState;
-let safeQuerySelectorAll;
-let getPageDocument;
-let debugLog;
-let elementFromPoint;
-let pickerFrame;
+export { netFilter1stSources, netFilter2ndSrcs, filterTypes, hideBackgroundStyle, backgroundImageURLFromElement };
 
 /******************************************************************************/
