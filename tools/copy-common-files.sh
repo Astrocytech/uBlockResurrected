@@ -11,7 +11,7 @@ bash ./tools/make-assets.sh        $DES
 cp -R src/css                      $DES/
 cp -R src/img                      $DES/
 mkdir $DES/js
-cp -R src/js/*.js                  $DES/js/
+cp src/js/*.ts                    $DES/js/
 cp -R src/js/blocker-core          $DES/js/
 cp -R src/js/resources             $DES/js/
 cp -R src/js/codemirror            $DES/js/

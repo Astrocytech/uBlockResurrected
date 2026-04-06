@@ -2,47 +2,6 @@
 <html id="uBO-popup-panel">
 
 <head>
-<style>
-:root {
-    --font-size: 14px;
-    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --surface-0-rgb: 255 255 255;
-    --surface-1: #ffffff;
-    --surface-2: #f0f0f0;
-    --surface-3: #e8e8e8;
-    --ink-1: #000000;
-    --ink-2: #666666;
-    --ink-3: #999999;
-    --ink-4: #333333;
-    --primary-50: #4285f4;
-    --popup-power-ink: #4285f4;
-    --button-surface-rgb: 200,200,200;
-    --border-1: #cccccc;
-    --border-2: #dddddd;
-    --default-gap: 16px;
-    --default-gap-small: 12px;
-    --default-gap-xsmall: 8px;
-    --button-font-size: 13px;
-    --popup-gap: 16px;
-    --popup-gap-thin: 8px;
-    --popup-gap-extra-thin: 4px;
-    --popup-toolbar-surface: #f0f0f0;
-    --popup-ruleset-tool-surface: #ffffff;
-    --popup-ruleset-tool-ink: #666666;
-    --checkbox-ink: #999999;
-}
-:root.dark { --surface-1: #1a1a1a; --surface-2: #2a2a2a; --surface-3: #3a3a3a; --ink-1: #ffffff; --ink-2: #aaaaaa; --ink-3: #666666; --ink-4: #cccccc; --button-surface-rgb: 80,80,80; --border-1: #444444; --border-2: #555555; --popup-toolbar-surface: #2a2a2a; --popup-ruleset-tool-surface: #1a1a1a; --popup-ruleset-tool-ink: #aaaaaa; --checkbox-ink: #666666; }
-body { margin: 0; font-size: var(--font-size); overflow: hidden; line-height: 20px; }
-body.loading { opacity: 1; }
-a { color: var(--ink-1); }
-a svg { fill: var(--ink-1); }
-#panes { display: flex; flex-direction: row; }
-#main { padding: 10px; min-width: 200px; }
-#sticky { padding: 10px; background: var(--surface-2); }
-.toolRibbon { padding: 8px 0; }
-.toolRibbon > * { margin: 2px; }
-hr { margin: 8px 0; border: 0; border-top: 1px solid var(--border-1); }
-</style>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark" />
@@ -54,7 +13,7 @@ hr { margin: 8px 0; border: 0; border-top: 1px solid var(--border-1); }
 <title data-i18n="extName"></title>
 </head>
 
-<body>
+<body class="loading" data-more="abcd">
 <div id="panes">
     <div id="main">
         <div id="sticky">
@@ -141,16 +100,15 @@ hr { margin: 8px 0; border: 0; border-top: 1px solid var(--border-1); }
     <div id="tooltip"></div>
 </div>
 
-<script src="js/i18n-fallback.js"></script>
 <script src="lib/hsluv/hsluv-0.1.0.min.js"></script>
 
-
+<script src="js/fa-icons.js" type="module"></script>
 <script src="js/vapi.js"></script>
 <script src="js/vapi-common.js"></script>
 <script src="js/vapi-client.js"></script>
-<script src="js/theme-bundle.js"></script>
-<script src="js/i18n-bundle.js"></script>
-<script src="js/popup-fenix-bundle.js"></script>
+<script src="js/theme.js" type="module"></script>
+<script src="js/i18n.js" type="module"></script>
+<script src="js/popup-fenix.js" type="module"></script>
 
 </body>
 

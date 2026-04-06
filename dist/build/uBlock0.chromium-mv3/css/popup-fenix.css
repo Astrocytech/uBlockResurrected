@@ -5,11 +5,11 @@
     }
 
 /* Internal CSS values */
-body {
+:root body {
     overflow: hidden;
     }
-body,
-body {
+:root body,
+:root.mobile body {
     --font-size: 14px;
     --popup-gap: var(--font-size);
     --popup-gap-thin: calc(0.5 * var(--popup-gap));
@@ -20,7 +20,7 @@ body {
     font-size: var(--font-size);
     line-height: 20px;
     }
-body.loading {
+:root body.loading {
     opacity: 0;
     }
 a {
@@ -44,7 +44,7 @@ a {
     max-width: 340px;
     min-width: var(--popup-main-min-width);
     }
-portrait #main {
+:root.portrait #main {
     align-self: inherit;
     }
 hr {
@@ -145,19 +145,19 @@ body.needSave #revertRules {
     font-size: 105%;
     margin-bottom: var(--popup-gap-thin);
     }
-portrait #basicStats {
+:root.portrait #basicStats {
     grid-template: auto / auto auto;
     margin-bottom: 0;
     }
-portrait #basicStats > span {
+:root.portrait #basicStats > span {
     font-size: inherit;
     justify-self: stretch;
     margin-bottom: var(--popup-gap);
     white-space: unset;
     }
-portrait #basicStats > [data-i18n] {
+:root.portrait #basicStats > [data-i18n] {
     }
-portrait #basicStats > [data-i18n] + span {
+:root.portrait #basicStats > [data-i18n] + span {
     text-align: end;
     }
 
@@ -725,19 +725,19 @@ body:not([data-more*="e"]) [data-more="e"] {
     overflow-y: auto;
     width: 100%;
     }
-portrait #panes {
+:root.portrait #panes {
     flex-direction: column;
     }
-portrait #main {
+:root.portrait #main {
     max-width: unset;
     }
-portrait #firewall {
+:root.portrait #firewall {
     max-height: unset;
     max-width: unset;
     min-width: unset;
     overflow-y: hidden;
     }
-portrait body[data-more*="e"] #firewall-vspacer {
+:root.portrait body[data-more*="e"] #firewall-vspacer {
     display: block;
     }
 

@@ -22,34 +22,34 @@ cp platform/chrome/manifest.json $DES/
 echo "*** uBlock0.chromium-mv3: Bundling JS files"
 cd $DES/js
 
-# Bundle popup-fenix.js (has imports from ../lib/punycode.js and ./dom.js, ./i18n.js)
-cat popup-fenix.js fa-icons.js > popup-fenix-with-icons.js
-esbuild popup-fenix-with-icons.js --bundle --format=iife --outfile=popup-fenix-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
-rm -f popup-fenix-with-icons.js
+# Bundle popup-fenix.ts (has imports from ../lib/punycode.js and ./dom.js, ./i18n.js)
+cat popup-fenix.ts fa-icons.ts > popup-fenix-with-icons.ts
+esbuild popup-fenix-with-icons.ts --bundle --format=iife --outfile=popup-fenix-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+rm -f popup-fenix-with-icons.ts
 
-# Bundle epicker-ui.js
-esbuild epicker-ui.js --bundle --format=iife --outfile=epicker-ui-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+# Bundle epicker-ui.ts
+esbuild epicker-ui.ts --bundle --format=iife --outfile=epicker-ui-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
-# Bundle theme.js
-esbuild theme.js --bundle --format=iife --outfile=theme-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+# Bundle theme.ts
+esbuild theme.ts --bundle --format=iife --outfile=theme-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
-# Bundle i18n.js
-esbuild i18n.js --bundle --format=iife --outfile=i18n-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+# Bundle i18n.ts
+esbuild i18n.ts --bundle --format=iife --outfile=i18n-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
-# Bundle storage.js
-esbuild storage.js --bundle --format=iife --outfile=storage-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+# Bundle storage.ts
+esbuild storage.ts --bundle --format=iife --outfile=storage-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
-# Bundle messaging.js
-esbuild messaging.js --bundle --format=iife --outfile=messaging-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite --external:*benchmarks.js 2>&1 || true
+# Bundle messaging.ts
+esbuild messaging.ts --bundle --format=iife --outfile=messaging-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite --external:benchmarks 2>&1 || true
 
-# Bundle uri-utils.js
-esbuild uri-utils.js --bundle --format=iife --outfile=uri-utils-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+# Bundle uri-utils.ts
+esbuild uri-utils.ts --bundle --format=iife --outfile=uri-utils-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
-# Bundle hnswitches.js
-esbuild hnswitches.js --bundle --format=iife --outfile=hnswitches-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+# Bundle hnswitches.ts
+esbuild hnswitches.ts --bundle --format=iife --outfile=hnswitches-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
-# Bundle dynamic-net-filtering.js
-esbuild dynamic-net-filtering.js --bundle --format=iife --outfile=dynamic-net-filtering-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+# Bundle dynamic-net-filtering.ts
+esbuild dynamic-net-filtering.ts --bundle --format=iife --outfile=dynamic-net-filtering-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 cd - > /dev/null
 
