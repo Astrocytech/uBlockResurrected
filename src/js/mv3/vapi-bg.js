@@ -1,12 +1,70 @@
 /**
- * uBlock Origin - MV3 Service Worker
- * vAPI Background Framework
+ * @fileoverview vAPI Background Framework
+ * Provides the vAPI object and all browser API shims for MV3 service workers.
+ * 
+ * @module mv3/vapi-bg
+ * @version 1.9.15
+ */
+
+/**
+ * @typedef {Object} VAPI
+ * @property {boolean} uBO - Always true for uBlock Origin
+ * @property {string} version - uBlock Origin version
+ * @property {boolean} inZapperMode - Whether element zapper is active
+ * @property {function(number): boolean} isBehindTheSceneTabId - Check if tab is behind-the-scene
+ * @property {number} noTabId - Constant for no tab ID (-1)
+ * @property {number} T0 - Timestamp of initialization
+ */
+
+/**
+ * @typedef {Object} VAPITabs
+ * @property {function(Object): Promise<chrome.tabs.Tab[]>} query
+ * @property {function(number): Promise<chrome.tabs.Tab>} get
+ * @property {function(): Promise<chrome.tabs.Tab>} getCurrent
+ * @property {function(Object): Promise<chrome.tabs.Tab>} create
+ * @property {function(number, Object): Promise<chrome.tabs.Tab>} update
+ * @property {function(number): Promise<void>} remove
+ * @property {function(Object): Promise<chrome.tabs.Tab>} open
+ * @property {function(Object): Promise<void>} insertCSS
+ * @property {function(Object): Promise<void>} removeCSS
+ * @property {function(Object): Promise<any[]>} executeScript
+ * @property {function(number, Object, any): Promise<any>} sendMessage
+ * @property {function(number): void} reload
+ */
+
+/**
+ * @typedef {Object} VAPIStorage
+ * @property {function(string|string[]): Promise<Object>} get
+ * @property {function(Object): Promise<void>} set
+ * @property {function(string): Promise<any>} getItemAsync
+ * @property {function(string, any): Promise<void>} setItemAsync
+ * @property {function(string): Promise<void>} removeItemAsync
+ */
+
+/**
+ * @typedef {Object} VAPIAlarms
+ * @property {function(Object): void} create
+ * @property {function(string): Promise<boolean>} clear
+ * @property {function(): Promise<void>} clearAll
+ * @property {function(string): Promise<Object>} get
+ * @property {function(): Promise<Object[]>} getAll
+ * @property {Object} onAlarm
+ */
+
+/**
+ * @typedef {Object} VAPICloud
+ * @property {function(): Promise<void>} push
+ * @property {function(): Promise<Object>} pull
+ * @property {function(): void} used
+ * @property {function(): Object} getOptions
+ * @property {function(Object): void} setOptions
  */
 
 const VAPI_VERSION = '1.9.15';
 
 self.browser = self.browser || chrome;
 
+/** @type {VAPI} */
 var vAPI = {
     uBO: true,
     version: VAPI_VERSION,
@@ -80,6 +138,7 @@ vAPI.alarms = {
     onAlarm: { addListener: function() {}, removeListener: function() {} }
 };
 
+/** @type {VAPITabs} */
 vAPI.tabs = {
     query: function() { return Promise.resolve([]); },
     get: function() { return Promise.resolve(null); },
@@ -141,6 +200,7 @@ vAPI.webextFlavor = {
 
 vAPI.i18n = { t: function(s) { return s; } };
 
+/** @type {VAPICloud} */
 vAPI.cloud = {
     push: function() { return Promise.resolve(); },
     pull: function() { return Promise.resolve({}); },

@@ -79,7 +79,7 @@ var defaultMessageHandler = function(request, portDetails, callback) {
 
 messaging.setup(defaultMessageHandler);
 
-messaging.listen({ name: 'popupPanel', listener: createPopupHandler(), privileged: false });
+messaging.listen({ name: 'popupPanel', listener: createPopupHandler(vAPI), privileged: false });
 messaging.listen({ name: 'elementPicker', listener: createPickerHandler(), privileged: false });
 messaging.listen({ name: 'dashboard', listener: createDashboardHandler(), privileged: true });
 messaging.listen({ name: 'dom', listener: createContentHandler(), privileged: false });

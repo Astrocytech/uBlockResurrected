@@ -21,11 +21,28 @@ export default [ includeIgnoreFile(gitignorePath), {
             browser: "readonly",
             chrome: "readonly",
             vAPI: "readonly",
+            console: "readonly",
+            setTimeout: "readonly",
+            setInterval: "readonly",
+            clearTimeout: "readonly",
+            clearInterval: "readonly",
+            Promise: "readonly",
+            self: "readonly",
         },
         sourceType: "module",
     },
     rules: {
-        eqeqeq: ["warn", "always"],
+        eqeqeq: ["error", "always"],
+        "no-console": "off",
+        "no-debugger": "warn",
+        "no-unused-vars": ["error", { 
+            argsIgnorePattern: "^_",
+            varsIgnorePattern: "^_"
+        }],
+        "no-var": "error",
+        "prefer-const": "error",
+        "prefer-arrow-callback": "warn",
+        "prefer-template": "warn",
         indent: ["error", 4, {
             ignoredNodes: [
                 "Program > BlockStatement",
@@ -40,8 +57,12 @@ export default [ includeIgnoreFile(gitignorePath), {
         }],
         "no-control-regex": "off",
         "no-empty": "off",
-        "sort-imports": "error",
-        "strict": "error",
+        strict: "error",
+    },
+}, {
+    files: ["tests/**/*.js"],
+    rules: {
+        "no-console": "off",
     },
 }, {
     files: ["**/*.json"],

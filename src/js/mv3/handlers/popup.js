@@ -1,26 +1,64 @@
 /**
- * uBlock Origin - MV3 Service Worker
- * Popup Panel Handler
+ * @fileoverview Popup Handler
+ * Handles messages from the browser action popup.
+ * 
+ * @module mv3/handlers/popup
  */
 
-import { vAPI } from '../vapi-bg.js';
-import { storage } from '../storage.js';
-import { dnr } from '../dnr.js';
 import { parseHostname, injectScripts } from '../utils.js';
 
-function createPopupHandler() {
+/**
+ * @typedef {Object} PortDetails
+ * @property {number} [tabId] - Tab ID
+ * @property {number} [frameId] - Frame ID
+ * @property {boolean} [privileged] - Whether the port is from a privileged context
+ */
+
+/**
+ * @typedef {Object} PopupRequest
+ * @property {string} what - Request type
+ * @property {number} [tabId] - Tab ID
+ * @property {boolean} [zap] - Whether to launch in zapper mode
+ * @property {Object} [details] - URL details for gotoURL
+ */
+
+/**
+ * @typedef {Object} PopupData
+ * @property {boolean} advancedUserEnabled
+ * @property {string} appName
+ * @property {string} appVersion
+ * @property {string} pageHostname
+ * @property {string} pageDomain
+ * @property {number} tabId
+ * @property {string} tabTitle
+ * @property {string} pageURL
+ * @property {boolean} canElementPicker
+ * @property {Object} pageCounts
+ */
+
+/**
+ * Create popup handler
+ * @param {Object} api - vAPI object
+ * @returns {Function} Handler function for messaging
+ */
+function createPopupHandler(api) {
+    /**
+     * @param {PopupRequest} request
+     * @param {PortDetails} portDetails
+     * @param {Function} callback
+     */
     return function(request, portDetails, callback) {
         switch (request.what) {
         case 'getPopupData':
-            handleGetPopupData(request, portDetails, callback);
+            handleGetPopupData(request, portDetails, callback, api);
             break;
 
         case 'launchElementPicker':
-            handleLaunchElementPicker(request, portDetails, callback);
+            handleLaunchElementPicker(request, portDetails, callback, api);
             break;
 
         case 'gotoURL':
-            handleGotoURL(request, portDetails, callback);
+            handleGotoURL(request, portDetails, callback, api);
             break;
 
         case 'getScriptCount':
@@ -38,7 +76,14 @@ function createPopupHandler() {
     };
 }
 
-function handleGetPopupData(request, portDetails, callback) {
+/**
+ * Handle getPopupData request
+ * @param {PopupRequest} request
+ * @param {PortDetails} portDetails
+ * @param {Function} callback
+ * @param {Object} api - vAPI object
+ */
+function handleGetPopupData(request, portDetails, callback, api) {
     var tabId = request.tabId || -1;
     var tabTitle = "";
     var rawURL = "";
@@ -47,6 +92,9 @@ function handleGetPopupData(request, portDetails, callback) {
     var pageDomain = "";
     var canElementPicker = true;
 
+    /**
+     * @param {chrome.tabs.Tab|null} tab
+     */
     var buildPopupData = function(tab) {
         if (tab && tab.url) {
             tabTitle = tab.title || "";
@@ -60,13 +108,15 @@ function handleGetPopupData(request, portDetails, callback) {
                                    parsed.protocol === 'https:' ||
                                    parsed.protocol === 'file:';
             } catch (e) {
+                console.warn('[PopupHandler] Failed to parse URL:', e);
             }
         }
 
+        /** @type {PopupData} */
         callback({
             advancedUserEnabled: true,
             appName: "uBlock Origin",
-            appVersion: vAPI.version,
+            appVersion: api.version,
             colorBlindFriendly: false,
             cosmeticFilteringSwitch: false,
             firewallPaneMinimized: true,
@@ -112,20 +162,33 @@ function handleGetPopupData(request, portDetails, callback) {
     };
 
     if (tabId && tabId > 0) {
-        chrome.tabs.get(tabId).then(buildPopupData).catch(function() {
-            buildPopupData(null);
-        });
+        chrome.tabs.get(tabId)
+            .then(buildPopupData)
+            .catch(function(err) {
+                console.warn('[PopupHandler] Failed to get tab:', err);
+                buildPopupData(null);
+            });
     } else {
         buildPopupData(null);
     }
 }
 
-function handleLaunchElementPicker(request, portDetails, callback) {
+/**
+ * Handle launchElementPicker request
+ * @param {PopupRequest} request
+ * @param {PortDetails} portDetails
+ * @param {Function} callback
+ * @param {Object} api - vAPI object
+ */
+function handleLaunchElementPicker(request, portDetails, callback, api) {
     var targetTabId = request.tabId;
     var zapMode = request.zap === true;
 
-    vAPI.inZapperMode = zapMode;
+    api.inZapperMode = zapMode;
 
+    /**
+     * @param {number} tabId
+     */
     var activatePicker = function(tabId) {
         if (!tabId || tabId <= 0) {
             callback({ success: false, error: 'no valid tabId' });
@@ -139,8 +202,9 @@ function handleLaunchElementPicker(request, portDetails, callback) {
 
         chain.then(function() {
             callback({ success: true });
-        }).catch(function(e) {
-            callback({ success: false, error: e.message });
+        }).catch(function(err) {
+            console.error('[PopupHandler] Failed to inject scripts:', err);
+            callback({ success: false, error: err instanceof Error ? err.message : 'Injection failed' });
         });
     };
 
@@ -157,7 +221,14 @@ function handleLaunchElementPicker(request, portDetails, callback) {
     }
 }
 
-function handleGotoURL(request, portDetails, callback) {
+/**
+ * Handle gotoURL request
+ * @param {PopupRequest} request
+ * @param {PortDetails} portDetails
+ * @param {Function} callback
+ * @param {Object} api - vAPI object
+ */
+function handleGotoURL(request, portDetails, callback, api) {
     var url = request.details && request.details.url;
     if (url) {
         if (url.startsWith("/")) {

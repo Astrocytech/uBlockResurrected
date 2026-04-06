@@ -2,7 +2,7 @@
   // src/js/mv3/vapi-bg.js
   var VAPI_VERSION = "1.9.15";
   self.browser = self.browser || chrome;
-  var vAPI = {
+  var vAPI2 = {
     uBO: true,
     version: VAPI_VERSION,
     inZapperMode: false,
@@ -12,40 +12,40 @@
     noTabId: -1,
     T0: Date.now()
   };
-  vAPI.setTimeout = function(fn, delay) {
+  vAPI2.setTimeout = function(fn, delay) {
     return setTimeout(fn, delay);
   };
-  vAPI.getURL = function(path) {
+  vAPI2.getURL = function(path) {
     return chrome.runtime.getURL(path);
   };
-  vAPI.generateSecret = function(size) {
+  vAPI2.generateSecret = function(size) {
     return Math.random().toString(36).slice(2, 2 + (size || 1));
   };
-  vAPI.download = function() {
+  vAPI2.download = function() {
   };
-  vAPI.closePopup = function() {
+  vAPI2.closePopup = function() {
   };
-  vAPI.setIcon = function() {
+  vAPI2.setIcon = function() {
   };
-  vAPI.setDefaultIcon = function() {
+  vAPI2.setDefaultIcon = function() {
   };
-  vAPI.scriptletsInjector = function() {
+  vAPI2.scriptletsInjector = function() {
   };
-  vAPI.prefetching = function() {
+  vAPI2.prefetching = function() {
   };
-  vAPI.Net = function() {
+  vAPI2.Net = function() {
     this.handlerBehaviorChanged = function() {
     };
     this.setSuspendableListener = function() {
     };
   };
-  vAPI.Net.prototype = {
+  vAPI2.Net.prototype = {
     handlerBehaviorChanged: function() {
     },
     setSuspendableListener: function() {
     }
   };
-  vAPI.net = {
+  vAPI2.net = {
     addListener: function() {
     },
     removeListener: function() {
@@ -62,9 +62,9 @@
     unsuspend: function() {
     }
   };
-  vAPI.defer = {
+  vAPI2.defer = {
     create: function(callback) {
-      return new vAPI.defer.Client(callback);
+      return new vAPI2.defer.Client(callback);
     },
     once: function(delay) {
       return Promise.resolve();
@@ -77,13 +77,13 @@
       this.timer = null;
     }
   };
-  vAPI.defer.Client.prototype.on = function(delay) {
+  vAPI2.defer.Client.prototype.on = function(delay) {
     var self2 = this;
     this.timer = setTimeout(function() {
       self2.callback();
     }, delay || 0);
   };
-  vAPI.defer.Client.prototype.off = function() {
+  vAPI2.defer.Client.prototype.off = function() {
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -95,7 +95,7 @@
   self.cancelIdleCallback = self.cancelIdleCallback || function(id) {
     clearTimeout(id);
   };
-  vAPI.commands = {
+  vAPI2.commands = {
     onCommand: {
       addListener: function(cb) {
         chrome.commands.onCommand.addListener(cb);
@@ -105,7 +105,7 @@
       }
     }
   };
-  vAPI.alarms = {
+  vAPI2.alarms = {
     create: function() {
     },
     clear: function() {
@@ -124,7 +124,7 @@
     }, removeListener: function() {
     } }
   };
-  vAPI.tabs = {
+  vAPI2.tabs = {
     query: function() {
       return Promise.resolve([]);
     },
@@ -173,7 +173,7 @@
     reload: function() {
     }
   };
-  vAPI.windows = {
+  vAPI2.windows = {
     get: function() {
       return Promise.resolve(null);
     },
@@ -184,7 +184,7 @@
       return Promise.resolve({});
     }
   };
-  vAPI.browserAction = {
+  vAPI2.browserAction = {
     setIcon: function() {
       return Promise.resolve();
     },
@@ -207,13 +207,13 @@
       return Promise.resolve("");
     }
   };
-  vAPI.contextMenu = {
+  vAPI2.contextMenu = {
     setEntries: function() {
     },
     onMustUpdate: function() {
     }
   };
-  vAPI.webextFlavor = {
+  vAPI2.webextFlavor = {
     soup: {
       chromium: true,
       user_stylesheet: true,
@@ -223,10 +223,10 @@
     },
     major: 120
   };
-  vAPI.i18n = { t: function(s) {
+  vAPI2.i18n = { t: function(s) {
     return s;
   } };
-  vAPI.cloud = {
+  vAPI2.cloud = {
     push: function() {
       return Promise.resolve();
     },
@@ -240,14 +240,14 @@
     setOptions: function() {
     }
   };
-  vAPI.statistics = {
+  vAPI2.statistics = {
     add: function() {
     },
     save: function() {
       return Promise.resolve();
     }
   };
-  vAPI.app = {
+  vAPI2.app = {
     restart: function() {
     },
     version: VAPI_VERSION,
@@ -396,7 +396,7 @@
     ports: /* @__PURE__ */ new Map(),
     listeners: /* @__PURE__ */ new Map(),
     defaultHandler: null,
-    PRIVILEGED_ORIGIN: vAPI.getURL("").slice(0, -1),
+    PRIVILEGED_ORIGIN: vAPI2.getURL("").slice(0, -1),
     NOOPFUNC: function() {
     },
     UNHANDLED: "vAPI.messaging.notHandled",
@@ -472,13 +472,13 @@
       switch (msg.what) {
         case "localStorage": {
           if (portDetails.privileged !== true) break;
-          if (!vAPI.localStorage || !vAPI.localStorage[msg.fn]) {
+          if (!vAPI2.localStorage || !vAPI2.localStorage[msg.fn]) {
             callback(null);
             break;
           }
           var args = msg.args || [];
-          var fn = vAPI.localStorage[msg.fn];
-          var result = fn.apply(vAPI.localStorage, args);
+          var fn = vAPI2.localStorage[msg.fn];
+          var result = fn.apply(vAPI2.localStorage, args);
           if (result && typeof result.then === "function") {
             result.then(function(data) {
               callback(data);
@@ -590,7 +590,7 @@
   };
 
   // src/js/mv3/storage.js
-  vAPI.localStorage = {
+  vAPI2.localStorage = {
     getItem: function(key) {
       var result = null;
       chrome.storage.local.get(key, function(data) {
@@ -626,7 +626,7 @@
       return Promise.resolve();
     }
   };
-  vAPI.storage = {
+  vAPI2.storage = {
     get: function(keys) {
       return chrome.storage.local.get(keys);
     },
@@ -647,7 +647,7 @@
       return chrome.storage.local.remove(key);
     }
   };
-  var storage = {
+  var storage2 = {
     readUserFilters: function() {
       return chrome.storage.local.get(["user-filters", "userFiltersSettings"]).then(function(data) {
         var settings = data.userFiltersSettings || { enabled: true, trusted: false };
@@ -777,17 +777,17 @@
   }
 
   // src/js/mv3/dnr.js
-  var dnr = {
+  var dnr2 = {
     WHITELIST_RULE_START: CONSTANTS.DNR.WHITELIST_RULE_START,
     WHITELIST_RULE_END: CONSTANTS.DNR.WHITELIST_RULE_END,
     updateWhitelist: function() {
-      storage.readWhitelist().then(function(whitelist) {
+      storage2.readWhitelist().then(function(whitelist) {
         var rules = [];
         for (var i = 0; i < whitelist.length; i++) {
           var pattern = whitelist[i];
           if (!pattern || pattern.startsWith("#")) continue;
           var rule = {
-            id: dnr.WHITELIST_RULE_START + rules.length,
+            id: dnr2.WHITELIST_RULE_START + rules.length,
             priority: 3,
             action: { type: "allow" },
             condition: {}
@@ -803,7 +803,7 @@
         }
         chrome.declarativeNetRequest.getDynamicRules(function(existingRules) {
           var removeIds = existingRules.filter(function(r) {
-            return r.id >= dnr.WHITELIST_RULE_START && r.id < dnr.WHITELIST_RULE_END;
+            return r.id >= dnr2.WHITELIST_RULE_START && r.id < dnr2.WHITELIST_RULE_END;
           }).map(function(r) {
             return r.id;
           });
@@ -816,11 +816,11 @@
       });
     },
     addToWhitelist: function(domain) {
-      return storage.readWhitelist().then(function(whitelist) {
+      return storage2.readWhitelist().then(function(whitelist) {
         if (whitelist.indexOf(domain) === -1) {
           whitelist.push(domain);
-          return storage.writeWhitelist(whitelist).then(function() {
-            dnr.updateWhitelist();
+          return storage2.writeWhitelist(whitelist).then(function() {
+            dnr2.updateWhitelist();
             return true;
           });
         }
@@ -828,12 +828,12 @@
       });
     },
     removeFromWhitelist: function(domain) {
-      return storage.readWhitelist().then(function(whitelist) {
+      return storage2.readWhitelist().then(function(whitelist) {
         var idx = whitelist.indexOf(domain);
         if (idx !== -1) {
           whitelist.splice(idx, 1);
-          return storage.writeWhitelist(whitelist).then(function() {
-            dnr.updateWhitelist();
+          return storage2.writeWhitelist(whitelist).then(function() {
+            dnr2.updateWhitelist();
             return true;
           });
         }
@@ -843,17 +843,17 @@
   };
 
   // src/js/mv3/handlers/popup.js
-  function createPopupHandler() {
+  function createPopupHandler(api) {
     return function(request, portDetails, callback) {
       switch (request.what) {
         case "getPopupData":
-          handleGetPopupData(request, portDetails, callback);
+          handleGetPopupData(request, portDetails, callback, api);
           break;
         case "launchElementPicker":
-          handleLaunchElementPicker(request, portDetails, callback);
+          handleLaunchElementPicker(request, portDetails, callback, api);
           break;
         case "gotoURL":
-          handleGotoURL(request, portDetails, callback);
+          handleGotoURL(request, portDetails, callback, api);
           break;
         case "getScriptCount":
           callback({ count: 0 });
@@ -867,7 +867,7 @@
       }
     };
   }
-  function handleGetPopupData(request, portDetails, callback) {
+  function handleGetPopupData(request, portDetails, callback, api) {
     var tabId = request.tabId || -1;
     var tabTitle = "";
     var rawURL = "";
@@ -886,12 +886,13 @@
           pageDomain = parsed.domain;
           canElementPicker = parsed.protocol === "http:" || parsed.protocol === "https:" || parsed.protocol === "file:";
         } catch (e) {
+          console.warn("[PopupHandler] Failed to parse URL:", e);
         }
       }
       callback({
         advancedUserEnabled: true,
         appName: "uBlock Origin",
-        appVersion: vAPI.version,
+        appVersion: api.version,
         colorBlindFriendly: false,
         cosmeticFilteringSwitch: false,
         firewallPaneMinimized: true,
@@ -936,17 +937,18 @@
       });
     };
     if (tabId && tabId > 0) {
-      chrome.tabs.get(tabId).then(buildPopupData).catch(function() {
+      chrome.tabs.get(tabId).then(buildPopupData).catch(function(err) {
+        console.warn("[PopupHandler] Failed to get tab:", err);
         buildPopupData(null);
       });
     } else {
       buildPopupData(null);
     }
   }
-  function handleLaunchElementPicker(request, portDetails, callback) {
+  function handleLaunchElementPicker(request, portDetails, callback, api) {
     var targetTabId = request.tabId;
     var zapMode = request.zap === true;
-    vAPI.inZapperMode = zapMode;
+    api.inZapperMode = zapMode;
     var activatePicker = function(tabId) {
       if (!tabId || tabId <= 0) {
         callback({ success: false, error: "no valid tabId" });
@@ -958,8 +960,9 @@
       ]);
       chain.then(function() {
         callback({ success: true });
-      }).catch(function(e) {
-        callback({ success: false, error: e.message });
+      }).catch(function(err) {
+        console.error("[PopupHandler] Failed to inject scripts:", err);
+        callback({ success: false, error: err instanceof Error ? err.message : "Injection failed" });
       });
     };
     if (targetTabId && targetTabId > 0) {
@@ -974,7 +977,7 @@
       });
     }
   }
-  function handleGotoURL(request, portDetails, callback) {
+  function handleGotoURL(request, portDetails, callback, api) {
     var url = request.details && request.details.url;
     if (url) {
       if (url.startsWith("/")) {
@@ -1013,14 +1016,21 @@
     if (typeof request.filters === "string" && request.filters.trim()) {
       filtersToSave = [request.filters.trim()];
     } else if (Array.isArray(request.filters)) {
-      filtersToSave = request.filters;
+      filtersToSave = request.filters.filter(function(f) {
+        return f && f.trim();
+      });
     } else if (request.filters && typeof request.filters === "object" && request.filters.filter) {
       filtersToSave = [request.filters.filter.trim()];
     }
+    if (filtersToSave.length === 0) {
+      callback({ saved: false, error: "No valid filters provided" });
+      return;
+    }
     storage.appendUserFilters(filtersToSave).then(function(result) {
       callback(result);
-    }).catch(function(e) {
-      callback({ saved: false, error: e.message });
+    }).catch(function(err) {
+      console.error("[PickerHandler] Failed to save filters:", err);
+      callback({ saved: false, error: err instanceof Error ? err.message : "Unknown error" });
     });
   }
 
@@ -1043,6 +1053,9 @@
               reHostnameExtractor: "([a-z0.9.\\-_[\\]]+)(?::[\\d*]+)?\\/(?:[^\\x00-\\x20/]|$)[^\\x00-\\x20]*$",
               success: true
             });
+          }).catch(function(err) {
+            console.error("[DashboardHandler] Failed to read whitelist:", err);
+            callback({ whitelist: [], success: false, error: err.message });
           });
           break;
         case "setWhitelist":
@@ -1050,11 +1063,17 @@
           storage.writeWhitelist(whitelist).then(function() {
             dnr.updateWhitelist();
             callback({ success: true });
+          }).catch(function(err) {
+            console.error("[DashboardHandler] Failed to write whitelist:", err);
+            callback({ success: false, error: err.message });
           });
           break;
         case "readUserFilters":
           storage.readUserFilters().then(function(data) {
             callback(data);
+          }).catch(function(err) {
+            console.error("[DashboardHandler] Failed to read user filters:", err);
+            callback({ content: "", success: false, error: err.message });
           });
           break;
         case "writeUserFilters":
@@ -1063,6 +1082,9 @@
             trusted: request.trusted
           }).then(function() {
             callback({ success: true });
+          }).catch(function(err) {
+            console.error("[DashboardHandler] Failed to write user filters:", err);
+            callback({ success: false, error: err.message });
           });
           break;
         case "reloadAllFilters":
@@ -1087,7 +1109,11 @@
           callback({});
           break;
         case "storageQuota":
-          callback({ used: 0, quota: 0 });
+          storage.getBytesInUse().then(function(bytes) {
+            callback({ used: bytes, quota: 10485760 });
+          }).catch(function() {
+            callback({ used: 0, quota: 10485760 });
+          });
           break;
         case "cosmeticFilteringSwitch":
           callback({});
@@ -1103,29 +1129,11 @@
   }
 
   // src/js/mv3/handlers/content.js
-  function createContentHandler() {
-    return function(request, portDetails, callback) {
-      switch (request.what) {
-        case "retrieveContentScriptParameters":
-          handleRetrieveContentScriptParameters(request, portDetails, callback);
-          break;
-        case "cosmeticFiltersInjected":
-          callback({});
-          break;
-        case "userCSS":
-          handleUserCSS(request, portDetails, callback);
-          break;
-        default:
-          callback({});
-          break;
-      }
-    };
-  }
   function handleRetrieveContentScriptParameters(request, portDetails, callback) {
     var parsed = parseHostname(request.url || "");
     var hostname = parsed.hostname;
     var domain = parsed.domain;
-    storage.readUserFilters().then(function(data) {
+    storage2.readUserFilters().then(function(data) {
       var userFilters = data.content || "";
       var cosmeticFilters = [];
       var lines = userFilters.split("\n");
@@ -1171,6 +1179,22 @@
         },
         userFilters: matchedSelectors.join(",\n")
       });
+    }).catch(function(err) {
+      console.error("[ContentHandler] Failed to read user filters:", err);
+      callback({
+        hostname,
+        domain,
+        deepServices: {},
+        privileged: true,
+        cnameToParentMap: {},
+        redirectEngine: null,
+        staticFilters: "",
+        staticExtendedFilters: "",
+        proceduralFilters: "",
+        cosmeticFilterEngine: "",
+        extraSettings: { forceLocalPolicies: true },
+        userFilters: ""
+      });
     });
   }
   function handleUserCSS(request, portDetails, callback) {
@@ -1194,6 +1218,9 @@
             injectDetails.target.frameIds = [frameId];
           }
           chrome.scripting.insertCSS(injectDetails, function() {
+            if (chrome.runtime.lastError) {
+              console.warn("[ContentHandler] CSS injection warning:", chrome.runtime.lastError.message);
+            }
             resolve();
           });
         }));
@@ -1212,6 +1239,9 @@
             removeDetails.target.frameIds = [frameId];
           }
           chrome.scripting.removeCSS(removeDetails, function() {
+            if (chrome.runtime.lastError) {
+              console.warn("[ContentHandler] CSS removal warning:", chrome.runtime.lastError.message);
+            }
             resolve();
           });
         }));
@@ -1219,9 +1249,28 @@
     }
     Promise.all(cssPromises).then(function() {
       callback({});
-    }).catch(function() {
+    }).catch(function(err) {
+      console.error("[ContentHandler] CSS operations failed:", err);
       callback({});
     });
+  }
+  function createContentHandler() {
+    return function(request, portDetails, callback) {
+      switch (request.what) {
+        case "retrieveContentScriptParameters":
+          handleRetrieveContentScriptParameters(request, portDetails, callback);
+          break;
+        case "cosmeticFiltersInjected":
+          callback({});
+          break;
+        case "userCSS":
+          handleUserCSS(request, portDetails, callback);
+          break;
+        default:
+          callback({});
+          break;
+      }
+    };
   }
 
   // src/js/mv3/sw-entry.js
@@ -1241,7 +1290,7 @@
       } else if (request.filters && typeof request.filters === "object" && request.filters.filter) {
         filtersToSave = [request.filters.filter.trim()];
       }
-      storage.appendUserFilters(filtersToSave).then(function(result) {
+      storage2.appendUserFilters(filtersToSave).then(function(result) {
         callback(result);
       }).catch(function(e) {
         callback({ saved: false, error: e.message });
@@ -1255,7 +1304,7 @@
         callback({
           pickerURL: chrome.runtime.getURL("web_accessible_resources/epicker-ui.html"),
           target: "",
-          zap: vAPI.inZapperMode,
+          zap: vAPI2.inZapperMode,
           eprom: null
         });
         return;
@@ -1267,7 +1316,7 @@
         } else if (Array.isArray(msg.filters)) {
           filtersToSave = msg.filters;
         }
-        storage.appendUserFilters(filtersToSave).then(function(result) {
+        storage2.appendUserFilters(filtersToSave).then(function(result) {
           callback(result);
         });
         return;
@@ -1280,7 +1329,7 @@
     return messaging.UNHANDLED;
   };
   messaging.setup(defaultMessageHandler);
-  messaging.listen({ name: "popupPanel", listener: createPopupHandler(), privileged: false });
+  messaging.listen({ name: "popupPanel", listener: createPopupHandler(vAPI2), privileged: false });
   messaging.listen({ name: "elementPicker", listener: createPickerHandler(), privileged: false });
   messaging.listen({ name: "dashboard", listener: createDashboardHandler(), privileged: true });
   messaging.listen({ name: "dom", listener: createContentHandler(), privileged: false });
@@ -1293,7 +1342,7 @@
         sendResponse({
           pickerURL: chrome.runtime.getURL("web_accessible_resources/epicker-ui.html"),
           target: "",
-          zap: vAPI.inZapperMode,
+          zap: vAPI2.inZapperMode,
           eprom: null
         });
         return true;
@@ -1305,7 +1354,7 @@
         } else if (Array.isArray(msg.filters)) {
           filtersToSave = msg.filters;
         }
-        storage.appendUserFilters(filtersToSave).then(function(result) {
+        storage2.appendUserFilters(filtersToSave).then(function(result) {
           sendResponse(result);
         }).catch(function(e) {
           sendResponse({ saved: false, error: e.message });
@@ -1335,7 +1384,7 @@
         sendResponse({
           advancedUserEnabled: true,
           appName: "uBlock Origin",
-          appVersion: vAPI.version,
+          appVersion: vAPI2.version,
           colorBlindFriendly: false,
           cosmeticFilteringSwitch: false,
           firewallPaneMinimized: true,
@@ -1369,7 +1418,7 @@
       return true;
     }
     if (request.what === "launchElementPicker") {
-      vAPI.inZapperMode = request.zap === true;
+      vAPI2.inZapperMode = request.zap === true;
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
         if (tabs && tabs.length > 0) {
           var tabId2 = tabs[0].id;
@@ -1403,7 +1452,7 @@
   });
   chrome.commands.onCommand.addListener(function(command) {
     if (command === "launch-element-zapper") {
-      vAPI.inZapperMode = true;
+      vAPI2.inZapperMode = true;
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
         if (tabs && tabs.length > 0) {
           chrome.scripting.executeScript({
@@ -1418,7 +1467,7 @@
         }
       });
     } else if (command === "launch-element-picker") {
-      vAPI.inZapperMode = false;
+      vAPI2.inZapperMode = false;
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
         if (tabs && tabs.length > 0) {
           chrome.scripting.executeScript({
@@ -1438,5 +1487,5 @@
       chrome.tabs.create({ url: chrome.runtime.getURL("logger-ui.html") });
     }
   });
-  dnr.updateWhitelist();
+  dnr2.updateWhitelist();
 })();

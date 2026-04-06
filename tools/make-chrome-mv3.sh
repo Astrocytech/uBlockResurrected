@@ -132,6 +132,32 @@ sed -i 's|<script src="lib/hsluv|<script src="js/i18n-fallback.js"></script>\n<s
 echo "*** uBlock0.chromium-mv3: Bundling service worker (modular)"
 node tools/bundle-sw.js
 
+# Bundle epicker modules
+echo "*** uBlock0.chromium-mv3: Bundling epicker modules"
+cd src/js
+esbuild epicker/epicker-entry.js \
+    --bundle \
+    --format=iife \
+    --outfile=../$DES/js/scriptlets/epicker.js \
+    --target=chrome120 \
+    --platform=browser \
+    --minify=false \
+    --allow-overwrite 2>&1 || true
+cd - > /dev/null
+
+# Bundle content script modules
+echo "*** uBlock0.chromium-mv3: Bundling content script modules"
+cd src/js
+esbuild contentscript/contentscript-entry.js \
+    --bundle \
+    --format=iife \
+    --outfile=../$DES/js/contentscript.js \
+    --target=chrome120 \
+    --platform=browser \
+    --minify=false \
+    --allow-overwrite 2>&1 || true
+cd - > /dev/null
+
 # Create vapi-content.js for element picker
 echo "*** uBlock0.chromium-mv3: Creating vapi-content.js for element picker"
 cat > $DES/js/vapi-content.js << 'VAPICONTENTEOF'
