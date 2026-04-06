@@ -1,0 +1,220 @@
+/*******************************************************************************
+
+    uBlock Origin - DNR Integration Module
+    Copyright (C) 2024-present Raymond Hill
+
+    This module handles switching between webRequest (MV2) and DNR (MV3)
+    for network filtering. It integrates with uBlock's existing MV3 infrastructure.
+
+******************************************************************************/
+
+import {
+    sessionFirewall,
+    permanentFirewall,
+    sessionURLFiltering,
+    permanentURLFiltering,
+    sessionSwitches,
+    permanentSwitches,
+} from '../js/filtering-engines.js';
+
+import µb from '../js/background.js';
+import { onBroadcast } from '../js/broadcast.js';
+
+/******************************************************************************/
+
+const isMV3 = ( ) => {
+    return typeof browser !== 'undefined' &&
+           browser.runtime?.getManifest?.()?.manifest_version === 3;
+};
+
+const isGecko = vAPI.webextFlavor?.isGecko === true;
+
+/******************************************************************************/
+
+class DNRIntegration {
+    constructor() {
+        this.enabled = false;
+        this.dnrApi = null;
+        this.ruleIdCounter = 1;
+    }
+
+    async initialize() {
+        if ( isGecko && !isMV3() ) {
+            console.log('[DNR] Running in Firefox MV2 mode - using webRequest');
+            return;
+        }
+
+        this.dnrApi = browser?.declarativeNetRequest;
+        if ( !this.dnrApi ) {
+            console.log('[DNR] DNR API not available');
+            return;
+        }
+
+        console.log('[DNR] Initializing MV3 mode with DNR');
+        this.enabled = true;
+
+        onBroadcast(msg => {
+            if ( msg.what === 'filteringBehaviorChanged' ) {
+                this.updateRules();
+            }
+        });
+
+        try {
+            await this.compileAndInstallRules();
+        } catch (e) {
+            console.error('[DNR] Failed to initialize:', e);
+        }
+    }
+
+    async compileAndInstallRules() {
+        if ( !this.enabled ) return;
+
+        console.log('[DNR] Compiling filter rules...');
+
+        try {
+            this.ruleIdCounter = 1;
+            const userRules = this.compileUserRules();
+            const whitelistRules = this.compileWhitelist();
+
+            const allRules = [
+                ...userRules,
+                ...whitelistRules
+            ];
+
+            // Get existing rule IDs to remove them
+            const existingRules = await this.dnrApi.getDynamicRules();
+            const removeRuleIds = existingRules.map(r => r.id);
+
+            if ( allRules.length === 0 && removeRuleIds.length === 0 ) {
+                console.log('[DNR] No rules to update');
+                return;
+            }
+
+            // Remove all existing dynamic rules first
+            if ( removeRuleIds.length > 0 ) {
+                await this.dnrApi.updateDynamicRules({
+                    removeRuleIds: removeRuleIds
+                });
+            }
+
+            // Add new rules in chunks
+            const chunkSize = 100; // Smaller chunk size for reliability
+            for ( let i = 0; i < allRules.length; i += chunkSize ) {
+                const chunk = allRules.slice(i, i + chunkSize);
+                await this.dnrApi.updateDynamicRules({
+                    addRules: chunk
+                });
+            }
+
+            console.log(`[DNR] Installed ${allRules.length} rules (removed ${removeRuleIds.length})`);
+        } catch (e) {
+            console.error('[DNR] Failed to compile/install rules:', e);
+        }
+    }
+
+    compileUserRules() {
+        const rules = [];
+        const compileFirewall = ( firewall, type ) => {
+            if ( typeof firewall !== 'object' || firewall === null ) return;
+            for ( const [domain, entries] of Object.entries(firewall) ) {
+                if ( typeof entries !== 'object' ) continue;
+                for ( const [subType, action] of Object.entries(entries) ) {
+                    if ( action === 1 ) {
+                        rules.push({
+                            id: this.ruleIdCounter++,
+                            priority: 1,
+                            action: { type: 'block' },
+                            condition: {
+                                urlFilter: '.*',
+                                initiatorDomains: domain === '*' ? undefined : [ domain ],
+                            }
+                        });
+                    }
+                }
+            }
+        };
+
+        try { compileFirewall(permanentFirewall, 'permanent'); } catch ( e ) { }
+        try { compileFirewall(sessionFirewall, 'session'); } catch ( e ) { }
+
+        return rules;
+    }
+
+    compileWhitelist() {
+        const rules = [];
+        const whitelist = µb.arrayFromWhitelist(µb.netWhitelist) || [];
+        
+        for ( const pattern of whitelist ) {
+            if ( typeof pattern !== 'string' || pattern.length === 0 ) continue;
+            if ( pattern.startsWith('#') ) continue; // Skip comments
+            
+            rules.push({
+                id: this.ruleIdCounter++,
+                priority: 3,
+                action: { type: 'allow' },
+                condition: {
+                    urlFilter: this.patternToRegex(pattern),
+                }
+            });
+        }
+
+        return rules;
+    }
+
+    patternToRegex(pattern) {
+        if ( !pattern || pattern === '*' ) return '.*';
+        
+        let regex = pattern;
+        
+        if ( regex.startsWith('||') ) {
+            regex = '^https?://([^/]+\\.)?' + regex.slice(2);
+        } else if ( regex.startsWith('|') ) {
+            regex = '^' + regex.slice(1);
+        } else if ( regex.endsWith('|') ) {
+            regex = regex.slice(0, -1) + '$';
+        }
+        
+        regex = regex.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+        regex = regex.replace(/\\\*/g, '.*');
+        
+        return regex || '.*';
+    }
+
+    async updateRules() {
+        if ( !this.enabled ) return;
+        await this.compileAndInstallRules();
+    }
+
+    async clear() {
+        if ( !this.enabled || !this.dnrApi ) return;
+        
+        try {
+            const rules = await this.dnrApi.getDynamicRules();
+            const ids = rules.map( r => r.id );
+            
+            if ( ids.length > 0 ) {
+                await this.dnrApi.updateDynamicRules({ removeRuleIds: ids });
+            }
+            console.log('[DNR] Cleared all dynamic rules');
+        } catch ( e ) {
+            console.error('[DNR] Failed to clear rules:', e);
+        }
+    }
+
+    getStats() {
+        if ( !this.enabled ) return null;
+        
+        return {
+            enabled: true,
+            mode: isMV3() ? 'MV3' : 'MV2-webRequest',
+            platform: isGecko ? 'Firefox' : 'Chrome/Chromium'
+        };
+    }
+}
+
+/******************************************************************************/
+
+const dnrIntegration = new DNRIntegration();
+
+export { dnrIntegration, DNRIntegration, isMV3, isGecko };
+export default dnrIntegration;

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html id="uBO-popup-panel">
+
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark" />
+<title>TEST</title>
+</head>
+
+<body class="loading">
+<h1>TEST ONLY DEBUG</h1>
+<div id="log">Loading...</div>
+
+<!-- Error handler at VERY TOP -->
+<script>
+window.onerror = function(msg, url, line) {
+    console.error("FATAL ERROR:", msg, "line:", line);
+    return true;
+};
+console.log("TOP: Error handler set");
+</script>
+
+<!-- Only hsluv and debug first -->
+<script src="lib/hsluv/hsluv-0.1.0.min.js"></script>
+<script src="js/debug-popup.js"></script>
+
+</body>
+
+</html>
