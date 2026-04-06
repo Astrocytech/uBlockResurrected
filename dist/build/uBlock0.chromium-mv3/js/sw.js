@@ -1,8 +1,8 @@
 (() => {
-  // src/js/mv3/vapi-bg.js
+  // src/js/mv3/vapi-bg.ts
   var VAPI_VERSION = "1.9.15";
   self.browser = self.browser || chrome;
-  var vAPI2 = {
+  var vAPI = {
     uBO: true,
     version: VAPI_VERSION,
     inZapperMode: false,
@@ -12,40 +12,40 @@
     noTabId: -1,
     T0: Date.now()
   };
-  vAPI2.setTimeout = function(fn, delay) {
+  vAPI.setTimeout = function(fn, delay) {
     return setTimeout(fn, delay);
   };
-  vAPI2.getURL = function(path) {
+  vAPI.getURL = function(path) {
     return chrome.runtime.getURL(path);
   };
-  vAPI2.generateSecret = function(size) {
+  vAPI.generateSecret = function(size) {
     return Math.random().toString(36).slice(2, 2 + (size || 1));
   };
-  vAPI2.download = function() {
+  vAPI.download = function() {
   };
-  vAPI2.closePopup = function() {
+  vAPI.closePopup = function() {
   };
-  vAPI2.setIcon = function() {
+  vAPI.setIcon = function() {
   };
-  vAPI2.setDefaultIcon = function() {
+  vAPI.setDefaultIcon = function() {
   };
-  vAPI2.scriptletsInjector = function() {
+  vAPI.scriptletsInjector = function() {
   };
-  vAPI2.prefetching = function() {
+  vAPI.prefetching = function() {
   };
-  vAPI2.Net = function() {
+  vAPI.Net = function() {
     this.handlerBehaviorChanged = function() {
     };
     this.setSuspendableListener = function() {
     };
   };
-  vAPI2.Net.prototype = {
+  vAPI.Net.prototype = {
     handlerBehaviorChanged: function() {
     },
     setSuspendableListener: function() {
     }
   };
-  vAPI2.net = {
+  vAPI.net = {
     addListener: function() {
     },
     removeListener: function() {
@@ -62,9 +62,9 @@
     unsuspend: function() {
     }
   };
-  vAPI2.defer = {
+  vAPI.defer = {
     create: function(callback) {
-      return new vAPI2.defer.Client(callback);
+      return new vAPI.defer.Client(callback);
     },
     once: function(delay) {
       return Promise.resolve();
@@ -77,16 +77,17 @@
       this.timer = null;
     }
   };
-  vAPI2.defer.Client.prototype.on = function(delay) {
-    var self2 = this;
-    this.timer = setTimeout(function() {
+  vAPI.defer.Client.prototype.on = function(delay) {
+    const self2 = this;
+    self2.timer = setTimeout(function() {
       self2.callback();
     }, delay || 0);
   };
-  vAPI2.defer.Client.prototype.off = function() {
-    if (this.timer) {
-      clearTimeout(this.timer);
-      this.timer = null;
+  vAPI.defer.Client.prototype.off = function() {
+    const self2 = this;
+    if (self2.timer) {
+      clearTimeout(self2.timer);
+      self2.timer = null;
     }
   };
   self.requestIdleCallback = self.requestIdleCallback || function(cb, opts) {
@@ -95,7 +96,7 @@
   self.cancelIdleCallback = self.cancelIdleCallback || function(id) {
     clearTimeout(id);
   };
-  vAPI2.commands = {
+  vAPI.commands = {
     onCommand: {
       addListener: function(cb) {
         chrome.commands.onCommand.addListener(cb);
@@ -105,7 +106,7 @@
       }
     }
   };
-  vAPI2.alarms = {
+  vAPI.alarms = {
     create: function() {
     },
     clear: function() {
@@ -124,7 +125,7 @@
     }, removeListener: function() {
     } }
   };
-  vAPI2.tabs = {
+  vAPI.tabs = {
     query: function() {
       return Promise.resolve([]);
     },
@@ -148,7 +149,7 @@
       return Promise.resolve();
     },
     open: function(details) {
-      var url = details.url;
+      let url = details.url;
       if (url.startsWith("/")) {
         url = chrome.runtime.getURL(url);
       }
@@ -173,7 +174,7 @@
     reload: function() {
     }
   };
-  vAPI2.windows = {
+  vAPI.windows = {
     get: function() {
       return Promise.resolve(null);
     },
@@ -184,7 +185,7 @@
       return Promise.resolve({});
     }
   };
-  vAPI2.browserAction = {
+  vAPI.browserAction = {
     setIcon: function() {
       return Promise.resolve();
     },
@@ -207,13 +208,13 @@
       return Promise.resolve("");
     }
   };
-  vAPI2.contextMenu = {
+  vAPI.contextMenu = {
     setEntries: function() {
     },
     onMustUpdate: function() {
     }
   };
-  vAPI2.webextFlavor = {
+  vAPI.webextFlavor = {
     soup: {
       chromium: true,
       user_stylesheet: true,
@@ -223,10 +224,10 @@
     },
     major: 120
   };
-  vAPI2.i18n = { t: function(s) {
+  vAPI.i18n = { t: function(s) {
     return s;
   } };
-  vAPI2.cloud = {
+  vAPI.cloud = {
     push: function() {
       return Promise.resolve();
     },
@@ -240,14 +241,14 @@
     setOptions: function() {
     }
   };
-  vAPI2.statistics = {
+  vAPI.statistics = {
     add: function() {
     },
     save: function() {
       return Promise.resolve();
     }
   };
-  vAPI2.app = {
+  vAPI.app = {
     restart: function() {
     },
     version: VAPI_VERSION,
@@ -256,7 +257,7 @@
     }
   };
   (function() {
-    var originalWebRequest = chrome.webRequest;
+    const originalWebRequest = chrome.webRequest;
     chrome.webRequest = {
       onBeforeRequest: {
         addListener: function(cb, filters, opts) {
@@ -291,7 +292,7 @@
     }
   };
   self.Image = self.Image || function(w, h) {
-    var img = {
+    const img = {
       width: w || 0,
       height: h || 0,
       src: "",
@@ -391,94 +392,72 @@
     }
   };
 
-  // src/js/mv3/messaging.js
+  // src/js/mv3/messaging.ts
   var messaging = {
     ports: /* @__PURE__ */ new Map(),
     listeners: /* @__PURE__ */ new Map(),
     defaultHandler: null,
-    PRIVILEGED_ORIGIN: vAPI2.getURL("").slice(0, -1),
+    PRIVILEGED_ORIGIN: vAPI.getURL("").slice(0, -1),
     NOOPFUNC: function() {
     },
     UNHANDLED: "vAPI.messaging.notHandled",
-    /**
-     * Register a message handler for a specific channel
-     * @param {Object} details - { name: string, listener: function, privileged: boolean }
-     */
     listen: function(details) {
       this.listeners.set(details.name, {
         fn: details.listener,
         privileged: details.privileged === true
       });
     },
-    /**
-     * Handle port disconnect
-     * @param {Port} port - The disconnected port
-     */
     onPortDisconnect: function(port) {
       this.ports.delete(port.name);
       void chrome.runtime.lastError;
     },
-    /**
-     * Handle new port connection
-     * @param {Port} port - The connected port
-     */
     onPortConnect: function(port) {
-      var self2 = this;
+      const self2 = this;
       port.onDisconnect.addListener(function(p) {
         self2.onPortDisconnect(p);
       });
       port.onMessage.addListener(function(request, p) {
         self2.onPortMessage(request, p);
       });
-      var portDetails = { port };
-      var sender = port.sender;
-      var origin = sender ? sender.origin : void 0;
-      var tab = sender ? sender.tab : void 0;
-      var url = sender ? sender.url : void 0;
-      portDetails.frameId = sender ? sender.frameId : void 0;
+      const portDetails = { privileged: false };
+      const sender = port.sender;
+      const origin = sender?.origin;
+      const tab = sender?.tab;
+      const url = sender?.url;
+      portDetails.frameId = sender?.frameId;
       portDetails.frameURL = url;
-      portDetails.privileged = origin !== void 0 ? origin === this.PRIVILEGED_ORIGIN : url && url.startsWith(this.PRIVILEGED_ORIGIN);
-      if (tab) {
+      portDetails.privileged = origin !== void 0 ? origin === this.PRIVILEGED_ORIGIN : !!(url && url.startsWith(this.PRIVILEGED_ORIGIN));
+      if (tab?.id) {
         portDetails.tabId = tab.id;
         portDetails.tabURL = tab.url;
       }
       this.ports.set(port.name, portDetails);
       port.sender = void 0;
     },
-    /**
-     * Set up messaging with a default handler
-     * @param {Function} defaultHandler - Default handler for privileged messages
-     */
     setup: function(defaultHandler) {
       if (this.defaultHandler !== null) {
         return;
       }
       this.defaultHandler = defaultHandler;
-      var self2 = this;
+      const self2 = this;
       chrome.runtime.onConnect.addListener(function(port) {
         self2.onPortConnect(port);
       });
     },
-    /**
-     * Handle framework messages (vapi channel)
-     * @param {Object} request - The message request
-     * @param {Port} port - The port
-     * @param {Function} callback - Response callback
-     */
     onFrameworkMessage: function(request, port, callback) {
-      var portDetails = this.ports.get(port.name) || {};
-      var tabId = portDetails.tabId;
-      var msg = request.msg;
+      const portDetails = this.ports.get(port.name) || { privileged: false };
+      const tabId = portDetails.tabId;
+      const msg = request.msg;
       switch (msg.what) {
         case "localStorage": {
           if (portDetails.privileged !== true) break;
-          if (!vAPI2.localStorage || !vAPI2.localStorage[msg.fn]) {
+          if (!vAPI.localStorage || !(msg.fn && vAPI.localStorage[msg.fn])) {
             callback(null);
             break;
           }
-          var args = msg.args || [];
-          var fn = vAPI2.localStorage[msg.fn];
-          var result = fn.apply(vAPI2.localStorage, args);
+          const args = msg.args || [];
+          const fn = vAPI.localStorage[msg.fn];
+          const result = fn.apply(vAPI.localStorage, args);
           if (result && typeof result.then === "function") {
             result.then(function(data) {
               callback(data);
@@ -492,10 +471,9 @@
         }
         case "userCSS": {
           if (tabId === void 0) break;
-          var promises = [];
+          const promises = [];
           if (msg.add) {
-            for (var i = 0; i < msg.add.length; i++) {
-              var cssText = msg.add[i];
+            for (const cssText of msg.add) {
               promises.push(new Promise(function(resolve) {
                 chrome.scripting.insertCSS({
                   target: { tabId },
@@ -515,32 +493,21 @@
           break;
       }
     },
-    /**
-     * Create a response callback for a port message
-     * @param {Port} port - The port
-     * @param {number} msgId - Message ID
-     * @returns {Function} Callback function
-     */
     createCallback: function(port, msgId) {
-      var messaging2 = this;
+      const msgInstance = this;
       return function(response) {
         try {
           port.postMessage({
             msgId,
             msg: response !== void 0 ? response : null
           });
-        } catch (e) {
-          messaging2.onPortDisconnect(port);
+        } catch {
+          msgInstance.onPortDisconnect(port);
         }
       };
     },
-    /**
-     * Handle incoming port message
-     * @param {Object} request - The message request
-     * @param {Port} port - The port
-     */
     onPortMessage: function(request, port) {
-      var callback = this.NOOPFUNC;
+      let callback = this.NOOPFUNC;
       if (request.msgId !== void 0) {
         callback = this.createCallback(port, request.msgId);
       }
@@ -548,58 +515,48 @@
         this.onFrameworkMessage(request, port, callback);
         return;
       }
-      var portDetails = this.ports.get(port.name);
+      const portDetails = this.ports.get(port.name);
       if (portDetails === void 0) {
         callback();
         return;
       }
-      var listenerDetails = this.listeners.get(request.channel);
-      var r = this.UNHANDLED;
+      const listenerDetails = this.listeners.get(request.channel);
+      let r = this.UNHANDLED;
       if (listenerDetails !== void 0) {
         if (listenerDetails.privileged === false || portDetails.privileged) {
-          r = listenerDetails.fn(request.msg, portDetails, callback);
+          r = listenerDetails.fn(request.msg, portDetails, callback) || this.UNHANDLED;
         }
       }
       if (r !== this.UNHANDLED) {
         return;
       }
       if (portDetails.privileged && this.defaultHandler) {
-        r = this.defaultHandler(request.msg, portDetails, callback);
+        r = this.defaultHandler(request.msg, portDetails, callback) || this.UNHANDLED;
       }
       if (r !== this.UNHANDLED) {
         return;
       }
       callback();
     },
-    /**
-     * Send a one-time message (not port-based)
-     * @param {string} channel - Message channel
-     * @param {Object} msg - Message payload
-     * @returns {Promise} Response promise
-     */
     send: function(channel, msg) {
       return chrome.runtime.sendMessage({ channel, msg });
     },
-    /**
-     * Send native message (placeholder)
-     * @returns {Promise} Empty response
-     */
     sendNative: function() {
       return Promise.resolve({});
     }
   };
 
-  // src/js/mv3/storage.js
-  vAPI2.localStorage = {
+  // src/js/mv3/storage.ts
+  vAPI.localStorage = {
     getItem: function(key) {
-      var result = null;
+      let result = null;
       chrome.storage.local.get(key, function(data) {
         result = data[key];
       });
       return result;
     },
     setItem: function(key, value) {
-      var obj = {};
+      const obj = {};
       obj[key] = value;
       chrome.storage.local.set(obj);
     },
@@ -615,7 +572,7 @@
       });
     },
     setItemAsync: function(key, value) {
-      var obj = {};
+      const obj = {};
       obj[key] = value;
       return chrome.storage.local.set(obj);
     },
@@ -626,7 +583,7 @@
       return Promise.resolve();
     }
   };
-  vAPI2.storage = {
+  vAPI.storage = {
     get: function(keys) {
       return chrome.storage.local.get(keys);
     },
@@ -639,7 +596,7 @@
       });
     },
     setItemAsync: function(key, value) {
-      var obj = {};
+      const obj = {};
       obj[key] = value;
       return chrome.storage.local.set(obj);
     },
@@ -647,10 +604,10 @@
       return chrome.storage.local.remove(key);
     }
   };
-  var storage2 = {
+  var storage = {
     readUserFilters: function() {
       return chrome.storage.local.get(["user-filters", "userFiltersSettings"]).then(function(data) {
-        var settings = data.userFiltersSettings || { enabled: true, trusted: false };
+        const settings = data.userFiltersSettings || { enabled: true, trusted: false };
         return {
           content: data["user-filters"] || "",
           enabled: settings.enabled,
@@ -660,7 +617,7 @@
       });
     },
     writeUserFilters: function(content, options) {
-      var settings = {
+      const settings = {
         enabled: options.enabled !== false,
         trusted: options.trusted === true
       };
@@ -670,18 +627,18 @@
       });
     },
     appendUserFilters: function(filters) {
-      var self2 = this;
+      const self2 = this;
       return chrome.storage.local.get("user-filters").then(function(data) {
-        var currentFilters = data["user-filters"] || "";
-        var filtersToSave = Array.isArray(filters) ? filters : [filters];
+        let currentFilters = data["user-filters"] || "";
+        let filtersToSave = Array.isArray(filters) ? filters : [filters];
         filtersToSave = filtersToSave.filter(function(f) {
           return f && f.trim();
         });
         if (filtersToSave.length === 0) {
           return { saved: false, reason: "no valid filters" };
         }
-        var newFiltersText = filtersToSave.join("\n");
-        var newContent = currentFilters ? currentFilters + "\n" + newFiltersText : newFiltersText;
+        const newFiltersText = filtersToSave.join("\n");
+        const newContent = currentFilters ? currentFilters + "\n" + newFiltersText : newFiltersText;
         return chrome.storage.local.set({ "user-filters": newContent }).then(function() {
           return { saved: true, filters: filtersToSave };
         });
@@ -716,7 +673,7 @@
     }
   };
 
-  // src/js/mv3/utils.js
+  // src/js/mv3/utils.ts
   var CONSTANTS = {
     DNR: {
       WHITELIST_RULE_START: 1e4,
@@ -746,7 +703,7 @@
         url: urlObj.href,
         protocol: urlObj.protocol
       };
-    } catch (e) {
+    } catch {
       return { hostname: "", domain: "", url: "", protocol: "" };
     }
   }
@@ -761,8 +718,9 @@
     });
   }
   function injectScripts(tabId, scripts, allFrames = false) {
-    var chain = Promise.resolve();
-    scripts.forEach(function(files) {
+    let chain = Promise.resolve();
+    const scriptArray = Array.isArray(scripts) ? scripts : [[scripts]];
+    scriptArray.forEach(function(files) {
       if (Array.isArray(files)) {
         chain = chain.then(function() {
           return injectScript(tabId, files, allFrames);
@@ -776,18 +734,17 @@
     return chain;
   }
 
-  // src/js/mv3/dnr.js
-  var dnr2 = {
+  // src/js/mv3/dnr.ts
+  var dnr = {
     WHITELIST_RULE_START: CONSTANTS.DNR.WHITELIST_RULE_START,
     WHITELIST_RULE_END: CONSTANTS.DNR.WHITELIST_RULE_END,
     updateWhitelist: function() {
-      storage2.readWhitelist().then(function(whitelist) {
-        var rules = [];
-        for (var i = 0; i < whitelist.length; i++) {
-          var pattern = whitelist[i];
+      storage.readWhitelist().then(function(whitelist) {
+        const rules = [];
+        for (const pattern of whitelist) {
           if (!pattern || pattern.startsWith("#")) continue;
-          var rule = {
-            id: dnr2.WHITELIST_RULE_START + rules.length,
+          const rule = {
+            id: dnr.WHITELIST_RULE_START + rules.length,
             priority: 3,
             action: { type: "allow" },
             condition: {}
@@ -802,8 +759,8 @@
           rules.push(rule);
         }
         chrome.declarativeNetRequest.getDynamicRules(function(existingRules) {
-          var removeIds = existingRules.filter(function(r) {
-            return r.id >= dnr2.WHITELIST_RULE_START && r.id < dnr2.WHITELIST_RULE_END;
+          const removeIds = existingRules.filter(function(r) {
+            return r.id >= dnr.WHITELIST_RULE_START && r.id < dnr.WHITELIST_RULE_END;
           }).map(function(r) {
             return r.id;
           });
@@ -816,11 +773,11 @@
       });
     },
     addToWhitelist: function(domain) {
-      return storage2.readWhitelist().then(function(whitelist) {
+      return storage.readWhitelist().then(function(whitelist) {
         if (whitelist.indexOf(domain) === -1) {
           whitelist.push(domain);
-          return storage2.writeWhitelist(whitelist).then(function() {
-            dnr2.updateWhitelist();
+          return storage.writeWhitelist(whitelist).then(function() {
+            dnr.updateWhitelist();
             return true;
           });
         }
@@ -828,12 +785,12 @@
       });
     },
     removeFromWhitelist: function(domain) {
-      return storage2.readWhitelist().then(function(whitelist) {
-        var idx = whitelist.indexOf(domain);
+      return storage.readWhitelist().then(function(whitelist) {
+        const idx = whitelist.indexOf(domain);
         if (idx !== -1) {
           whitelist.splice(idx, 1);
-          return storage2.writeWhitelist(whitelist).then(function() {
-            dnr2.updateWhitelist();
+          return storage.writeWhitelist(whitelist).then(function() {
+            dnr.updateWhitelist();
             return true;
           });
         }
@@ -842,7 +799,7 @@
     }
   };
 
-  // src/js/mv3/handlers/popup.js
+  // src/js/mv3/handlers/popup.ts
   function createPopupHandler(api) {
     return function(request, portDetails, callback) {
       switch (request.what) {
@@ -853,7 +810,7 @@
           handleLaunchElementPicker(request, portDetails, callback, api);
           break;
         case "gotoURL":
-          handleGotoURL(request, portDetails, callback, api);
+          handleGotoURL(request, portDetails, callback);
           break;
         case "getScriptCount":
           callback({ count: 0 });
@@ -868,25 +825,25 @@
     };
   }
   function handleGetPopupData(request, portDetails, callback, api) {
-    var tabId = request.tabId || -1;
-    var tabTitle = "";
-    var rawURL = "";
-    var pageURL = "";
-    var pageHostname = "";
-    var pageDomain = "";
-    var canElementPicker = true;
-    var buildPopupData = function(tab) {
-      if (tab && tab.url) {
+    const tabId = request.tabId || -1;
+    let tabTitle = "";
+    let rawURL = "";
+    let pageURL = "";
+    let pageHostname = "";
+    let pageDomain = "";
+    let canElementPicker = true;
+    function buildPopupData(tab) {
+      if (tab?.url) {
         tabTitle = tab.title || "";
-        rawURL = tab.url || "";
-        pageURL = tab.url || "";
+        rawURL = tab.url;
+        pageURL = tab.url;
         try {
-          var parsed = parseHostname(tab.url);
+          const parsed = parseHostname(tab.url);
           pageHostname = parsed.hostname;
           pageDomain = parsed.domain;
           canElementPicker = parsed.protocol === "http:" || parsed.protocol === "https:" || parsed.protocol === "file:";
-        } catch (e) {
-          console.warn("[PopupHandler] Failed to parse URL:", e);
+        } catch {
+          console.warn("[PopupHandler] Failed to parse URL");
         }
       }
       callback({
@@ -935,10 +892,9 @@
         popupPanelHeightMode: 0,
         popupPanelOrientation: "landscape"
       });
-    };
+    }
     if (tabId && tabId > 0) {
-      chrome.tabs.get(tabId).then(buildPopupData).catch(function(err) {
-        console.warn("[PopupHandler] Failed to get tab:", err);
+      chrome.tabs.get(tabId).then(buildPopupData).catch(function() {
         buildPopupData(null);
       });
     } else {
@@ -946,15 +902,15 @@
     }
   }
   function handleLaunchElementPicker(request, portDetails, callback, api) {
-    var targetTabId = request.tabId;
-    var zapMode = request.zap === true;
+    const targetTabId = request.tabId;
+    const zapMode = request.zap === true;
     api.inZapperMode = zapMode;
-    var activatePicker = function(tabId) {
+    function activatePicker(tabId) {
       if (!tabId || tabId <= 0) {
         callback({ success: false, error: "no valid tabId" });
         return;
       }
-      var chain = injectScripts(tabId, [
+      const chain = injectScripts(tabId, [
         ["js/vapi-content.js"],
         ["js/scriptlets/epicker.js"]
       ]);
@@ -964,12 +920,12 @@
         console.error("[PopupHandler] Failed to inject scripts:", err);
         callback({ success: false, error: err instanceof Error ? err.message : "Injection failed" });
       });
-    };
+    }
     if (targetTabId && targetTabId > 0) {
       activatePicker(targetTabId);
     } else {
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        if (tabs && tabs.length > 0) {
+        if (tabs && tabs.length > 0 && tabs[0].id) {
           activatePicker(tabs[0].id);
         } else {
           callback({ success: false, error: "no active tab" });
@@ -977,20 +933,21 @@
       });
     }
   }
-  function handleGotoURL(request, portDetails, callback, api) {
-    var url = request.details && request.details.url;
+  function handleGotoURL(request, portDetails, callback) {
+    const url = request.details?.url;
     if (url) {
-      if (url.startsWith("/")) {
-        url = chrome.runtime.getURL(url);
+      let targetUrl = url;
+      if (targetUrl.startsWith("/")) {
+        targetUrl = chrome.runtime.getURL(targetUrl);
       }
-      chrome.tabs.create({ url, active: request.details.select !== false });
+      chrome.tabs.create({ url: targetUrl, active: request.details?.select !== false });
       callback({ success: true });
     } else {
       callback({ success: false });
     }
   }
 
-  // src/js/mv3/handlers/picker.js
+  // src/js/mv3/handlers/picker.ts
   function createPickerHandler() {
     return function(request, portDetails, callback) {
       switch (request.what) {
@@ -1012,7 +969,7 @@
     };
   }
   function handleCreateUserFilter(request, portDetails, callback) {
-    var filtersToSave = [];
+    let filtersToSave = [];
     if (typeof request.filters === "string" && request.filters.trim()) {
       filtersToSave = [request.filters.trim()];
     } else if (Array.isArray(request.filters)) {
@@ -1034,7 +991,7 @@
     });
   }
 
-  // src/js/mv3/handlers/dashboard.js
+  // src/js/mv3/handlers/dashboard.ts
   function createDashboardHandler() {
     return function(request, portDetails, callback) {
       switch (request.what) {
@@ -1059,7 +1016,7 @@
           });
           break;
         case "setWhitelist":
-          var whitelist = request.whitelist ? request.whitelist.split("\n") : [];
+          const whitelist = request.whitelist ? request.whitelist.split("\n") : [];
           storage.writeWhitelist(whitelist).then(function() {
             dnr.updateWhitelist();
             callback({ success: true });
@@ -1128,30 +1085,29 @@
     };
   }
 
-  // src/js/mv3/handlers/content.js
+  // src/js/mv3/handlers/content.ts
   function handleRetrieveContentScriptParameters(request, portDetails, callback) {
-    var parsed = parseHostname(request.url || "");
-    var hostname = parsed.hostname;
-    var domain = parsed.domain;
-    storage2.readUserFilters().then(function(data) {
-      var userFilters = data.content || "";
-      var cosmeticFilters = [];
-      var lines = userFilters.split("\n");
-      for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].trim();
-        if (line && line.includes(CONSTANTS.FILTERS.SELECTOR_SEPARATOR) && !line.startsWith(CONSTANTS.FILTERS.COMMENT_PREFIX) && !line.startsWith(CONSTANTS.FILTERS.INCLUDE_PREFIX)) {
-          cosmeticFilters.push(line);
+    const parsed = parseHostname(request.url || "");
+    const hostname = parsed.hostname;
+    const domain = parsed.domain;
+    storage.readUserFilters().then(function(data) {
+      const userFilters = data.content || "";
+      const cosmeticFilters = [];
+      const lines = userFilters.split("\n");
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine && trimmedLine.includes(CONSTANTS.FILTERS.SELECTOR_SEPARATOR) && !trimmedLine.startsWith(CONSTANTS.FILTERS.COMMENT_PREFIX) && !trimmedLine.startsWith(CONSTANTS.FILTERS.INCLUDE_PREFIX)) {
+          cosmeticFilters.push(trimmedLine);
         }
       }
-      var matchedSelectors = [];
-      for (var j = 0; j < cosmeticFilters.length; j++) {
-        var filter = cosmeticFilters[j];
+      const matchedSelectors = [];
+      for (const filter of cosmeticFilters) {
         if (!filter) continue;
-        var parts = filter.split(CONSTANTS.FILTERS.SELECTOR_SEPARATOR);
+        const parts = filter.split(CONSTANTS.FILTERS.SELECTOR_SEPARATOR);
         if (parts.length !== 2) continue;
-        var filterHostname = parts[0];
-        var selector = parts[1];
-        var matches = false;
+        const filterHostname = parts[0];
+        const selector = parts[1];
+        let matches = false;
         if (!filterHostname) {
           matches = true;
         } else if (filterHostname === hostname || filterHostname === domain) {
@@ -1198,19 +1154,18 @@
     });
   }
   function handleUserCSS(request, portDetails, callback) {
-    var tabId = portDetails.tabId;
-    var frameId = portDetails.frameId;
+    const tabId = portDetails.tabId;
+    const frameId = portDetails.frameId;
     if (tabId === void 0) {
       callback({});
       return;
     }
-    var cssPromises = [];
+    const cssPromises = [];
     if (request.add && request.add.length > 0) {
-      for (var i = 0; i < request.add.length; i++) {
-        var cssText = request.add[i];
+      for (const cssText of request.add) {
         if (!cssText) continue;
         cssPromises.push(new Promise(function(resolve) {
-          var injectDetails = {
+          const injectDetails = {
             target: { tabId },
             css: cssText
           };
@@ -1227,11 +1182,10 @@
       }
     }
     if (request.remove && request.remove.length > 0) {
-      for (var j = 0; j < request.remove.length; j++) {
-        var removeCss = request.remove[j];
+      for (const removeCss of request.remove) {
         if (!removeCss) continue;
         cssPromises.push(new Promise(function(resolve) {
-          var removeDetails = {
+          const removeDetails = {
             target: { tabId },
             code: removeCss
           };
@@ -1273,7 +1227,7 @@
     };
   }
 
-  // src/js/mv3/sw-entry.js
+  // src/js/mv3/sw-entry.ts
   self.oninstall = function() {
     self.skipWaiting();
   };
@@ -1282,7 +1236,7 @@
   };
   var defaultMessageHandler = function(request, portDetails, callback) {
     if (request.what === "createUserFilter") {
-      var filtersToSave = [];
+      let filtersToSave = [];
       if (typeof request.filters === "string" && request.filters.trim()) {
         filtersToSave = [request.filters.trim()];
       } else if (Array.isArray(request.filters)) {
@@ -1290,7 +1244,7 @@
       } else if (request.filters && typeof request.filters === "object" && request.filters.filter) {
         filtersToSave = [request.filters.filter.trim()];
       }
-      storage2.appendUserFilters(filtersToSave).then(function(result) {
+      storage.appendUserFilters(filtersToSave).then(function(result) {
         callback(result);
       }).catch(function(e) {
         callback({ saved: false, error: e.message });
@@ -1298,25 +1252,26 @@
       return;
     }
     if (request.channel === "elementPicker" || request.msg && request.msg.channel === "elementPicker") {
-      var msg = request.msg || request;
-      var what = msg.what;
+      const msg = request.msg || request;
+      const what = msg.what;
       if (what === "elementPickerArguments") {
         callback({
           pickerURL: chrome.runtime.getURL("web_accessible_resources/epicker-ui.html"),
           target: "",
-          zap: vAPI2.inZapperMode,
+          zap: vAPI.inZapperMode,
           eprom: null
         });
         return;
       }
       if (what === "createUserFilter") {
-        var filtersToSave = [];
-        if (typeof msg.filters === "string" && msg.filters.trim()) {
-          filtersToSave = [msg.filters.trim()];
-        } else if (Array.isArray(msg.filters)) {
-          filtersToSave = msg.filters;
+        const m = msg;
+        let filtersToSave = [];
+        if (typeof m.filters === "string" && m.filters.trim()) {
+          filtersToSave = [m.filters.trim()];
+        } else if (Array.isArray(m.filters)) {
+          filtersToSave = m.filters;
         }
-        storage2.appendUserFilters(filtersToSave).then(function(result) {
+        storage.appendUserFilters(filtersToSave).then(function(result) {
           callback(result);
         });
         return;
@@ -1329,32 +1284,33 @@
     return messaging.UNHANDLED;
   };
   messaging.setup(defaultMessageHandler);
-  messaging.listen({ name: "popupPanel", listener: createPopupHandler(vAPI2), privileged: false });
+  messaging.listen({ name: "popupPanel", listener: createPopupHandler(vAPI), privileged: false });
   messaging.listen({ name: "elementPicker", listener: createPickerHandler(), privileged: false });
   messaging.listen({ name: "dashboard", listener: createDashboardHandler(), privileged: true });
   messaging.listen({ name: "dom", listener: createContentHandler(), privileged: false });
   messaging.listen({ name: "contentscript", listener: createContentHandler(), privileged: false });
   chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.channel === "elementPicker" || request.msg && request.msg.channel === "elementPicker") {
-      var msg = request.msg || request;
-      var what = msg.what;
+      const msg = request.msg || request;
+      const what = msg.what;
       if (what === "elementPickerArguments") {
         sendResponse({
           pickerURL: chrome.runtime.getURL("web_accessible_resources/epicker-ui.html"),
           target: "",
-          zap: vAPI2.inZapperMode,
+          zap: vAPI.inZapperMode,
           eprom: null
         });
         return true;
       }
       if (what === "createUserFilter") {
-        var filtersToSave = [];
-        if (typeof msg.filters === "string" && msg.filters.trim()) {
-          filtersToSave = [msg.filters.trim()];
-        } else if (Array.isArray(msg.filters)) {
-          filtersToSave = msg.filters;
+        const m = msg;
+        let filtersToSave = [];
+        if (typeof m.filters === "string" && m.filters.trim()) {
+          filtersToSave = [m.filters.trim()];
+        } else if (Array.isArray(m.filters)) {
+          filtersToSave = m.filters;
         }
-        storage2.appendUserFilters(filtersToSave).then(function(result) {
+        storage.appendUserFilters(filtersToSave).then(function(result) {
           sendResponse(result);
         }).catch(function(e) {
           sendResponse({ saved: false, error: e.message });
@@ -1363,28 +1319,28 @@
       }
     }
     if (request.what === "getPopupData") {
-      var tabId = request.tabId || -1;
-      var canElementPicker = true;
-      var buildPopupData = function(tab) {
-        var tabTitle = "";
-        var pageURL = "";
-        var pageHostname = "";
-        var pageDomain = "";
-        if (tab && tab.url) {
+      const tabId = request.tabId || -1;
+      let canElementPicker = true;
+      const buildPopupData = function(tab) {
+        let tabTitle = "";
+        let pageURL = "";
+        let pageHostname = "";
+        let pageDomain = "";
+        if (tab?.url) {
           tabTitle = tab.title || "";
           pageURL = tab.url;
           try {
-            var parsed = parseHostname(tab.url);
+            const parsed = parseHostname(tab.url);
             pageHostname = parsed.hostname;
             pageDomain = parsed.domain;
             canElementPicker = parsed.protocol === "http:" || parsed.protocol === "https:" || parsed.protocol === "file:";
-          } catch (e) {
+          } catch {
           }
         }
         sendResponse({
           advancedUserEnabled: true,
           appName: "uBlock Origin",
-          appVersion: vAPI2.version,
+          appVersion: vAPI.version,
           colorBlindFriendly: false,
           cosmeticFilteringSwitch: false,
           firewallPaneMinimized: true,
@@ -1418,15 +1374,15 @@
       return true;
     }
     if (request.what === "launchElementPicker") {
-      vAPI2.inZapperMode = request.zap === true;
+      vAPI.inZapperMode = request.zap === true;
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        if (tabs && tabs.length > 0) {
-          var tabId2 = tabs[0].id;
-          var injectChain = Promise.resolve();
+        if (tabs && tabs.length > 0 && tabs[0].id) {
+          const targetTabId = tabs[0].id;
+          let injectChain = Promise.resolve();
           injectChain = injectChain.then(function() {
             return new Promise(function(resolve) {
               chrome.scripting.executeScript({
-                target: { tabId: tabId2, allFrames: true },
+                target: { tabId: targetTabId, allFrames: true },
                 files: ["js/vapi-content.js"]
               }, function() {
                 resolve();
@@ -1436,7 +1392,7 @@
           injectChain = injectChain.then(function() {
             return new Promise(function(resolve) {
               chrome.scripting.executeScript({
-                target: { tabId: tabId2, allFrames: true },
+                target: { tabId: targetTabId, allFrames: true },
                 files: ["js/scriptlets/epicker.js"]
               }, function() {
                 resolve();
@@ -1452,9 +1408,9 @@
   });
   chrome.commands.onCommand.addListener(function(command) {
     if (command === "launch-element-zapper") {
-      vAPI2.inZapperMode = true;
+      vAPI.inZapperMode = true;
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        if (tabs && tabs.length > 0) {
+        if (tabs && tabs.length > 0 && tabs[0].id) {
           chrome.scripting.executeScript({
             target: { tabId: tabs[0].id, allFrames: true },
             files: ["js/vapi-content.js"]
@@ -1467,9 +1423,9 @@
         }
       });
     } else if (command === "launch-element-picker") {
-      vAPI2.inZapperMode = false;
+      vAPI.inZapperMode = false;
       chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-        if (tabs && tabs.length > 0) {
+        if (tabs && tabs.length > 0 && tabs[0].id) {
           chrome.scripting.executeScript({
             target: { tabId: tabs[0].id, allFrames: true },
             files: ["js/vapi-content.js"]
@@ -1487,5 +1443,5 @@
       chrome.tabs.create({ url: chrome.runtime.getURL("logger-ui.html") });
     }
   });
-  dnr2.updateWhitelist();
+  dnr.updateWhitelist();
 })();

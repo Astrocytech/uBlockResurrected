@@ -1,87 +1,75 @@
 /**
  * @fileoverview Content Script Handler
  * Handles messages from content scripts including cosmetic filters and CSS injection.
- * 
- * @module mv3/handlers/content
- * @requires mv3/storage
- * @requires mv3/utils
  */
 
-/**
- * @typedef {Object} PortDetails
- * @property {number} [tabId] - Tab ID
- * @property {number} [frameId] - Frame ID
- * @property {boolean} [privileged] - Whether the port is from a privileged context
- */
-
-/**
- * @typedef {Object} ContentScriptRequest
- * @property {string} what - Request type
- * @property {string} [url] - Page URL for retrieveContentScriptParameters
- * @property {string[]} [add] - CSS to add
- * @property {string[]} [remove] - CSS to remove
- */
-
-/**
- * @typedef {Object} ContentScriptParameters
- * @property {string} hostname - Page hostname
- * @property {string} domain - Page domain
- * @property {Object} deepServices - Deep services config
- * @property {boolean} privileged - Is privileged
- * @property {Object} cnameToParentMap - CNAME mapping
- * @property {*} redirectEngine - Redirect engine instance
- * @property {string} staticFilters - Static filters
- * @property {string} staticExtendedFilters - Extended static filters
- * @property {string} proceduralFilters - Procedural filters
- * @property {string} cosmeticFilterEngine - Cosmetic filter engine type
- * @property {Object} extraSettings - Extra settings
- * @property {string} userFilters - User filters
- */
-
-import { vAPI } from '../vapi-bg.js';
 import { storage } from '../storage.js';
-import { parseHostname } from '../utils.js';
-import { CONSTANTS } from '../utils.js';
+import { parseHostname, CONSTANTS } from '../utils.js';
 
-/**
- * Handle retrieveContentScriptParameters request
- * @param {Object} request - The request object
- * @param {PortDetails} portDetails - Port details
- * @param {Function} callback - Callback function
- */
-function handleRetrieveContentScriptParameters(request, portDetails, callback) {
-    var parsed = parseHostname(request.url || '');
-    var hostname = parsed.hostname;
-    var domain = parsed.domain;
+interface PortDetails {
+    tabId?: number;
+    frameId?: number;
+    privileged?: boolean;
+}
+
+interface ContentScriptRequest {
+    what: string;
+    url?: string;
+    add?: string[];
+    remove?: string[];
+}
+
+interface ContentScriptParameters {
+    hostname: string;
+    domain: string;
+    deepServices: Record<string, unknown>;
+    privileged: boolean;
+    cnameToParentMap: Record<string, unknown>;
+    redirectEngine: null;
+    staticFilters: string;
+    staticExtendedFilters: string;
+    proceduralFilters: string;
+    cosmeticFilterEngine: string;
+    extraSettings: { forceLocalPolicies: boolean };
+    userFilters: string;
+}
+
+function handleRetrieveContentScriptParameters(
+    request: ContentScriptRequest,
+    portDetails: PortDetails,
+    callback: (response?: unknown) => void
+): void {
+    const parsed = parseHostname(request.url || '');
+    const hostname = parsed.hostname;
+    const domain = parsed.domain;
 
     storage.readUserFilters()
         .then(function(data) {
-            var userFilters = data.content || '';
-            var cosmeticFilters = [];
+            const userFilters = data.content || '';
+            const cosmeticFilters: string[] = [];
 
-            var lines = userFilters.split('\n');
-            for (var i = 0; i < lines.length; i++) {
-                var line = lines[i].trim();
-                if (line && 
-                    line.includes(CONSTANTS.FILTERS.SELECTOR_SEPARATOR) && 
-                    !line.startsWith(CONSTANTS.FILTERS.COMMENT_PREFIX) && 
-                    !line.startsWith(CONSTANTS.FILTERS.INCLUDE_PREFIX)) {
-                    cosmeticFilters.push(line);
+            const lines = userFilters.split('\n');
+            for (const line of lines) {
+                const trimmedLine = line.trim();
+                if (trimmedLine && 
+                    trimmedLine.includes(CONSTANTS.FILTERS.SELECTOR_SEPARATOR) && 
+                    !trimmedLine.startsWith(CONSTANTS.FILTERS.COMMENT_PREFIX) && 
+                    !trimmedLine.startsWith(CONSTANTS.FILTERS.INCLUDE_PREFIX)) {
+                    cosmeticFilters.push(trimmedLine);
                 }
             }
 
-            var matchedSelectors = [];
-            for (var j = 0; j < cosmeticFilters.length; j++) {
-                var filter = cosmeticFilters[j];
+            const matchedSelectors: string[] = [];
+            for (const filter of cosmeticFilters) {
                 if (!filter) continue;
 
-                var parts = filter.split(CONSTANTS.FILTERS.SELECTOR_SEPARATOR);
+                const parts = filter.split(CONSTANTS.FILTERS.SELECTOR_SEPARATOR);
                 if (parts.length !== 2) continue;
 
-                var filterHostname = parts[0];
-                var selector = parts[1];
+                const filterHostname = parts[0];
+                const selector = parts[1];
 
-                var matches = false;
+                let matches = false;
                 if (!filterHostname) {
                     matches = true;
                 } else if (filterHostname === hostname || filterHostname === domain) {
@@ -95,7 +83,6 @@ function handleRetrieveContentScriptParameters(request, portDetails, callback) {
                 }
             }
 
-            /** @type {ContentScriptParameters} */
             callback({
                 hostname: hostname,
                 domain: domain,
@@ -132,30 +119,30 @@ function handleRetrieveContentScriptParameters(request, portDetails, callback) {
         });
 }
 
-/**
- * Handle userCSS request - inject CSS into tab
- * @param {Object} request - The request object
- * @param {PortDetails} portDetails - Port details
- * @param {Function} callback - Callback function
- */
-function handleUserCSS(request, portDetails, callback) {
-    var tabId = portDetails.tabId;
-    var frameId = portDetails.frameId;
+function handleUserCSS(
+    request: ContentScriptRequest,
+    portDetails: PortDetails,
+    callback: (response?: unknown) => void
+): void {
+    const tabId = portDetails.tabId;
+    const frameId = portDetails.frameId;
 
     if (tabId === undefined) {
         callback({});
         return;
     }
 
-    var cssPromises = [];
+    const cssPromises: Array<Promise<void>> = [];
 
     if (request.add && request.add.length > 0) {
-        for (var i = 0; i < request.add.length; i++) {
-            var cssText = request.add[i];
+        for (const cssText of request.add) {
             if (!cssText) continue;
 
             cssPromises.push(new Promise(function(resolve) {
-                var injectDetails = {
+                const injectDetails: {
+                    target: { tabId: number; frameIds?: number[] };
+                    css: string;
+                } = {
                     target: { tabId: tabId },
                     css: cssText
                 };
@@ -175,12 +162,14 @@ function handleUserCSS(request, portDetails, callback) {
     }
 
     if (request.remove && request.remove.length > 0) {
-        for (var j = 0; j < request.remove.length; j++) {
-            var removeCss = request.remove[j];
+        for (const removeCss of request.remove) {
             if (!removeCss) continue;
 
             cssPromises.push(new Promise(function(resolve) {
-                var removeDetails = {
+                const removeDetails: {
+                    target: { tabId: number; frameIds?: number[] };
+                    code: string;
+                } = {
                     target: { tabId: tabId },
                     code: removeCss
                 };
@@ -209,17 +198,8 @@ function handleUserCSS(request, portDetails, callback) {
         });
 }
 
-/**
- * Create content script handler
- * @returns {Function} Handler function for messaging
- */
 function createContentHandler() {
-    /**
-     * @param {ContentScriptRequest} request
-     * @param {PortDetails} portDetails
-     * @param {Function} callback
-     */
-    return function(request, portDetails, callback) {
+    return function(request: ContentScriptRequest, portDetails: PortDetails, callback: (response?: unknown) => void): void {
         switch (request.what) {
         case 'retrieveContentScriptParameters':
             handleRetrieveContentScriptParameters(request, portDetails, callback);

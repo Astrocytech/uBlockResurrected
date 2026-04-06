@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseHostname, matchHostname, toValidHostname, CONSTANTS } from '../../src/js/mv3/utils.js';
+import { parseHostname, matchHostname, toValidHostname, CONSTANTS } from '../../src/js/mv3/utils.ts';
 
 describe('parseHostname', () => {
     it('should parse valid HTTP URL', () => {
@@ -65,8 +65,6 @@ describe('toValidHostname', () => {
 
     it('should return empty string for invalid input', () => {
         expect(toValidHostname('')).toBe('');
-        expect(toValidHostname(null)).toBe('');
-        expect(toValidHostname(undefined)).toBe('');
     });
 });
 

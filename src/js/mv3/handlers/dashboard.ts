@@ -1,40 +1,27 @@
 /**
  * @fileoverview Dashboard Handler
  * Handles messages from the dashboard (settings, filters, whitelist, etc.).
- * 
- * @module mv3/handlers/dashboard
- * @requires mv3/vapi-bg
- * @requires mv3/storage
- * @requires mv3/dnr
  */
 
-/**
- * @typedef {Object} PortDetails
- * @property {number} [tabId] - Tab ID
- * @property {number} [frameId] - Frame ID
- * @property {boolean} [privileged] - Whether the port is from a privileged context
- */
+import { storage } from '../storage.js';
+import { dnr } from '../dnr.js';
 
-/**
- * @typedef {Object} DashboardRequest
- * @property {string} what - Request type
- * @property {string} [whitelist] - Whitelist content
- * @property {string} [content] - User filters content
- * @property {boolean} [enabled] - Whether filters are enabled
- * @property {boolean} [trusted] - Whether filters are trusted
- */
+interface PortDetails {
+    tabId?: number;
+    frameId?: number;
+    privileged?: boolean;
+}
 
-/**
- * Create dashboard handler
- * @returns {Function} Handler function for messaging
- */
+interface DashboardRequest {
+    what: string;
+    whitelist?: string;
+    content?: string;
+    enabled?: boolean;
+    trusted?: boolean;
+}
+
 function createDashboardHandler() {
-    /**
-     * @param {DashboardRequest} request
-     * @param {PortDetails} portDetails
-     * @param {Function} callback
-     */
-    return function(request, portDetails, callback) {
+    return function(request: DashboardRequest, portDetails: PortDetails, callback: (response?: unknown) => void): void {
         switch (request.what) {
         case 'readyToFilter':
             callback(true);
@@ -57,12 +44,12 @@ function createDashboardHandler() {
                 })
                 .catch(function(err) {
                     console.error('[DashboardHandler] Failed to read whitelist:', err);
-                    callback({ whitelist: [], success: false, error: err.message });
+                    callback({ whitelist: [], success: false, error: (err as Error).message });
                 });
             break;
 
         case 'setWhitelist':
-            var whitelist = request.whitelist ? request.whitelist.split('\n') : [];
+            const whitelist = request.whitelist ? request.whitelist.split('\n') : [];
             storage.writeWhitelist(whitelist)
                 .then(function() {
                     dnr.updateWhitelist();
@@ -70,7 +57,7 @@ function createDashboardHandler() {
                 })
                 .catch(function(err) {
                     console.error('[DashboardHandler] Failed to write whitelist:', err);
-                    callback({ success: false, error: err.message });
+                    callback({ success: false, error: (err as Error).message });
                 });
             break;
 
@@ -81,7 +68,7 @@ function createDashboardHandler() {
                 })
                 .catch(function(err) {
                     console.error('[DashboardHandler] Failed to read user filters:', err);
-                    callback({ content: '', success: false, error: err.message });
+                    callback({ content: '', success: false, error: (err as Error).message });
                 });
             break;
 
@@ -95,7 +82,7 @@ function createDashboardHandler() {
                 })
                 .catch(function(err) {
                     console.error('[DashboardHandler] Failed to write user filters:', err);
-                    callback({ success: false, error: err.message });
+                    callback({ success: false, error: (err as Error).message });
                 });
             break;
 

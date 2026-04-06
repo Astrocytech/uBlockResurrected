@@ -3,8 +3,6 @@
  * Shared Utilities and Constants
  */
 
-/******************************************************************************/
-
 export const CONSTANTS = {
     DNR: {
         WHITELIST_RULE_START: 10000,
@@ -25,9 +23,14 @@ export const CONSTANTS = {
     }
 };
 
-/******************************************************************************/
+export interface ParsedHostname {
+    hostname: string;
+    domain: string;
+    url: string;
+    protocol: string;
+}
 
-export function parseHostname(url) {
+export function parseHostname(url: string): ParsedHostname {
     try {
         const urlObj = new URL(url);
         const parts = urlObj.hostname.split('.');
@@ -37,14 +40,12 @@ export function parseHostname(url) {
             url: urlObj.href,
             protocol: urlObj.protocol
         };
-    } catch (e) {
+    } catch {
         return { hostname: '', domain: '', url: '', protocol: '' };
     }
 }
 
-/******************************************************************************/
-
-export function matchHostname(pageHostname, filterHostname, filterDomain) {
+export function matchHostname(pageHostname: string, filterHostname: string, filterDomain?: string): boolean {
     if (!filterHostname) { return true; }
     if (pageHostname === filterHostname) { return true; }
     if (filterHostname.startsWith('*.') && pageHostname.endsWith(filterHostname.slice(1))) { return true; }
@@ -52,9 +53,7 @@ export function matchHostname(pageHostname, filterHostname, filterDomain) {
     return false;
 }
 
-/******************************************************************************/
-
-export function toValidHostname(hostname) {
+export function toValidHostname(hostname: string): string {
     if (typeof hostname !== 'string') { return ''; }
     hostname = hostname.trim().toLowerCase();
     if (hostname.length === 0) { return ''; }
@@ -62,9 +61,7 @@ export function toValidHostname(hostname) {
     return hostname;
 }
 
-/******************************************************************************/
-
-export function injectScript(tabId, files, allFrames = true) {
+export function injectScript(tabId: number, files: string[], allFrames = true): Promise<void> {
     return new Promise(function(resolve) {
         chrome.scripting.executeScript({
             target: { tabId: tabId, allFrames: allFrames },
@@ -75,11 +72,12 @@ export function injectScript(tabId, files, allFrames = true) {
     });
 }
 
-/******************************************************************************/
-
-export function injectScripts(tabId, scripts, allFrames = false) {
-    var chain = Promise.resolve();
-    scripts.forEach(function(files) {
+export function injectScripts(tabId: number, scripts: string | string[] | Array<string | string[]>, allFrames = false): Promise<void> {
+    let chain = Promise.resolve();
+    
+    const scriptArray = Array.isArray(scripts) ? scripts : [[scripts as string]];
+    
+    scriptArray.forEach(function(files: string | string[]) {
         if (Array.isArray(files)) {
             chain = chain.then(function() {
                 return injectScript(tabId, files, allFrames);
@@ -93,33 +91,27 @@ export function injectScripts(tabId, scripts, allFrames = false) {
     return chain;
 }
 
-/******************************************************************************/
-
-export function wrapPromise(api, method) {
-    return function() {
-        var args = Array.prototype.slice.call(arguments);
+export function wrapPromise<T>(api: Record<string, unknown>, method: string): (...args: unknown[]) => Promise<T> {
+    return function(...args: unknown[]) {
+        const callbackArgs = Array.prototype.slice.call(args);
         return new Promise(function(resolve) {
-            api[method].apply(api, args.concat(function(result) {
+            ((api[method] as (...args: unknown[]) => void).apply(api, callbackArgs.concat(function(result: T) {
                 resolve(result);
-            }));
+            })));
         });
     };
 }
 
-/******************************************************************************/
-
-export function apiToPromise(api, method) {
-    return function(data) {
+export function apiToPromise<T>(api: Record<string, unknown>, method: string): (data: unknown) => Promise<T> {
+    return function(data: unknown) {
         return new Promise(function(resolve) {
-            api[method](data, function(result) {
+            ((api[method] as (data: unknown, cb: (result: T) => void) => void))(data, function(result: T) {
                 resolve(result);
             });
         });
     };
 }
 
-/******************************************************************************/
+export function noop(): void {}
 
-export function noop() {}
-
-/******************************************************************************/
+export { parseHostname as hostnameParser };

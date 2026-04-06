@@ -1,53 +1,75 @@
 /**
  * @fileoverview Popup Handler
  * Handles messages from the browser action popup.
- * 
- * @module mv3/handlers/popup
  */
 
 import { parseHostname, injectScripts } from '../utils.js';
 
-/**
- * @typedef {Object} PortDetails
- * @property {number} [tabId] - Tab ID
- * @property {number} [frameId] - Frame ID
- * @property {boolean} [privileged] - Whether the port is from a privileged context
- */
+interface PortDetails {
+    tabId?: number;
+    frameId?: number;
+    privileged?: boolean;
+}
 
-/**
- * @typedef {Object} PopupRequest
- * @property {string} what - Request type
- * @property {number} [tabId] - Tab ID
- * @property {boolean} [zap] - Whether to launch in zapper mode
- * @property {Object} [details] - URL details for gotoURL
- */
+interface PopupRequest {
+    what: string;
+    tabId?: number;
+    zap?: boolean;
+    details?: {
+        url?: string;
+        select?: boolean;
+    };
+}
 
-/**
- * @typedef {Object} PopupData
- * @property {boolean} advancedUserEnabled
- * @property {string} appName
- * @property {string} appVersion
- * @property {string} pageHostname
- * @property {string} pageDomain
- * @property {number} tabId
- * @property {string} tabTitle
- * @property {string} pageURL
- * @property {boolean} canElementPicker
- * @property {Object} pageCounts
- */
+interface PopupData {
+    advancedUserEnabled: boolean;
+    appName: string;
+    appVersion: string;
+    colorBlindFriendly: boolean;
+    cosmeticFilteringSwitch: boolean;
+    firewallPaneMinimized: boolean;
+    fontSize?: string;
+    godMode: boolean;
+    tooltipsDisabled: boolean;
+    uiPopupConfig?: unknown;
+    hasUnprocessedRequest: boolean;
+    netFilteringSwitch: boolean;
+    userFiltersAreEnabled: boolean;
+    tabId: number;
+    tabTitle: string;
+    rawURL: string;
+    pageURL: string;
+    pageHostname: string;
+    pageDomain: string;
+    pageCounts: {
+        blocked: Record<string, number>;
+        allowed: Record<string, number>;
+    };
+    globalBlockedRequestCount: number;
+    globalAllowedRequestCount: number;
+    popupBlockedCount: number;
+    largeMediaCount: number;
+    remoteFontCount: number;
+    contentLastModified: number;
+    noPopups: boolean;
+    noLargeMedia: boolean;
+    noCosmeticFiltering: boolean;
+    noRemoteFonts: boolean;
+    noScripting: boolean;
+    hostnameDict: Record<string, unknown>;
+    cnameMap: unknown[];
+    firewallRules: Record<string, unknown>;
+    canElementPicker: boolean;
+    matrixIsDirty: boolean;
+    popupPanelSections: number;
+    popupPanelDisabledSections: number;
+    popupPanelLockedSections: number;
+    popupPanelHeightMode: number;
+    popupPanelOrientation: string;
+}
 
-/**
- * Create popup handler
- * @param {Object} api - vAPI object
- * @returns {Function} Handler function for messaging
- */
-function createPopupHandler(api) {
-    /**
-     * @param {PopupRequest} request
-     * @param {PortDetails} portDetails
-     * @param {Function} callback
-     */
-    return function(request, portDetails, callback) {
+function createPopupHandler(api: { version: string; inZapperMode: boolean }) {
+    return function(request: PopupRequest, portDetails: PortDetails, callback: (response?: unknown) => void): void {
         switch (request.what) {
         case 'getPopupData':
             handleGetPopupData(request, portDetails, callback, api);
@@ -58,7 +80,7 @@ function createPopupHandler(api) {
             break;
 
         case 'gotoURL':
-            handleGotoURL(request, portDetails, callback, api);
+            handleGotoURL(request, portDetails, callback);
             break;
 
         case 'getScriptCount':
@@ -76,43 +98,37 @@ function createPopupHandler(api) {
     };
 }
 
-/**
- * Handle getPopupData request
- * @param {PopupRequest} request
- * @param {PortDetails} portDetails
- * @param {Function} callback
- * @param {Object} api - vAPI object
- */
-function handleGetPopupData(request, portDetails, callback, api) {
-    var tabId = request.tabId || -1;
-    var tabTitle = "";
-    var rawURL = "";
-    var pageURL = "";
-    var pageHostname = "";
-    var pageDomain = "";
-    var canElementPicker = true;
+function handleGetPopupData(
+    request: PopupRequest,
+    portDetails: PortDetails,
+    callback: (response?: unknown) => void,
+    api: { version: string; inZapperMode: boolean }
+): void {
+    const tabId = request.tabId || -1;
+    let tabTitle = "";
+    let rawURL = "";
+    let pageURL = "";
+    let pageHostname = "";
+    let pageDomain = "";
+    let canElementPicker = true;
 
-    /**
-     * @param {chrome.tabs.Tab|null} tab
-     */
-    var buildPopupData = function(tab) {
-        if (tab && tab.url) {
+    function buildPopupData(tab: chrome.tabs.Tab | null): void {
+        if (tab?.url) {
             tabTitle = tab.title || "";
-            rawURL = tab.url || "";
-            pageURL = tab.url || "";
+            rawURL = tab.url;
+            pageURL = tab.url;
             try {
-                var parsed = parseHostname(tab.url);
+                const parsed = parseHostname(tab.url);
                 pageHostname = parsed.hostname;
                 pageDomain = parsed.domain;
                 canElementPicker = parsed.protocol === 'http:' ||
                                    parsed.protocol === 'https:' ||
                                    parsed.protocol === 'file:';
-            } catch (e) {
-                console.warn('[PopupHandler] Failed to parse URL:', e);
+            } catch {
+                console.warn('[PopupHandler] Failed to parse URL');
             }
         }
 
-        /** @type {PopupData} */
         callback({
             advancedUserEnabled: true,
             appName: "uBlock Origin",
@@ -159,13 +175,12 @@ function handleGetPopupData(request, portDetails, callback, api) {
             popupPanelHeightMode: 0,
             popupPanelOrientation: "landscape"
         });
-    };
+    }
 
     if (tabId && tabId > 0) {
         chrome.tabs.get(tabId)
             .then(buildPopupData)
-            .catch(function(err) {
-                console.warn('[PopupHandler] Failed to get tab:', err);
+            .catch(function() {
                 buildPopupData(null);
             });
     } else {
@@ -173,46 +188,41 @@ function handleGetPopupData(request, portDetails, callback, api) {
     }
 }
 
-/**
- * Handle launchElementPicker request
- * @param {PopupRequest} request
- * @param {PortDetails} portDetails
- * @param {Function} callback
- * @param {Object} api - vAPI object
- */
-function handleLaunchElementPicker(request, portDetails, callback, api) {
-    var targetTabId = request.tabId;
-    var zapMode = request.zap === true;
+function handleLaunchElementPicker(
+    request: PopupRequest,
+    portDetails: PortDetails,
+    callback: (response?: unknown) => void,
+    api: { inZapperMode: boolean }
+): void {
+    const targetTabId = request.tabId;
+    const zapMode = request.zap === true;
 
     api.inZapperMode = zapMode;
 
-    /**
-     * @param {number} tabId
-     */
-    var activatePicker = function(tabId) {
+    function activatePicker(tabId: number): void {
         if (!tabId || tabId <= 0) {
             callback({ success: false, error: 'no valid tabId' });
             return;
         }
 
-        var chain = injectScripts(tabId, [
+        const chain = injectScripts(tabId, [
             ['js/vapi-content.js'],
             ['js/scriptlets/epicker.js']
         ]);
 
         chain.then(function() {
             callback({ success: true });
-        }).catch(function(err) {
+        }).catch(function(err: Error) {
             console.error('[PopupHandler] Failed to inject scripts:', err);
             callback({ success: false, error: err instanceof Error ? err.message : 'Injection failed' });
         });
-    };
+    }
 
     if (targetTabId && targetTabId > 0) {
         activatePicker(targetTabId);
     } else {
         chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-            if (tabs && tabs.length > 0) {
+            if (tabs && tabs.length > 0 && tabs[0].id) {
                 activatePicker(tabs[0].id);
             } else {
                 callback({ success: false, error: 'no active tab' });
@@ -221,20 +231,18 @@ function handleLaunchElementPicker(request, portDetails, callback, api) {
     }
 }
 
-/**
- * Handle gotoURL request
- * @param {PopupRequest} request
- * @param {PortDetails} portDetails
- * @param {Function} callback
- * @param {Object} api - vAPI object
- */
-function handleGotoURL(request, portDetails, callback, api) {
-    var url = request.details && request.details.url;
+function handleGotoURL(
+    request: PopupRequest,
+    portDetails: PortDetails,
+    callback: (response?: unknown) => void
+): void {
+    const url = request.details?.url;
     if (url) {
-        if (url.startsWith("/")) {
-            url = chrome.runtime.getURL(url);
+        let targetUrl = url;
+        if (targetUrl.startsWith("/")) {
+            targetUrl = chrome.runtime.getURL(targetUrl);
         }
-        chrome.tabs.create({ url: url, active: request.details.select !== false });
+        chrome.tabs.create({ url: targetUrl, active: request.details?.select !== false });
         callback({ success: true });
     } else {
         callback({ success: false });

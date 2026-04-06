@@ -6,19 +6,28 @@
 import { storage } from './storage.js';
 import { CONSTANTS } from './utils.js';
 
-var dnr = {
+interface DNRRule {
+    id: number;
+    priority: number;
+    action: { type: 'allow' };
+    condition: {
+        urlFilter?: string;
+        regexFilter?: string;
+    };
+}
+
+const dnr = {
     WHITELIST_RULE_START: CONSTANTS.DNR.WHITELIST_RULE_START,
     WHITELIST_RULE_END: CONSTANTS.DNR.WHITELIST_RULE_END,
 
-    updateWhitelist: function() {
+    updateWhitelist: function(): void {
         storage.readWhitelist().then(function(whitelist) {
-            var rules = [];
+            const rules: DNRRule[] = [];
 
-            for (var i = 0; i < whitelist.length; i++) {
-                var pattern = whitelist[i];
+            for (const pattern of whitelist) {
                 if (!pattern || pattern.startsWith('#')) continue;
 
-                var rule = {
+                const rule: DNRRule = {
                     id: dnr.WHITELIST_RULE_START + rules.length,
                     priority: 3,
                     action: { type: 'allow' },
@@ -36,7 +45,7 @@ var dnr = {
             }
 
             chrome.declarativeNetRequest.getDynamicRules(function(existingRules) {
-                var removeIds = existingRules
+                const removeIds = existingRules
                     .filter(function(r) {
                         return r.id >= dnr.WHITELIST_RULE_START && r.id < dnr.WHITELIST_RULE_END;
                     })
@@ -44,14 +53,14 @@ var dnr = {
 
                 chrome.declarativeNetRequest.updateDynamicRules({
                     removeRuleIds: removeIds,
-                    addRules: rules
+                    addRules: rules as chrome.declarativeNetRequest.Rule[]
                 }, function() {
                 });
             });
         });
     },
 
-    addToWhitelist: function(domain) {
+    addToWhitelist: function(domain: string): Promise<boolean> {
         return storage.readWhitelist().then(function(whitelist) {
             if (whitelist.indexOf(domain) === -1) {
                 whitelist.push(domain);
@@ -64,9 +73,9 @@ var dnr = {
         });
     },
 
-    removeFromWhitelist: function(domain) {
+    removeFromWhitelist: function(domain: string): Promise<boolean> {
         return storage.readWhitelist().then(function(whitelist) {
-            var idx = whitelist.indexOf(domain);
+            const idx = whitelist.indexOf(domain);
             if (idx !== -1) {
                 whitelist.splice(idx, 1);
                 return storage.writeWhitelist(whitelist).then(function() {
