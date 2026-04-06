@@ -1,7 +1,27 @@
-function escapeCss(selector) {
-    return selector.replace(/[ !"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, '\\$&');
+type SelectorStatus = "active" | "saved";
+
+interface CosmeticSelector {
+    selector: string;
+    site: string;
+    createdAt: number;
+    isActive: boolean;
+    status: SelectorStatus;
 }
-export function normalizeSelector(selector) {
+
+interface CosmeticRule {
+    site: string;
+    selectors: CosmeticSelector[];
+}
+
+interface CosmeticState {
+    rules: Record<string, CosmeticRule>;
+}
+
+function escapeCss(selector: string): string {
+    return selector.replace(/[ !"#$%&'()*+,.\/:;<=>?@[\\\]^`{|}~]/g, "\\$&");
+}
+
+export function normalizeSelector(selector: string): string {
     let normalized = selector.trim();
     normalized = normalized.replace(/\s+/g, " ");
     if (!normalized.startsWith("#") && !normalized.startsWith(".")) {
@@ -15,8 +35,15 @@ export function normalizeSelector(selector) {
     }
     return normalized;
 }
-export function proposeSelector(element) {
-    const selectors = [];
+
+export interface ElementLike {
+    id: string;
+    className: string | undefined;
+    tagName: string;
+}
+
+export function proposeSelector(element: ElementLike): string {
+    const selectors: string[] = [];
     if (element.id) {
         selectors.push(`#${escapeCss(element.id)}`);
     }
@@ -29,8 +56,7 @@ export function proposeSelector(element) {
     const tagName = element.tagName.toLowerCase();
     if (element.id) {
         selectors.push(`${tagName}#${escapeCss(element.id)}`);
-    }
-    else if (element.className && typeof element.className === "string") {
+    } else if (element.className && typeof element.className === "string") {
         const classes = element.className.split(/\s+/).filter((c) => c.length > 0);
         if (classes.length > 0) {
             selectors.push(`${tagName}.${classes.map((c) => escapeCss(c)).join(".")}`);
@@ -38,7 +64,12 @@ export function proposeSelector(element) {
     }
     return selectors[0] || tagName;
 }
-export function createCosmeticSelector(site, selector, isAutoApply = false) {
+
+export function createCosmeticSelector(
+    site: string,
+    selector: string,
+    isAutoApply: boolean = false
+): CosmeticSelector {
     return {
         selector: normalizeSelector(selector),
         site,
@@ -47,12 +78,20 @@ export function createCosmeticSelector(site, selector, isAutoApply = false) {
         status: isAutoApply ? "active" : "saved",
     };
 }
-export function addSelectorToRule(state, site, selector, isAutoApply = false) {
+
+export function addSelectorToRule(
+    state: CosmeticState,
+    site: string,
+    selector: string,
+    isAutoApply: boolean = false
+): CosmeticState {
     const normalizedSelector = normalizeSelector(selector);
     const newSelector = createCosmeticSelector(site, normalizedSelector, isAutoApply);
     const existingRule = state.rules[site];
     if (existingRule) {
-        const existingIndex = existingRule.selectors.findIndex((s) => s.selector === normalizedSelector);
+        const existingIndex = existingRule.selectors.findIndex(
+            (s) => s.selector === normalizedSelector
+        );
         if (existingIndex >= 0) {
             const updatedSelectors = [...existingRule.selectors];
             updatedSelectors[existingIndex] = newSelector;
@@ -83,13 +122,20 @@ export function addSelectorToRule(state, site, selector, isAutoApply = false) {
         },
     };
 }
-export function removeSelectorFromRule(state, site, selector) {
+
+export function removeSelectorFromRule(
+    state: CosmeticState,
+    site: string,
+    selector: string
+): CosmeticState {
     const normalizedSelector = normalizeSelector(selector);
     const existingRule = state.rules[site];
     if (!existingRule) {
         return state;
     }
-    const filteredSelectors = existingRule.selectors.filter((s) => s.selector !== normalizedSelector);
+    const filteredSelectors = existingRule.selectors.filter(
+        (s) => s.selector !== normalizedSelector
+    );
     if (filteredSelectors.length === 0) {
         const { [site]: _, ...remainingRules } = state.rules;
         return { ...state, rules: remainingRules };
@@ -102,35 +148,41 @@ export function removeSelectorFromRule(state, site, selector) {
         },
     };
 }
-export function getSelectorsForSite(state, site) {
+
+export function getSelectorsForSite(state: CosmeticState, site: string): CosmeticSelector[] {
     return state.rules[site]?.selectors ?? [];
 }
-export function createEmptyCosmeticState() {
+
+export function createEmptyCosmeticState(): CosmeticState {
     return { rules: {} };
 }
-export function serializeCosmeticState(state) {
+
+export function serializeCosmeticState(state: CosmeticState): string {
     return JSON.stringify(state);
 }
-export function deserializeCosmeticState(json) {
+
+export function deserializeCosmeticState(json: string): CosmeticState {
     try {
         return JSON.parse(json);
-    }
-    catch {
+    } catch {
         return createEmptyCosmeticState();
     }
 }
-export function generateCSS(selectors) {
-    const activeSelectors = selectors.filter((s) => s.status === "active" || s.status === "saved");
-    if (activeSelectors.length === 0)
-        return "";
+
+export function generateCSS(selectors: CosmeticSelector[]): string {
+    const activeSelectors = selectors.filter(
+        (s) => s.status === "active" || s.status === "saved"
+    );
+    if (activeSelectors.length === 0) return "";
     return activeSelectors
         .map((s) => `${s.selector} { display: none !important; }`)
         .join("\n");
 }
-export function snapshotState(state) {
+
+export function snapshotState(state: CosmeticState): CosmeticState {
     return JSON.parse(JSON.stringify(state));
 }
-export function restoreFromSnapshot(snapshot) {
+
+export function restoreFromSnapshot(snapshot: CosmeticState): CosmeticState {
     return snapshot;
 }
-//# sourceMappingURL=index.js.map

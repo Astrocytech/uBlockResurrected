@@ -1,12 +1,39 @@
 import { compileSitePolicy } from "../compiler/index.js";
+import type { SitePolicy, CompiledRule, RuleMappingEntry, CompileSitePolicyResult } from "../compiler/index.js";
+import type { LifecycleState } from "../lifecycle/index.js";
+
 let globalPolicyVersion = 0;
-export function setPolicyVersion(version) {
+
+export function setPolicyVersion(version: number): void {
     globalPolicyVersion = version;
 }
-export function getPolicyVersion() {
+
+export function getPolicyVersion(): number {
     return globalPolicyVersion;
 }
-export function createUpdateRequest(site, policy, type) {
+
+export type UpdateRequestType = "add" | "update" | "remove";
+
+export interface UpdateRequest {
+    id: string;
+    type: UpdateRequestType;
+    site: string;
+    policy: SitePolicy | null;
+    policyVersion: number;
+    timestamp: number;
+    previousRuleIds?: string[];
+}
+
+export interface CompiledUpdateRequest {
+    request: UpdateRequest;
+    compiledRules: {
+        dynamic: CompiledRule[];
+        session: CompiledRule[];
+    };
+    mapping: Record<string, RuleMappingEntry>;
+}
+
+export function createUpdateRequest(site: string, policy: SitePolicy | null, type: UpdateRequestType): UpdateRequest {
     return {
         id: `${site}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         type,
@@ -16,7 +43,8 @@ export function createUpdateRequest(site, policy, type) {
         timestamp: Date.now(),
     };
 }
-export function compileUpdateRequest(request, startDynamicId, startSessionId) {
+
+export function compileUpdateRequest(request: UpdateRequest, startDynamicId: number, startSessionId: number): CompiledUpdateRequest | null {
     if (request.type === "remove") {
         return {
             request,
@@ -24,8 +52,7 @@ export function compileUpdateRequest(request, startDynamicId, startSessionId) {
             mapping: {},
         };
     }
-    if (!request.policy)
-        return null;
+    if (!request.policy) return null;
     const result = compileSitePolicy({
         site: request.site,
         policy: request.policy,
@@ -41,21 +68,34 @@ export function compileUpdateRequest(request, startDynamicId, startSessionId) {
         mapping: result.mapping,
     };
 }
-export function isStaleRequest(request, currentVersion) {
+
+export function isStaleRequest(request: UpdateRequest, currentVersion: number): boolean {
     return request.policyVersion < currentVersion;
 }
-export function shouldDebounce(prevRequest, newRequest, debounceMs) {
-    return (prevRequest.site === newRequest.site &&
-        newRequest.timestamp - prevRequest.timestamp < debounceMs);
+
+export function shouldDebounce(prevRequest: UpdateRequest, newRequest: UpdateRequest, debounceMs: number): boolean {
+    return (
+        prevRequest.site === newRequest.site &&
+        newRequest.timestamp - prevRequest.timestamp < debounceMs
+    );
 }
-export function mergeRequests(prev, next) {
+
+export function mergeRequests(prev: UpdateRequest, next: UpdateRequest): UpdateRequest {
     return {
         ...next,
         previousRuleIds: [...(prev.previousRuleIds ?? []), ...(next.previousRuleIds ?? [])],
         policyVersion: Math.max(prev.policyVersion, next.policyVersion),
     };
 }
-export function createEmptyQueueState() {
+
+export interface QueueState {
+    pending: CompiledUpdateRequest[];
+    processing: CompiledUpdateRequest | null;
+    completed: string[];
+    failed: string[];
+}
+
+export function createEmptyQueueState(): QueueState {
     return {
         pending: [],
         processing: null,
@@ -63,13 +103,13 @@ export function createEmptyQueueState() {
         failed: [],
     };
 }
-export function enqueue(state, update, maxSize) {
+
+export function enqueue(state: QueueState, update: CompiledUpdateRequest, maxSize: number): QueueState {
     const newPending = [...state.pending];
     const existingIndex = newPending.findIndex(u => u.request.site === update.request.site);
     if (existingIndex >= 0) {
         newPending[existingIndex] = update;
-    }
-    else {
+    } else {
         if (newPending.length >= maxSize) {
             newPending.shift();
         }
@@ -80,9 +120,9 @@ export function enqueue(state, update, maxSize) {
         pending: newPending,
     };
 }
-export function startProcessing(state) {
-    if (state.pending.length === 0)
-        return state;
+
+export function startProcessing(state: QueueState): QueueState {
+    if (state.pending.length === 0) return state;
     const [next, ...remaining] = state.pending;
     return {
         ...state,
@@ -90,59 +130,98 @@ export function startProcessing(state) {
         processing: next,
     };
 }
-export function completeProcessing(state) {
-    if (!state.processing)
-        return state;
+
+export function completeProcessing(state: QueueState): QueueState {
+    if (!state.processing) return state;
     return {
         ...state,
         processing: null,
         completed: [...state.completed, state.processing.request.id],
     };
 }
-export function failProcessing(state, error) {
-    if (!state.processing)
-        return state;
+
+export function failProcessing(state: QueueState, error: unknown): QueueState {
+    if (!state.processing) return state;
     return {
         ...state,
         processing: null,
         failed: [...state.failed, state.processing.request.id],
     };
 }
-export function requeue(state) {
-    if (!state.processing)
-        return state;
+
+export function requeue(state: QueueState): QueueState {
+    if (!state.processing) return state;
     return {
         ...state,
         pending: [state.processing, ...state.pending],
         processing: null,
     };
 }
-export function clearCompleted(state) {
+
+export function clearCompleted(state: QueueState): QueueState {
     return {
         ...state,
         completed: [],
     };
 }
-export function getNextPending(state) {
+
+export function getNextPending(state: QueueState): CompiledUpdateRequest | null {
     return state.pending[0] ?? null;
 }
-export function hasPendingWork(state) {
+
+export function hasPendingWork(state: QueueState): boolean {
     return state.pending.length > 0 || state.processing !== null;
 }
-export function createTransaction(state, queuedUpdate) {
+
+export interface TransactionSnapshot {
+    ruleMapping: Record<string, RuleMappingEntry>;
+    budget: {
+        dynamicRuleCount: number;
+        sessionRuleCount: number;
+        perSiteRules: Record<string, { dynamic: number; session: number; total: number }>;
+        dynamicCeiling: number;
+        sessionCeiling: number;
+        globalOverridePool: number;
+    };
+    compiledRuleGroups: Record<string, { site: string; rules: CompiledRule[]; lastUsed: number; isPruned: boolean }>;
+    idAllocator: { nextDynamicId: number; nextSessionId: number; freedDynamicIds: number[]; freedSessionIds: number[] };
+}
+
+export interface TransactionPlanned {
+    ruleMapping: Record<string, RuleMappingEntry>;
+    budget: {
+        dynamicRuleCount: number;
+        sessionRuleCount: number;
+        perSiteRules: Record<string, { dynamic: number; session: number; total: number }>;
+        dynamicCeiling: number;
+        sessionCeiling: number;
+        globalOverridePool: number;
+    };
+    compiledRuleGroups: Record<string, { site: string; rules: CompiledRule[]; lastUsed: number; isPruned: boolean }>;
+    idAllocator: { nextDynamicId: number; nextSessionId: number; freedDynamicIds: number[]; freedSessionIds: number[] };
+}
+
+export interface Transaction {
+    snapshot: TransactionSnapshot;
+    planned: TransactionPlanned;
+    queuedUpdate: CompiledUpdateRequest;
+    isApplied: boolean;
+}
+
+export function createTransaction(state: LifecycleState, queuedUpdate: CompiledUpdateRequest): Transaction {
     const site = queuedUpdate.request.site;
     const previousSiteBudget = state.budget.perSiteRules[site] ?? { dynamic: 0, session: 0, total: 0 };
     const newDynamicCount = queuedUpdate.compiledRules.dynamic.length;
     const newSessionCount = queuedUpdate.compiledRules.session.length;
     const newTotalCount = newDynamicCount + newSessionCount;
     const allRules = [...queuedUpdate.compiledRules.dynamic, ...queuedUpdate.compiledRules.session];
-    const siteMapping = {};
+    const siteMapping: Record<string, RuleMappingEntry> = {};
     for (const [key, value] of Object.entries(queuedUpdate.mapping)) {
         if (key.startsWith(`${site}|`)) {
             siteMapping[key] = value;
         }
     }
-    const newMapping = { ...state.ruleMapping };
+    const newMapping: Record<string, RuleMappingEntry> = { ...state.ruleMapping };
     for (const key of Object.keys(newMapping)) {
         if (newMapping[key]?.policyKey.startsWith(`${site}|`)) {
             delete newMapping[key];
@@ -205,22 +284,23 @@ export function createTransaction(state, queuedUpdate) {
         isApplied: false,
     };
 }
-export function commitTransaction(currentState, transaction) {
+
+export function commitTransaction(currentState: LifecycleState, transaction: Transaction): Partial<LifecycleState> {
     transaction.isApplied = true;
     return {
         ruleMapping: transaction.planned.ruleMapping,
-        budget: transaction.planned.budget,
-        compiledRuleGroups: transaction.planned.compiledRuleGroups,
-        idAllocator: transaction.planned.idAllocator,
+        budget: transaction.planned.budget as typeof currentState.budget,
+        compiledRuleGroups: transaction.planned.compiledRuleGroups as typeof currentState.compiledRuleGroups,
+        idAllocator: transaction.planned.idAllocator as typeof currentState.idAllocator,
     };
 }
-export function rollbackTransaction(currentState, transaction) {
+
+export function rollbackTransaction(currentState: LifecycleState, transaction: Transaction): Partial<LifecycleState> {
     transaction.isApplied = false;
     return {
         ruleMapping: transaction.snapshot.ruleMapping,
-        budget: transaction.snapshot.budget,
-        compiledRuleGroups: transaction.snapshot.compiledRuleGroups,
-        idAllocator: transaction.snapshot.idAllocator,
+        budget: transaction.snapshot.budget as typeof currentState.budget,
+        compiledRuleGroups: transaction.snapshot.compiledRuleGroups as typeof currentState.compiledRuleGroups,
+        idAllocator: transaction.snapshot.idAllocator as typeof currentState.idAllocator,
     };
 }
-//# sourceMappingURL=index.js.map

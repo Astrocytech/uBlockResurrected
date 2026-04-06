@@ -1,7 +1,64 @@
 import { validateStoredPolicy, validateSitePolicy, createDefaultStoredPolicy } from "../policy/index.js";
+import type { StoredPolicy, SitePolicy } from "../policy/index.js";
 import { createDefaultAllocatorState, serializeMapping, deserializeMapping } from "./id-allocator.js";
+import type { BudgetState } from "../lifecycle/index.js";
+import type { RuleMappingEntry } from "../compiler/index.js";
+
 export const STORAGE_SCHEMA_VERSION = 1;
-export function createDefaultStorageSchema() {
+
+export interface IdAllocatorState {
+    nextDynamicId: number;
+    nextSessionId: number;
+    freedDynamicIds: number[];
+    freedSessionIds: number[];
+}
+
+export interface ObservedDomain {
+    site: string;
+    domain: string;
+    resourceType: string;
+    timestamp: number;
+}
+
+export interface CosmeticSelector {
+    site: string;
+    selector: string;
+    timestamp: number;
+}
+
+export interface TemporaryOverride {
+    expiresAt: number;
+    value: unknown;
+}
+
+export interface StorageSchema {
+    version: number;
+    policy: StoredPolicy;
+    compiledState: Record<string, unknown>;
+    ruleMapping: Record<string, RuleMappingEntry>;
+    idAllocator: IdAllocatorState;
+    budget: BudgetState;
+    observedDomains: ObservedDomain[];
+    cosmeticSelectors: CosmeticSelector[];
+    temporaryOverrides: Record<string, TemporaryOverride>;
+    lastUpdated: number;
+}
+
+export interface ValidationResult {
+    valid: boolean;
+    errors: string[];
+    warnings: string[];
+}
+
+export interface MigrationResult {
+    success: boolean;
+    schema?: StorageSchema;
+    error?: string;
+    needsMigration?: boolean;
+    migrationFromVersion?: number;
+}
+
+export function createDefaultStorageSchema(): StorageSchema {
     return {
         version: STORAGE_SCHEMA_VERSION,
         policy: createDefaultStoredPolicy(),
@@ -22,18 +79,18 @@ export function createDefaultStorageSchema() {
         lastUpdated: Date.now(),
     };
 }
-export function validateStorageSchema(data) {
-    const errors = [];
-    const warnings = [];
+
+export function validateStorageSchema(data: unknown): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
     if (typeof data !== "object" || data === null) {
         errors.push("Storage data must be an object");
         return { valid: false, errors, warnings };
     }
-    const schema = data;
+    const schema = data as Record<string, unknown>;
     if (schema.version === undefined) {
         errors.push("Missing schema version");
-    }
-    else if (typeof schema.version !== "number") {
+    } else if (typeof schema.version !== "number") {
         errors.push("Schema version must be a number");
     }
     if (schema.policy !== undefined) {
@@ -42,13 +99,13 @@ export function validateStorageSchema(data) {
         }
     }
     if (schema.budget !== undefined) {
-        const budget = schema.budget;
+        const budget = schema.budget as Record<string, unknown>;
         if (typeof budget.dynamicRuleCount !== "number" || typeof budget.sessionRuleCount !== "number") {
             errors.push("Invalid budget state");
         }
     }
     if (schema.idAllocator !== undefined) {
-        const alloc = schema.idAllocator;
+        const alloc = schema.idAllocator as Record<string, unknown>;
         if (typeof alloc.nextDynamicId !== "number" || typeof alloc.nextSessionId !== "number") {
             errors.push("Invalid ID allocator state");
         }
@@ -59,22 +116,24 @@ export function validateStorageSchema(data) {
         warnings,
     };
 }
-export function migrateSchema(oldData, fromVersion) {
+
+export function migrateSchema(oldData: Record<string, unknown>, fromVersion: number): StorageSchema {
     const schema = createDefaultStorageSchema();
     schema.version = fromVersion;
     if (fromVersion < 1) {
         if (oldData.policy) {
-            schema.policy = oldData.policy;
+            schema.policy = oldData.policy as StoredPolicy;
         }
         if (oldData.budget) {
-            schema.budget = oldData.budget;
+            schema.budget = oldData.budget as BudgetState;
         }
     }
     schema.version = STORAGE_SCHEMA_VERSION;
     schema.lastUpdated = Date.now();
     return schema;
 }
-export function validateAndMigrateStorage(data, currentVersion = STORAGE_SCHEMA_VERSION) {
+
+export function validateAndMigrateStorage(data: unknown, currentVersion: number = STORAGE_SCHEMA_VERSION): MigrationResult {
     if (data === null || data === undefined) {
         return {
             success: true,
@@ -84,7 +143,7 @@ export function validateAndMigrateStorage(data, currentVersion = STORAGE_SCHEMA_
     }
     const validation = validateStorageSchema(data);
     if (!validation.valid) {
-        const record = data;
+        const record = data as Record<string, unknown>;
         if (record.version === undefined || typeof record.version !== "number") {
             return {
                 success: false,
@@ -92,12 +151,12 @@ export function validateAndMigrateStorage(data, currentVersion = STORAGE_SCHEMA_
             };
         }
         if (record.version < currentVersion) {
-            const migrated = migrateSchema(record, record.version);
+            const migrated = migrateSchema(record, record.version as number);
             return {
                 success: true,
                 schema: migrated,
                 needsMigration: true,
-                migrationFromVersion: record.version,
+                migrationFromVersion: record.version as number,
             };
         }
         return {
@@ -105,9 +164,9 @@ export function validateAndMigrateStorage(data, currentVersion = STORAGE_SCHEMA_
             error: `Invalid storage: ${validation.errors.join(", ")}`,
         };
     }
-    const record = data;
+    const record = data as StorageSchema;
     if (record.version < currentVersion) {
-        const migrated = migrateSchema(record, record.version);
+        const migrated = migrateSchema(record as unknown as Record<string, unknown>, record.version);
         return {
             success: true,
             schema: migrated,
@@ -121,7 +180,8 @@ export function validateAndMigrateStorage(data, currentVersion = STORAGE_SCHEMA_
         needsMigration: false,
     };
 }
-export function serializeStorageSchema(schema) {
+
+export function serializeStorageSchema(schema: StorageSchema): Record<string, unknown> {
     return {
         version: schema.version,
         policy: schema.policy,
@@ -135,18 +195,32 @@ export function serializeStorageSchema(schema) {
         lastUpdated: schema.lastUpdated,
     };
 }
-export function deserializeStorageSchema(data) {
+
+export function deserializeStorageSchema(data: unknown): StorageSchema | null {
     const result = validateAndMigrateStorage(data);
     if (!result.success || !result.schema) {
         return null;
     }
     const schema = result.schema;
     if (typeof schema.ruleMapping === "object" && schema.ruleMapping !== null) {
-        schema.ruleMapping = deserializeMapping(schema.ruleMapping);
+        schema.ruleMapping = deserializeMapping(schema.ruleMapping as Record<string, RuleMappingEntry>);
     }
     return schema;
 }
-export function getStorageKeys() {
+
+export interface StorageKeys {
+    POLICY: string;
+    STATE: string;
+    ID_ALLOCATOR: string;
+    BUDGET: string;
+    RULE_MAPPING: string;
+    COSMETIC: string;
+    OBSERVED_DOMAINS: string;
+    COSMETIC_SELECTORS: string;
+    TEMPORARY_OVERRIDES: string;
+}
+
+export function getStorageKeys(): StorageKeys {
     return {
         POLICY: "blocker_policy",
         STATE: "blocker_state",
@@ -159,39 +233,48 @@ export function getStorageKeys() {
         TEMPORARY_OVERRIDES: "blocker_temporary_overrides",
     };
 }
-export function validateSiteInPolicy(policy, site) {
+
+export function validateSiteInPolicy(policy: StoredPolicy, site: string): boolean {
     const sitePolicy = policy.sites[site];
-    if (!sitePolicy)
-        return false;
+    if (!sitePolicy) return false;
     return validateSitePolicy(sitePolicy);
 }
-export function validateBudgetState(budget) {
-    if (typeof budget !== "object" || budget === null)
-        return false;
-    const b = budget;
-    return (typeof b.dynamicRuleCount === "number" &&
+
+export function validateBudgetState(budget: unknown): budget is BudgetState {
+    if (typeof budget !== "object" || budget === null) return false;
+    const b = budget as BudgetState;
+    return (
+        typeof b.dynamicRuleCount === "number" &&
         typeof b.sessionRuleCount === "number" &&
         typeof b.dynamicCeiling === "number" &&
-        typeof b.sessionCeiling === "number");
+        typeof b.sessionCeiling === "number"
+    );
 }
-export function validateIdAllocator(allocator) {
-    if (typeof allocator !== "object" || allocator === null)
-        return false;
-    const a = allocator;
-    return (typeof a.nextDynamicId === "number" &&
+
+export function validateIdAllocator(allocator: unknown): allocator is IdAllocatorState {
+    if (typeof allocator !== "object" || allocator === null) return false;
+    const a = allocator as IdAllocatorState;
+    return (
+        typeof a.nextDynamicId === "number" &&
         typeof a.nextSessionId === "number" &&
         Array.isArray(a.freedDynamicIds) &&
-        Array.isArray(a.freedSessionIds));
+        Array.isArray(a.freedSessionIds)
+    );
 }
-export function checkBudgetIntegrity(budget, ruleMapping) {
-    const issues = [];
+
+export interface BudgetIntegrityResult {
+    valid: boolean;
+    issues: string[];
+}
+
+export function checkBudgetIntegrity(budget: BudgetState, ruleMapping: Map<string, RuleMappingEntry>): BudgetIntegrityResult {
+    const issues: string[] = [];
     let dynamicCount = 0;
     let sessionCount = 0;
     for (const mapping of ruleMapping.values()) {
         if (mapping.ruleType === "dynamic") {
             dynamicCount++;
-        }
-        else {
+        } else {
             sessionCount++;
         }
     }
@@ -206,10 +289,11 @@ export function checkBudgetIntegrity(budget, ruleMapping) {
         issues,
     };
 }
-export function reconcileBudgetState(budget, ruleMapping) {
+
+export function reconcileBudgetState(budget: BudgetState, ruleMapping: Map<string, RuleMappingEntry>): BudgetState {
     let dynamicCount = 0;
     let sessionCount = 0;
-    const perSiteCounts = {};
+    const perSiteCounts: Record<string, { dynamic: number; session: number; total: number }> = {};
     for (const mapping of ruleMapping.values()) {
         const [site] = mapping.policyKey.split("|");
         if (!perSiteCounts[site]) {
@@ -218,8 +302,7 @@ export function reconcileBudgetState(budget, ruleMapping) {
         if (mapping.ruleType === "dynamic") {
             dynamicCount++;
             perSiteCounts[site].dynamic++;
-        }
-        else {
+        } else {
             sessionCount++;
             perSiteCounts[site].session++;
         }
@@ -232,9 +315,10 @@ export function reconcileBudgetState(budget, ruleMapping) {
         perSiteRules: perSiteCounts,
     };
 }
-export function normalizeObservedDomains(domains) {
-    const seen = new Set();
-    const normalized = [];
+
+export function normalizeObservedDomains(domains: ObservedDomain[]): ObservedDomain[] {
+    const seen = new Set<string>();
+    const normalized: ObservedDomain[] = [];
     for (const domain of domains) {
         const key = `${domain.site}|${domain.domain}|${domain.resourceType}`;
         if (!seen.has(key)) {
@@ -249,14 +333,16 @@ export function normalizeObservedDomains(domains) {
     }
     return normalized.sort((a, b) => b.timestamp - a.timestamp);
 }
-export function pruneObservedDomains(domains, maxEntries = 1000, maxAgeMs = 7 * 24 * 60 * 60 * 1000) {
+
+export function pruneObservedDomains(domains: ObservedDomain[], maxEntries: number = 1000, maxAgeMs: number = 7 * 24 * 60 * 60 * 1000): ObservedDomain[] {
     const now = Date.now();
     const valid = domains.filter((d) => now - d.timestamp < maxAgeMs);
     return valid.slice(0, maxEntries);
 }
-export function normalizeCosmeticSelectors(selectors) {
-    const seen = new Set();
-    const normalized = [];
+
+export function normalizeCosmeticSelectors(selectors: CosmeticSelector[]): CosmeticSelector[] {
+    const seen = new Set<string>();
+    const normalized: CosmeticSelector[] = [];
     for (const selector of selectors) {
         const key = `${selector.site}|${selector.selector}`;
         if (!seen.has(key)) {
@@ -270,9 +356,10 @@ export function normalizeCosmeticSelectors(selectors) {
     }
     return normalized;
 }
-export function cleanupExpiredTemporaryOverrides(overrides) {
+
+export function cleanupExpiredTemporaryOverrides(overrides: Record<string, TemporaryOverride>): Record<string, TemporaryOverride> {
     const now = Date.now();
-    const valid = {};
+    const valid: Record<string, TemporaryOverride> = {};
     for (const [key, override] of Object.entries(overrides)) {
         if (override.expiresAt > now) {
             valid[key] = override;
@@ -280,4 +367,3 @@ export function cleanupExpiredTemporaryOverrides(overrides) {
     }
     return valid;
 }
-//# sourceMappingURL=index.js.map

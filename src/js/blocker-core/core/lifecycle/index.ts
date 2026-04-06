@@ -1,9 +1,57 @@
 import { DEFAULT_DYNAMIC_CEILING, DEFAULT_SESSION_CEILING } from "../budget/index.js";
 import { DYNAMIC_RULE_MIN, SESSION_RULE_MIN } from "../types/index.js";
-export function createInitialLifecycleState(options) {
+import type { StoredPolicy, SitePolicy } from "../policy/index.js";
+import type { CompiledRule, RuleMappingEntry } from "../compiler/index.js";
+
+export interface CompiledRuleGroup {
+    site: string;
+    rules: CompiledRule[];
+    lastUsed: number;
+    isPruned: boolean;
+}
+
+export interface IdAllocatorState {
+    nextDynamicId: number;
+    nextSessionId: number;
+    freedDynamicIds: number[];
+    freedSessionIds: number[];
+}
+
+export interface PerSiteBudget {
+    dynamic: number;
+    session: number;
+    total: number;
+}
+
+export interface BudgetState {
+    dynamicRuleCount: number;
+    sessionRuleCount: number;
+    dynamicCeiling: number;
+    sessionCeiling: number;
+    perSiteRules: Record<string, PerSiteBudget>;
+    globalOverridePool: number;
+}
+
+export interface LifecycleState {
+    policy: StoredPolicy;
+    compiledRuleGroups: Record<string, CompiledRuleGroup>;
+    idAllocator: IdAllocatorState;
+    budget: BudgetState;
+    ruleMapping: Record<string, RuleMappingEntry>;
+    policyVersion: number;
+}
+
+export interface CreateInitialLifecycleStateOptions {
+    policy: StoredPolicy;
+    existingDynamicRules: CompiledRule[];
+    existingSessionRules: CompiledRule[];
+    savedState?: Partial<LifecycleState>;
+}
+
+export function createInitialLifecycleState(options: CreateInitialLifecycleStateOptions): LifecycleState {
     const { policy, existingDynamicRules, existingSessionRules, savedState } = options;
     const policyVersion = policy.version;
-    const compiledRuleGroups = {};
+    const compiledRuleGroups: Record<string, CompiledRuleGroup> = {};
     for (const [site, sitePolicy] of Object.entries(policy.sites)) {
         compiledRuleGroups[site] = {
             site,
@@ -14,13 +62,13 @@ export function createInitialLifecycleState(options) {
     }
     const existingDynamicIds = existingDynamicRules.map(r => r.id);
     const existingSessionIds = existingSessionRules.map(r => r.id);
-    const idAllocator = savedState?.idAllocator ?? {
+    const idAllocator: IdAllocatorState = savedState?.idAllocator ?? {
         nextDynamicId: existingDynamicIds.length > 0 ? Math.max(...existingDynamicIds) + 1 : DYNAMIC_RULE_MIN,
         nextSessionId: existingSessionIds.length > 0 ? Math.max(...existingSessionIds) + 1 : SESSION_RULE_MIN,
         freedDynamicIds: [],
         freedSessionIds: [],
     };
-    const budget = savedState?.budget ?? {
+    const budget: BudgetState = savedState?.budget ?? {
         dynamicRuleCount: existingDynamicRules.length,
         sessionRuleCount: existingSessionRules.length,
         dynamicCeiling: DEFAULT_DYNAMIC_CEILING,
@@ -28,7 +76,7 @@ export function createInitialLifecycleState(options) {
         perSiteRules: {},
         globalOverridePool: Math.floor(DEFAULT_DYNAMIC_CEILING * 0.1),
     };
-    const runtimePerSite = new Map();
+    const runtimePerSite = new Map<string, { dynamic: number; session: number }>();
     for (const rule of existingDynamicRules) {
         const condition = rule.condition;
         const site = condition.initiatorDomains?.[0];
@@ -62,9 +110,28 @@ export function createInitialLifecycleState(options) {
         policyVersion,
     };
 }
-export function reconcileState(currentState, runtimeDynamicRules, runtimeSessionRules) {
-    const managedDynamicIds = new Set(Object.values(currentState.ruleMapping).filter(m => m.ruleType === "dynamic").map(m => m.ruleId));
-    const managedSessionIds = new Set(Object.values(currentState.ruleMapping).filter(m => m.ruleType === "session").map(m => m.ruleId));
+
+export interface ReconcileResult {
+    needsFullRebuild: boolean;
+    mismatchedRuleIds: number[];
+    orphanRuntimeIds: number[];
+}
+
+export function reconcileState(
+    currentState: LifecycleState,
+    runtimeDynamicRules: CompiledRule[],
+    runtimeSessionRules: CompiledRule[]
+): ReconcileResult {
+    const managedDynamicIds = new Set(
+        Object.values(currentState.ruleMapping)
+            .filter(m => m.ruleType === "dynamic")
+            .map(m => m.ruleId)
+    );
+    const managedSessionIds = new Set(
+        Object.values(currentState.ruleMapping)
+            .filter(m => m.ruleType === "session")
+            .map(m => m.ruleId)
+    );
     const currentRuntimeDynamicIds = new Set(runtimeDynamicRules.map(r => r.id));
     const currentRuntimeSessionIds = new Set(runtimeSessionRules.map(r => r.id));
     const orphanedDynamicIds = [...managedDynamicIds].filter(id => !currentRuntimeDynamicIds.has(id));
@@ -77,8 +144,9 @@ export function reconcileState(currentState, runtimeDynamicRules, runtimeSession
         orphanRuntimeIds: [...orphanRuntimeDynamicIds, ...orphanRuntimeSessionIds],
     };
 }
-export function updateSitePolicy(currentState, site, newPolicy) {
-    const updatedPolicy = {
+
+export function updateSitePolicy(currentState: LifecycleState, site: string, newPolicy: SitePolicy): LifecycleState {
+    const updatedPolicy: StoredPolicy = {
         ...currentState.policy,
         sites: {
             ...currentState.policy.sites,
@@ -93,14 +161,20 @@ export function updateSitePolicy(currentState, site, newPolicy) {
         policyVersion: updatedPolicy.version,
     };
 }
-export function markSiteCompiled(currentState, site, rules, mapping) {
+
+export function markSiteCompiled(
+    currentState: LifecycleState,
+    site: string,
+    rules: CompiledRule[],
+    mapping: Record<string, RuleMappingEntry>
+): LifecycleState {
     const existingGroup = currentState.compiledRuleGroups[site];
     const existingRuleCount = existingGroup?.rules.length ?? 0;
     const existingDynamicCount = existingGroup?.rules.filter(r => r.id < 1000000).length ?? 0;
     const existingSessionCount = existingGroup?.rules.filter(r => r.id >= 1000000).length ?? 0;
     const newDynamicCount = rules.filter(r => r.id < 1000000).length;
     const newSessionCount = rules.filter(r => r.id >= 1000000).length;
-    const updatedGroup = {
+    const updatedGroup: CompiledRuleGroup = {
         ...existingGroup,
         site,
         rules: rules,
@@ -111,7 +185,7 @@ export function markSiteCompiled(currentState, site, rules, mapping) {
         ...currentState.compiledRuleGroups,
         [site]: updatedGroup,
     };
-    const updatedBudget = {
+    const updatedBudget: BudgetState = {
         ...currentState.budget,
         perSiteRules: {
             ...currentState.budget.perSiteRules,
@@ -131,19 +205,19 @@ export function markSiteCompiled(currentState, site, rules, mapping) {
         budget: updatedBudget,
     };
 }
-export function markSitePruned(currentState, site) {
+
+export function markSitePruned(currentState: LifecycleState, site: string): LifecycleState {
     const existingGroup = currentState.compiledRuleGroups[site];
-    if (!existingGroup)
-        return currentState;
+    if (!existingGroup) return currentState;
     const prunedRuleCount = existingGroup.rules.length;
     const dynamicRulesCount = existingGroup.rules.filter(r => r.id < 1000000).length;
     const sessionRulesCount = existingGroup.rules.filter(r => r.id >= 1000000).length;
-    const updatedGroup = {
+    const updatedGroup: CompiledRuleGroup = {
         ...existingGroup,
         rules: [],
         isPruned: true,
     };
-    const updatedBudget = {
+    const updatedBudget: BudgetState = {
         ...currentState.budget,
         perSiteRules: {
             ...currentState.budget.perSiteRules,
@@ -161,15 +235,17 @@ export function markSitePruned(currentState, site) {
         budget: updatedBudget,
     };
 }
-export function getSiteNeedsRecompile(currentState, site) {
+
+export function getSiteNeedsRecompile(currentState: LifecycleState, site: string): boolean {
     const group = currentState.compiledRuleGroups[site];
     const hasStoredPolicy = currentState.policy.sites[site] !== undefined;
     return hasStoredPolicy && (group === undefined || group.isPruned === true);
 }
-export function snapshotState(state) {
+
+export function snapshotState(state: LifecycleState): LifecycleState {
     return JSON.parse(JSON.stringify(state));
 }
-export function restoreFromSnapshot(snapshot) {
+
+export function restoreFromSnapshot(snapshot: LifecycleState): LifecycleState {
     return snapshot;
 }
-//# sourceMappingURL=index.js.map

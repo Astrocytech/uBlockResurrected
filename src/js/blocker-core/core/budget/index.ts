@@ -4,7 +4,39 @@ export const SOFT_PER_SITE_THRESHOLD = 100;
 export const WARNING_THRESHOLD = 0.8;
 export const CRITICAL_THRESHOLD = 0.95;
 export const PRUNE_THRESHOLD = 0.9;
-export function createDefaultBudgetState(dynamicCeiling = DEFAULT_DYNAMIC_CEILING, sessionCeiling = DEFAULT_SESSION_CEILING) {
+
+export type BudgetStatus = "ok" | "warning" | "critical";
+
+export interface PerSiteBudget {
+    dynamic: number;
+    session: number;
+    total: number;
+}
+
+export interface BudgetState {
+    dynamicRuleCount: number;
+    sessionRuleCount: number;
+    dynamicCeiling: number;
+    sessionCeiling: number;
+    perSiteRules: Record<string, PerSiteBudget>;
+    globalOverridePool: number;
+}
+
+export interface BudgetCheckResult {
+    allowed: boolean;
+    reason?: string;
+    warning?: string;
+}
+
+export interface BudgetStatusResult {
+    dynamic: BudgetStatus;
+    session: BudgetStatus;
+}
+
+export function createDefaultBudgetState(
+    dynamicCeiling: number = DEFAULT_DYNAMIC_CEILING,
+    sessionCeiling: number = DEFAULT_SESSION_CEILING
+): BudgetState {
     return {
         dynamicRuleCount: 0,
         sessionRuleCount: 0,
@@ -14,24 +46,43 @@ export function createDefaultBudgetState(dynamicCeiling = DEFAULT_DYNAMIC_CEILIN
         globalOverridePool: Math.floor(dynamicCeiling * 0.1),
     };
 }
-export function getBudgetStatus(state) {
+
+export function getBudgetStatus(state: BudgetState): BudgetStatusResult {
     const dynamicRatio = state.dynamicRuleCount / state.dynamicCeiling;
     const sessionRatio = state.sessionRuleCount / state.sessionCeiling;
     return {
-        dynamic: dynamicRatio >= CRITICAL_THRESHOLD ? "critical" : dynamicRatio >= WARNING_THRESHOLD ? "warning" : "ok",
-        session: sessionRatio >= CRITICAL_THRESHOLD ? "critical" : sessionRatio >= WARNING_THRESHOLD ? "warning" : "ok",
+        dynamic:
+            dynamicRatio >= CRITICAL_THRESHOLD
+                ? "critical"
+                : dynamicRatio >= WARNING_THRESHOLD
+                  ? "warning"
+                  : "ok",
+        session:
+            sessionRatio >= CRITICAL_THRESHOLD
+                ? "critical"
+                : sessionRatio >= WARNING_THRESHOLD
+                  ? "warning"
+                  : "ok",
     };
 }
-export function canAllocateRules(state, dynamicCount, sessionCount, site) {
+
+export function canAllocateRules(
+    state: BudgetState,
+    dynamicCount: number,
+    sessionCount: number,
+    site?: string
+): BudgetCheckResult {
     const dynamicRatio = (state.dynamicRuleCount + dynamicCount) / state.dynamicCeiling;
     const sessionRatio = (state.sessionRuleCount + sessionCount) / state.sessionCeiling;
+
     if (dynamicRatio > 1) {
         return { allowed: false, reason: "Exceeds dynamic rule budget" };
     }
     if (sessionRatio > 1) {
         return { allowed: false, reason: "Exceeds session rule budget" };
     }
-    let warning;
+
+    let warning: string | undefined;
     if (site) {
         const siteBudget = state.perSiteRules[site] ?? { dynamic: 0, session: 0, total: 0 };
         const projectedTotal = siteBudget.total + dynamicCount + sessionCount;
@@ -41,10 +92,17 @@ export function canAllocateRules(state, dynamicCount, sessionCount, site) {
     }
     return { allowed: true, warning };
 }
-export function updateBudgetCounts(state, dynamicDelta, sessionDelta, site) {
-    const newState = { ...state };
+
+export function updateBudgetCounts(
+    state: BudgetState,
+    dynamicDelta: number,
+    sessionDelta: number,
+    site?: string
+): BudgetState {
+    const newState: BudgetState = { ...state };
     newState.dynamicRuleCount = Math.max(0, state.dynamicRuleCount + dynamicDelta);
     newState.sessionRuleCount = Math.max(0, state.sessionRuleCount + sessionDelta);
+
     if (site) {
         const siteBudget = state.perSiteRules[site] ?? { dynamic: 0, session: 0, total: 0 };
         const newDynamic = Math.max(0, siteBudget.dynamic + dynamicDelta);
@@ -60,26 +118,33 @@ export function updateBudgetCounts(state, dynamicDelta, sessionDelta, site) {
     }
     return newState;
 }
-export function getPerSiteRuleCount(state, site) {
+
+export function getPerSiteRuleCount(state: BudgetState, site: string): PerSiteBudget {
     return state.perSiteRules[site] ?? { dynamic: 0, session: 0, total: 0 };
 }
-export function isPerSiteOverThreshold(state, site) {
+
+export function isPerSiteOverThreshold(state: BudgetState, site: string): boolean {
     const siteBudget = getPerSiteRuleCount(state, site);
     return siteBudget.total > SOFT_PER_SITE_THRESHOLD;
 }
-export function projectBudgetGrowth(state, additionalDynamic, additionalSession) {
+
+export function projectBudgetGrowth(
+    state: BudgetState,
+    additionalDynamic: number,
+    additionalSession: number
+): BudgetState {
     return {
         ...state,
         dynamicRuleCount: state.dynamicRuleCount + additionalDynamic,
         sessionRuleCount: state.sessionRuleCount + additionalSession,
     };
 }
-export function computePruneCandidates(state, currentSite) {
+
+export function computePruneCandidates(state: BudgetState, currentSite: string): string[] {
     const sites = Object.keys(state.perSiteRules);
-    const candidates = [];
+    const candidates: { site: string; ruleCount: number }[] = [];
     for (const site of sites) {
-        if (site === currentSite)
-            continue;
+        if (site === currentSite) continue;
         const siteBudget = state.perSiteRules[site];
         candidates.push({
             site,
@@ -89,14 +154,30 @@ export function computePruneCandidates(state, currentSite) {
     candidates.sort((a, b) => a.ruleCount - b.ruleCount);
     return candidates.map((c) => c.site);
 }
-export function getLruPruneCandidates(compiledRuleGroups, budget, currentSite, maxCandidates) {
-    const candidates = [];
+
+export interface RuleGroup {
+    isPruned: boolean;
+    lastUsed: number;
+    [key: string]: unknown;
+}
+
+export interface PruneCandidate {
+    site: string;
+    ruleCount: number;
+    lastUsed: number;
+}
+
+export function getLruPruneCandidates(
+    compiledRuleGroups: Record<string, RuleGroup>,
+    budget: BudgetState,
+    currentSite: string,
+    maxCandidates?: number
+): PruneCandidate[] {
+    const candidates: PruneCandidate[] = [];
     for (const site of Object.keys(budget.perSiteRules)) {
-        if (site === currentSite)
-            continue;
+        if (site === currentSite) continue;
         const group = compiledRuleGroups[site];
-        if (!group || group.isPruned)
-            continue;
+        if (!group || group.isPruned) continue;
         const siteBudget = budget.perSiteRules[site];
         candidates.push({
             site,
@@ -110,11 +191,11 @@ export function getLruPruneCandidates(compiledRuleGroups, budget, currentSite, m
     }
     return candidates;
 }
-export function pruneSiteFromBudget(state, site) {
+
+export function pruneSiteFromBudget(state: BudgetState, site: string): BudgetState {
     const { [site]: _, ...remainingSites } = state.perSiteRules;
     return {
         ...state,
         perSiteRules: remainingSites,
     };
 }
-//# sourceMappingURL=index.js.map

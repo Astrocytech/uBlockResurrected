@@ -1,9 +1,40 @@
-class FirefoxDNRAdapter {
-    async getDynamicRules() {
-        return browser.declarativeNetRequest.getDynamicRules();
+interface DNRRule {
+    id: number;
+    priority?: number;
+    action: unknown;
+    condition: unknown;
+}
+
+interface UpdateRulesOptions {
+    addRules?: DNRRule[];
+    removeRuleIds?: number[];
+}
+
+interface MatchedRulesOptions {
+    tabId?: number;
+    initiator?: string;
+}
+
+interface DNRAdapter {
+    getDynamicRules(): Promise<DNRRule[]>;
+    updateDynamicRules(options: UpdateRulesOptions): Promise<void>;
+    getSessionRules(): Promise<DNRRule[]>;
+    updateSessionRules(options: UpdateRulesOptions): Promise<void>;
+    getAvailableStaticRuleCount(): Promise<number>;
+    getMatchedRules(options?: MatchedRulesOptions): Promise<DNRRule[]>;
+    installDynamicRules(dynamicRules: DNRRule[], sessionRules?: DNRRule[]): Promise<void>;
+    clearDynamicRules(site: string): Promise<void>;
+}
+
+export class FirefoxDNRAdapter implements DNRAdapter {
+    async getDynamicRules(): Promise<DNRRule[]> {
+        if (typeof browser !== 'undefined' && browser.declarativeNetRequest) {
+            return browser.declarativeNetRequest.getDynamicRules();
+        }
+        return [];
     }
     
-    async updateDynamicRules(options) {
+    async updateDynamicRules(options: UpdateRulesOptions): Promise<void> {
         const addRules = options.addRules?.map(rule => ({
             id: rule.id,
             priority: rule.priority,
@@ -11,7 +42,6 @@ class FirefoxDNRAdapter {
             condition: rule.condition,
         })) ?? [];
         
-        // Firefox MV2 uses webRequest, but we can use DNR if available
         if (typeof browser !== 'undefined' && browser.declarativeNetRequest) {
             await browser.declarativeNetRequest.updateDynamicRules({
                 addRules: addRules,
@@ -22,14 +52,14 @@ class FirefoxDNRAdapter {
         }
     }
     
-    async getSessionRules() {
+    async getSessionRules(): Promise<DNRRule[]> {
         if (typeof browser !== 'undefined' && browser.declarativeNetRequest) {
             return browser.declarativeNetRequest.getSessionRules();
         }
         return [];
     }
     
-    async updateSessionRules(options) {
+    async updateSessionRules(options: UpdateRulesOptions): Promise<void> {
         const addRules = options.addRules?.map(rule => ({
             id: rule.id,
             priority: rule.priority,
@@ -45,15 +75,15 @@ class FirefoxDNRAdapter {
         }
     }
     
-    async getAvailableStaticRuleCount() {
+    async getAvailableStaticRuleCount(): Promise<number> {
         if (typeof browser !== 'undefined' && browser.declarativeNetRequest) {
             return browser.declarativeNetRequest.getAvailableStaticRuleCount();
         }
         return 0;
     }
     
-    async getMatchedRules(options) {
-        const filterOptions = {};
+    async getMatchedRules(options?: MatchedRulesOptions): Promise<DNRRule[]> {
+        const filterOptions: Record<string, unknown> = {};
         if (options?.tabId !== undefined) {
             filterOptions.tabId = options.tabId;
         }
@@ -68,13 +98,11 @@ class FirefoxDNRAdapter {
         return [];
     }
     
-    async installDynamicRules(dynamicRules, sessionRules = []) {
+    async installDynamicRules(dynamicRules: DNRRule[], sessionRules: DNRRule[] = []): Promise<void> {
         const allRules = [...dynamicRules, ...sessionRules];
         
         if (allRules.length === 0) return;
         
-        // For Firefox MV2, we primarily use webRequest
-        // DNR is optional for MV2 when webRequest is available
         if (typeof browser !== 'undefined' && browser.declarativeNetRequest) {
             await browser.declarativeNetRequest.updateDynamicRules({
                 addRules: allRules.map(rule => ({
@@ -91,11 +119,14 @@ class FirefoxDNRAdapter {
         }
     }
     
-    async clearDynamicRules(site) {
+    async clearDynamicRules(site: string): Promise<void> {
         if (typeof browser !== 'undefined' && browser.declarativeNetRequest) {
             const rules = await browser.declarativeNetRequest.getDynamicRules();
             const siteRules = rules.filter(r => 
-                r.condition?.initiatorDomains?.includes(site)
+                r.condition && typeof r.condition === 'object' && 
+                'initiatorDomains' in r.condition &&
+                Array.isArray((r.condition as Record<string, unknown>).initiatorDomains) &&
+                (r.condition as Record<string, unknown>).initiatorDomains?.includes(site)
             );
             if (siteRules.length > 0) {
                 await browser.declarativeNetRequest.updateDynamicRules({
@@ -106,11 +137,12 @@ class FirefoxDNRAdapter {
     }
 }
 
-class ChromeDNRAdapter {
-    async getDynamicRules() {
+export class ChromeDNRAdapter implements DNRAdapter {
+    async getDynamicRules(): Promise<DNRRule[]> {
         return chrome.declarativeNetRequest.getDynamicRules();
     }
-    async updateDynamicRules(options) {
+    
+    async updateDynamicRules(options: UpdateRulesOptions): Promise<void> {
         const addRules = options.addRules?.map(rule => ({
             id: rule.id,
             priority: rule.priority,
@@ -122,10 +154,12 @@ class ChromeDNRAdapter {
             removeRuleIds: options.removeRuleIds ?? [],
         });
     }
-    async getSessionRules() {
+    
+    async getSessionRules(): Promise<DNRRule[]> {
         return chrome.declarativeNetRequest.getSessionRules();
     }
-    async updateSessionRules(options) {
+    
+    async updateSessionRules(options: UpdateRulesOptions): Promise<void> {
         const addRules = options.addRules?.map(rule => ({
             id: rule.id,
             priority: rule.priority,
@@ -137,11 +171,13 @@ class ChromeDNRAdapter {
             removeRuleIds: options.removeRuleIds ?? [],
         });
     }
-    async getAvailableStaticRuleCount() {
+    
+    async getAvailableStaticRuleCount(): Promise<number> {
         return chrome.declarativeNetRequest.getAvailableStaticRuleCount();
     }
-    async getMatchedRules(options) {
-        const filterOptions = {};
+    
+    async getMatchedRules(options?: MatchedRulesOptions): Promise<DNRRule[]> {
+        const filterOptions: Record<string, unknown> = {};
         if (options?.tabId !== undefined) {
             filterOptions.tabId = options.tabId;
         }
@@ -152,16 +188,14 @@ class ChromeDNRAdapter {
         return result.rules ?? [];
     }
     
-    async installDynamicRules(dynamicRules, sessionRules = []) {
+    async installDynamicRules(dynamicRules: DNRRule[], sessionRules: DNRRule[] = []): Promise<void> {
         const allRules = [...dynamicRules, ...sessionRules];
         
         if (allRules.length === 0) return;
         
-        // First, get existing rules to avoid conflicts
         const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
         const existingIds = new Set(existingRules.map(r => r.id));
         
-        // Filter out rules with conflicting IDs
         const newRules = allRules.filter(r => !existingIds.has(r.id));
         
         if (newRules.length > 0) {
@@ -178,10 +212,13 @@ class ChromeDNRAdapter {
         }
     }
     
-    async clearDynamicRules(site) {
+    async clearDynamicRules(site: string): Promise<void> {
         const rules = await chrome.declarativeNetRequest.getDynamicRules();
         const siteRules = rules.filter(r => 
-            r.condition?.initiatorDomains?.includes(site)
+            r.condition && typeof r.condition === 'object' && 
+            'initiatorDomains' in r.condition &&
+            Array.isArray((r.condition as Record<string, unknown>).initiatorDomains) &&
+            (r.condition as Record<string, unknown>).initiatorDomains?.includes(site)
         );
         if (siteRules.length > 0) {
             await chrome.declarativeNetRequest.updateDynamicRules({
@@ -191,26 +228,27 @@ class ChromeDNRAdapter {
     }
 }
 
-let instance = null;
+let instance: DNRAdapter | null = null;
 
-export function getDNRAdapter() {
+export function getDNRAdapter(): DNRAdapter {
     if (instance) return instance;
     
-    // Detect browser/environment
     const isFirefox = typeof browser !== 'undefined' && 
-                     browser.runtime?.getBrowserInfo !== undefined;
+                     typeof browser.runtime !== 'undefined' && 
+                     typeof (browser.runtime as Record<string, unknown>).getBrowserInfo === 'function';
     const isChromeMV3 = typeof chrome !== 'undefined' && 
-                        chrome.runtime?.getManifest?.()?.manifest_version === 3;
+                       typeof chrome.runtime !== 'undefined' && 
+                       typeof (chrome.runtime as Record<string, unknown>).getManifest === 'function' &&
+                       ((chrome.runtime as Record<string, unknown>).getManifest() as Record<string, unknown>)?.manifest_version === 3;
     
     if (isFirefox || isChromeMV3) {
-        // Check if DNR is available
         if (typeof browser !== 'undefined' && browser.declarativeNetRequest) {
             instance = new FirefoxDNRAdapter();
         } else if (typeof chrome !== 'undefined' && chrome.declarativeNetRequest) {
             instance = new ChromeDNRAdapter();
         } else {
             console.warn('[DNR] DNR API not available, using fallback');
-            instance = new FirefoxDNRAdapter(); // Fallback
+            instance = new FirefoxDNRAdapter();
         }
     } else {
         instance = new ChromeDNRAdapter();
@@ -219,14 +257,14 @@ export function getDNRAdapter() {
     return instance;
 }
 
-export function createFirefoxDNRAdapter() {
+export function createFirefoxDNRAdapter(): DNRAdapter {
     return new FirefoxDNRAdapter();
 }
 
-export function createChromeDNRAdapter() {
+export function createChromeDNRAdapter(): DNRAdapter {
     return new ChromeDNRAdapter();
 }
 
-export function setDNRAdapter(adapter) {
+export function setDNRAdapter(adapter: DNRAdapter): void {
     instance = adapter;
 }
