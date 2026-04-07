@@ -5,6 +5,8 @@
 
 import { storage } from '../storage.js';
 import { dnr } from '../dnr.js';
+import { dnrIntegration } from '../../../js/dnr-integration.js';
+import { broadcast } from '../../../js/broadcast.js';
 
 interface PortDetails {
     tabId?: number;
@@ -77,7 +79,15 @@ function createDashboardHandler() {
                 enabled: request.enabled,
                 trusted: request.trusted
             })
-                .then(function() {
+                .then(async function() {
+                    console.log('[DashboardHandler] User filters written, updating DNR rules...');
+                    try {
+                        await dnrIntegration.updateRules();
+                        console.log('[DashboardHandler] DNR rules updated');
+                    } catch (e) {
+                        console.error('[DashboardHandler] DNR update failed:', e);
+                    }
+                    broadcast({ what: 'userFiltersUpdated' });
                     callback({ success: true });
                 })
                 .catch(function(err) {
@@ -87,7 +97,16 @@ function createDashboardHandler() {
             break;
 
         case 'reloadAllFilters':
-            callback({ success: true });
+            console.log('[DashboardHandler] reloadAllFilters called');
+            dnrIntegration.updateRules()
+                .then(function() {
+                    broadcast({ what: 'filteringBehaviorChanged' });
+                    callback({ success: true });
+                })
+                .catch(function(err) {
+                    console.error('[DashboardHandler] reloadAllFilters failed:', err);
+                    callback({ success: false, error: (err as Error).message });
+                });
             break;
 
         case 'getAutoCompleteDetails':

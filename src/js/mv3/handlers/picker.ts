@@ -5,6 +5,8 @@
 
 import { vAPI } from '../vapi-bg.js';
 import { storage } from '../storage.js';
+import { broadcast } from '../../../js/broadcast.js';
+import { dnrIntegration } from '../../../js/dnr-integration.js';
 
 interface PortDetails {
     tabId?: number;
@@ -67,7 +69,18 @@ function handleCreateUserFilter(
     }
 
     storage.appendUserFilters(filtersToSave)
-        .then(function(result) {
+        .then(async function(result) {
+            if (result.saved) {
+                console.log('[PickerHandler] Filters saved, updating DNR rules...');
+                try {
+                    await dnrIntegration.updateRules();
+                    console.log('[PickerHandler] DNR rules updated');
+                } catch (e) {
+                    console.error('[PickerHandler] DNR update failed:', e);
+                }
+                broadcast({ what: 'userFiltersUpdated' });
+                console.log('[PickerHandler] Broadcast userFiltersUpdated');
+            }
             callback(result);
         })
         .catch(function(err) {

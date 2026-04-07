@@ -20,7 +20,7 @@ const outFile = path.join(__dirname, '../dist/build/uBlock0.chromium-mv3/js/sw.j
 
 async function bundle() {
     try {
-        await esbuild.build({
+        const result = await esbuild.build({
             entryPoints: [entryPoint],
             bundle: true,
             outfile: outFile,
@@ -29,9 +29,37 @@ async function bundle() {
             platform: 'browser',
             minify: false,
             allowOverwrite: true,
-            logLevel: 'info',
+            logLevel: 'warning',
+            banner: {
+                js: '// uBlock Resurrected MV3 Service Worker\n',
+            },
+            footer: {
+                js: '\n//# sourceMappingURL=sw.js.map',
+            },
         });
+        
+        // Post-process: Ensure vAPI is properly exposed globally
+        let content = fs.readFileSync(outFile, 'utf8');
+        
+        // Replace all vAPI2 references with vAPI to fix naming conflict
+        if (content.includes('vAPI2')) {
+            content = content.replace(/vAPI2/g, 'vAPI');
+        }
+        
+        // Wrap in explicit global assignment to ensure vAPI is available
+        if (!content.includes('var vAPI')) {
+            content = content.replace(
+                '(() => {',
+                '(() => {\nvar vAPI;\n'
+            );
+        }
+        
+        fs.writeFileSync(outFile, content);
         console.log('Service worker bundled successfully:', outFile);
+        
+        if (result.errors.length > 0) {
+            console.error('Bundle had errors:', result.errors);
+        }
     } catch (error) {
         console.error('Bundle failed:', error);
         process.exit(1);

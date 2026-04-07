@@ -1,12 +1,12 @@
 /*******************************************************************************
 
-    uBlock Origin - DNR Integration Module
+    uBlock Resurrected - DNR Integration Module
     Copyright (C) 2024-present Raymond Hill
 
     This module handles switching between webRequest (MV2) and DNR (MV3)
     for network filtering. It integrates with uBlock's existing MV3 infrastructure.
 
-******************************************************************************/
+*******************************************************************************/
 
 import {
     sessionFirewall,
@@ -19,6 +19,7 @@ import {
 
 import µb from '../js/background.js';
 import { onBroadcast } from '../js/broadcast.js';
+import { storage } from './mv3/storage.js';
 
 /******************************************************************************/
 
@@ -73,12 +74,15 @@ class DNRIntegration {
 
         try {
             this.ruleIdCounter = 1;
-            const userRules = this.compileUserRules();
+            
+            const firewallRules = this.compileUserRules();
             const whitelistRules = this.compileWhitelist();
+            const userFilterRules = await this.compileUserFiltersFromStorage();
 
             const allRules = [
-                ...userRules,
-                ...whitelistRules
+                ...firewallRules,
+                ...whitelistRules,
+                ...userFilterRules
             ];
 
             // Get existing rule IDs to remove them
@@ -106,7 +110,7 @@ class DNRIntegration {
                 });
             }
 
-            console.log(`[DNR] Installed ${allRules.length} rules (removed ${removeRuleIds.length})`);
+            console.log(`[DNR] Installed ${allRules.length} rules (firewall: ${firewallRules.length}, whitelist: ${whitelistRules.length}, userFilters: ${userFilterRules.length})`);
         } catch (e) {
             console.error('[DNR] Failed to compile/install rules:', e);
         }
@@ -138,6 +142,119 @@ class DNRIntegration {
         try { compileFirewall(sessionFirewall, 'session'); } catch ( e ) { }
 
         return rules;
+    }
+
+    async compileUserFiltersFromStorage() {
+        const rules = [];
+        try {
+            const userFiltersData = await storage.readUserFilters();
+            const content = userFiltersData.content || '';
+            const filterLines = content.split('\n');
+            
+            for ( const line of filterLines ) {
+                const filter = line.trim();
+                if ( !filter || filter.startsWith('!') || filter.startsWith('[') ) continue;
+                
+                const rule = this.parseFilterToDNRRule(filter);
+                if ( rule ) {
+                    rules.push(rule);
+                }
+            }
+            
+            console.log(`[DNR] Compiled ${rules.length} rules from user filters`);
+        } catch ( e ) {
+            console.error('[DNR] Failed to compile user filters:', e);
+        }
+        
+        return rules;
+    }
+
+    parseFilterToDNRRule(filter) {
+        const id = this.ruleIdCounter++;
+        
+        if ( filter.startsWith('@@') ) {
+            return this.parseAllowRule(filter.slice(2), id);
+        } else if ( filter.startsWith('||') ) {
+            return this.parseBlockRule(filter.slice(2), id);
+        } else if ( filter.startsWith('|') ) {
+            return this.parseBlockRule(filter.slice(1), id);
+        }
+        
+        return null;
+    }
+
+    parseBlockRule(pattern, id) {
+        let urlFilter = pattern;
+        let domains = null;
+        
+        const domainOptionMatch = urlFilter.match(/\$domain=([^,]+)/i);
+        if ( domainOptionMatch ) {
+            const domainStr = domainOptionMatch[1];
+            domains = domainStr.split('|').map(d => d.trim());
+            urlFilter = urlFilter.replace(/\$domain=[^,]+/i, '');
+        }
+        
+        const thirdPartyMatch = urlFilter.match(/\$third-party/i);
+        const firstPartyMatch = urlFilter.match(/\$first-party/i);
+        
+        urlFilter = urlFilter.replace(/\$[^,]+/g, '');
+        
+        if ( !urlFilter || urlFilter === '^' ) {
+            urlFilter = '.*';
+        } else {
+            urlFilter = urlFilter
+                .replace(/\^/g, '[/:?#&]')
+                .replace(/\*/g, '.*')
+                .replace(/\./g, '\\.');
+        }
+        
+        if ( !urlFilter.startsWith('^') && !urlFilter.startsWith('.*') ) {
+            urlFilter = '^' + urlFilter;
+        }
+        
+        return {
+            id,
+            priority: 1,
+            action: { type: 'block' },
+            condition: {
+                urlFilter,
+                ...(domains && { initiatorDomains: domains }),
+                ...(thirdPartyMatch && { resourceTypes: ['image', 'script', 'stylesheet', 'font', 'websocket', 'media', 'other'] }),
+            }
+        };
+    }
+
+    parseAllowRule(pattern, id) {
+        let urlFilter = pattern;
+        let domains = null;
+        
+        const domainOptionMatch = urlFilter.match(/\$domain=([^,]+)/i);
+        if ( domainOptionMatch ) {
+            const domainStr = domainOptionMatch[1];
+            domains = domainStr.split('|').map(d => d.trim());
+            urlFilter = urlFilter.replace(/\$domain=[^,]+/i, '');
+        }
+        
+        urlFilter = urlFilter.replace(/\$[^,]+/g, '');
+        
+        if ( !urlFilter || urlFilter === '^' ) {
+            urlFilter = '.*';
+        } else {
+            urlFilter = urlFilter
+                .replace(/\^/g, '[/:?#&]')
+                .replace(/\*/g, '.*')
+                .replace(/\./g, '\\.');
+        }
+        
+        return {
+            id,
+            priority: 2,
+            action: { type: 'allow' },
+            condition: {
+                urlFilter,
+                ...(domains && { initiatorDomains: domains }),
+            }
+        };
     }
 
     compileWhitelist() {

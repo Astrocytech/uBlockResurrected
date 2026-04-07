@@ -134,7 +134,7 @@ function handleGetPopupData(
 
         callback({
             advancedUserEnabled: true,
-            appName: "uBlock Origin",
+            appName: "uBlock Resurrected",
             appVersion: api.version,
             colorBlindFriendly: false,
             cosmeticFilteringSwitch: false,

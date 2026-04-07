@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - a comprehensive, efficient content blocker
+    uBlock Resurrected - a comprehensive, efficient content blocker
     Copyright (C) 2014-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -23,7 +23,7 @@
     MODULE STRUCTURE (epicker.ts)
     =============================
     
-    This file contains the element picker functionality for uBlock Origin.
+    This file contains the element picker functionality for uBlock Resurrected.
     Due to tight coupling between components, it remains monolithic for safety.
     
     SECTIONS:
