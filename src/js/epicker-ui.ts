@@ -351,22 +351,19 @@ const onCandidatesOptimized = function(details) {
 /******************************************************************************/
 
 const onSvgClicked = function(ev) {
-    // Use page coordinates since the extension iframe is fullscreen overlay
-    const mx = ev.pageX;
-    const my = ev.pageY;
+    const mx = ev.clientX;
+    const my = ev.clientY;
     
-    // If zap mode - use zapElementAtPoint to block element and stay in mode
     if ( pickerRoot.classList.contains('zap') ) {
-        console.log('[EPICKER-UI] Zap mode - calling zapElementAtPoint');
-        
-        // Use zapElementAtPoint with stay: true to stay in zapper mode after blocking
         pickerPortSend({
             what: 'zapElementAtPoint',
             mx,
             my,
-            options: { stay: true, highlight: false },
+            options: {
+                stay: true,
+                highlight: ev.target !== svgIslands,
+            },
         });
-        
         return;
     }
     // https://github.com/chrisaljoudi/uBlock/issues/810#issuecomment-74600694
@@ -749,26 +746,21 @@ const svgListening = (( ) => {
     };
 
     const onHover = ev => {
-        // Use page coordinates since the extension iframe is fullscreen overlay
-        // pageX/pageY are relative to the page, not the iframe
-        mx = ev.pageX;
-        my = ev.pageY;
-        //debugLog('epicker-ui', 'mousemove page coords:', mx, my);
+        mx = ev.clientX;
+        my = ev.clientY;
         if ( timer === undefined ) {
             timer = self.requestAnimationFrame(onTimer);
         }
     };
 
     return state => {
-        //debugLog('epicker-ui', 'svgListening state:', state);
         if ( state === on ) { return; }
         on = state;
         if ( on ) {
-            window.addEventListener('mousemove', onHover, { passive: true });
-            //debugLog('epicker-ui', 'mousemove listener added to window');
+            document.addEventListener('mousemove', onHover, { passive: true });
             return;
         }
-        window.removeEventListener('mousemove', onHover, { passive: true });
+        document.removeEventListener('mousemove', onHover, { passive: true });
         if ( timer !== undefined ) {
             self.cancelAnimationFrame(timer);
             timer = undefined;
