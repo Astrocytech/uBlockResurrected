@@ -1,5 +1,5 @@
 /**
- * uBlock Origin - MV3 Service Worker
+ * uBlock Resurrected - MV3 Service Worker
  * Entry Point
  */
 
@@ -152,7 +152,7 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
 
             sendResponse({
                 advancedUserEnabled: true,
-                appName: "uBlock Origin",
+                appName: "uBlock Resurrected",
                 appVersion: vAPI.version,
                 colorBlindFriendly: false,
                 cosmeticFilteringSwitch: false,

@@ -1,5 +1,5 @@
 /**
- * VAPI Types for uBlock Origin
+ * VAPI Types for uBlock Resurrected
  * 
  * Defines types for the VAPI (uBlock API) shim that provides
  * a consistent interface for both background and content scripts.

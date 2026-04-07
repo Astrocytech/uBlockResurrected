@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Content Script Module
+    uBlock Resurrected - Content Script Module
     DOM Surveyor
 
     Surveys the DOM for new classes/ids to query the filtering engine

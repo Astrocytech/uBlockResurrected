@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Rule Manager
+    uBlock Resurrected - Rule Manager
     Copyright (C) 2024-present Raymond Hill
 
     This module manages the lifecycle of DNR rules, including

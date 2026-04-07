@@ -1,7 +1,7 @@
 // Simple i18n replacement for Chrome MV3 popup
 (function() {
     const translations = {
-        'extName': 'uBlock Origin',
+        'extName': 'uBlock Resurrected',
         'popupNoPopups_v2': 'No popups',
         'popupNoLargeMedia_v2': 'No large media',
         'popupNoCosmeticFiltering_v2': 'No cosmetic',

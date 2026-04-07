@@ -2,7 +2,7 @@
 // search addon found at: https://codemirror.net/addon/search/search.js
 // I added/removed and modified code in order to get a closer match to a
 // browser's built-in find-in-page feature which are just enough for
-// uBlock Origin.
+// uBlock Resurrected.
 //
 // This file was originally wholly imported from:
 // https://github.com/codemirror/CodeMirror/blob/3e1bb5fff682f8f6cbfaef0e56c61d62403d4798/addon/search/search.js

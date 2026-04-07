@@ -1,5 +1,5 @@
 /**
- * uBlock Origin - MV3 Service Worker
+ * uBlock Resurrected - MV3 Service Worker
  * Shared Utilities and Constants
  */
 

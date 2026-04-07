@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - DNR Compiler
+    uBlock Resurrected - DNR Compiler
     Copyright (C) 2024-present Raymond Hill
 
     This module compiles uBlock filters to Chrome's Declarative Net Request (DNR)

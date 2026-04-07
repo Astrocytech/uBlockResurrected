@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Content Script Module
+    uBlock Resurrected - Content Script Module
     vAPI Extensions - userStylesheet, SafeAnimationFrame
 
     These extensions are shared across all content script modules.

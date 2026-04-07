@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Content Script Module
+    uBlock Resurrected - Content Script Module
     Bootstrap
 
     Bootstrapping allows all components of the content script

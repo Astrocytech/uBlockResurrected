@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Element Picker Module
+    uBlock Resurrected - Element Picker Module
     DOM Interface
 
     Handles DOM queries, filtering, and preview operations.

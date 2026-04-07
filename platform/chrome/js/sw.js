@@ -1,5 +1,5 @@
-// uBlock Origin Chrome MV3 Service Worker - bundles concatenated
-console.log('uBlock Origin SW loaded');
+// uBlock Resurrected Chrome MV3 Service Worker - bundles concatenated
+console.log('uBlock Resurrected SW loaded');
 
 self.oninstall = function(event) {
     self.skipWaiting();

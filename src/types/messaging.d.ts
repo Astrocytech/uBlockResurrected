@@ -1,5 +1,5 @@
 /**
- * Messaging Types for uBlock Origin MV3
+ * Messaging Types for uBlock Resurrected MV3
  * 
  * Defines all message interfaces used for communication between:
  * - Service Worker and Content Scripts

@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Element Picker Module
+    uBlock Resurrected - Element Picker Module
     Highlighter
 
     SVG-based element highlighting system for the element picker.

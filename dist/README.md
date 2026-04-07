@@ -53,7 +53,7 @@ Compatible with Firefox 24-56, [Pale Moon](https://www.palemoon.org/), and [SeaM
 
 For Firefox 43 and beyond, you may need to toggle the setting `xpinstall.signatures.required` to `false` in `about:config`.<sup>[see "Add-on signing in Firefox"](https://support.mozilla.org/en-US/kb/add-on-signing-in-firefox)</sup>
 
-Your uBlock Origin settings are preserved even after uninstalling the addon.
+Your uBlock Resurrected settings are preserved even after uninstalling the addon.
 
 - On Linux, settings are saved in a SQLite file located at:
 ```

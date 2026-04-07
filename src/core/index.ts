@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Filtering Core
+    uBlock Resurrected - Filtering Core
     Copyright (C) 2014-present Raymond Hill
 
     This module re-exports the filtering core from src/js/

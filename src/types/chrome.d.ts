@@ -2,7 +2,7 @@
  * Chrome Extension API Type Augmentations
  * 
  * These types augment the @types/chrome package with MV3-specific
- * and uBlock Origin-specific extensions.
+ * and uBlock Resurrected-specific extensions.
  */
 
 declare namespace chrome {

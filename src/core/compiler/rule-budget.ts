@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Rule Budget Manager
+    uBlock Resurrected - Rule Budget Manager
     Copyright (C) 2024-present Raymond Hill
 
     This module handles rule budget management for DNR,

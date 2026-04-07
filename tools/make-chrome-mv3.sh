@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# uBlock Origin Chrome MV3 Build Script (Refactored)
+# uBlock Resurrected Chrome MV3 Build Script (Refactored)
 # This script assumes a linux environment
 
 set -e
@@ -111,7 +111,7 @@ cat > $DES/js/i18n-fallback.js << 'I18NFALLBACKEOF'
         'loggerRowFiltererBuiltinBlocked': 'Blocked',
         'loggerRowFiltererBuiltinAllowed': 'Allowed',
         'unprocessedRequestTooltip': 'Unprocessed request',
-        'extName': 'uBlock Origin'
+        'extName': 'uBlock Resurrected'
     };
     document.addEventListener('DOMContentLoaded', function() {
         document.querySelectorAll('[data-i18n]').forEach(function(el) {

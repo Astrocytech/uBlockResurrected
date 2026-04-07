@@ -22,7 +22,7 @@ For support, questions, or assistance, please visit [/r/uBlockOrigin](https://ww
 
 Report issues related to filter lists or broken website functionality in the [uAssets issue tracker](https://github.com/uBlockOrigin/uAssets/issues).
 
-#### uBlock Origin (uBO) Issues
+#### uBlock Resurrected (uBO) Issues
 
 For issues specifically about uBO, please use the [uBO issue tracker](https://github.com/uBlockOrigin/uBlock-issues/issues).
 

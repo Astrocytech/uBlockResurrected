@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Chrome MV3 Service Worker
+    uBlock Resurrected - Chrome MV3 Service Worker
     This file initializes the service worker environment and loads scripts
     using importScripts() to ensure proper loading order.
 

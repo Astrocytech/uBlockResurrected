@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Content Script Module
+    uBlock Resurrected - Content Script Module
     DOM Filterer
 
     The DOM filterer is the heart of uBO's cosmetic filtering.

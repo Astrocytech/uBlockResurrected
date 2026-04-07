@@ -10,7 +10,7 @@
       "32": "img/icon_32.png",
       "64": "img/icon_64.png"
     },
-    "default_title": "uBlock Origin",
+    "default_title": "uBlock Resurrected",
     "default_popup": "popup-fenix.html"
   },
   "default_locale": "en",
@@ -27,7 +27,7 @@
     "128": "img/ublock.svg"
   },
   "manifest_version": 3,
-  "name": "uBlock Origin",
+  "name": "uBlock Resurrected",
   "options_page": "dashboard.html",
   "commands": {
     "launch-element-zapper": {
@@ -112,7 +112,7 @@
   "version": "1.9.15.101",
   "web_accessible_resources": [
     {
-      "resources": ["/web_accessible_resources/*", "/debug-logs.html", "/epicker-ui.html", "/js/epicker-ui.js", "/js/epicker-ui-bundle.js", "/css/epicker-ui.css"],
+      "resources": ["/web_accessible_resources/*", "/debug-logs.html", "/js/epicker-ui-bundle.js", "/css/epicker-ui.css"],
       "matches": ["<all_urls>"]
     }
   ]

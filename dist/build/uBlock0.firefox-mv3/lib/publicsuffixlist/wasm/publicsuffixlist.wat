@@ -1,5 +1,5 @@
 ;;
-;; uBlock Origin - a browser extension to block requests.
+;; uBlock Resurrected - a browser extension to block requests.
 ;; Copyright (C) 2019-present Raymond Hill
 ;;
 ;; License: pick the one which suits you:

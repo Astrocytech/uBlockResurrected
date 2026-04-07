@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# uBlock Origin Firefox MV3 Build Script (Service Worker)
+# uBlock Resurrected Firefox MV3 Build Script (Service Worker)
 # This script assumes a linux environment
 
 set -e

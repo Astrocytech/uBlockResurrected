@@ -1,7 +1,7 @@
 /*******************************************************************************
 
-    uBlock Origin - a comprehensive, efficient content blocker
-    Copyright (C) 2014-2015 The uBlock Origin authors
+    uBlock Resurrected - a comprehensive, efficient content blocker
+    Copyright (C) 2014-2015 The uBlock Resurrected authors
     Copyright (C) 2014-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify

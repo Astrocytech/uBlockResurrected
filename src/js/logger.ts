@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - a comprehensive, efficient content blocker
+    uBlock Resurrected - a comprehensive, efficient content blocker
     Copyright (C) 2015-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -39,17 +39,24 @@ let writePtr = 0;
 
 const logBufferObsoleteAfter = 30 * 1000;
 
-const janitorTimer: DeferredTimer = µb.vAPI.defer.create(( ) => {
-    if ( buffer === null ) { return; }
-    if ( lastReadTime >= (Date.now() - logBufferObsoleteAfter) ) {
-        return janitorTimer.on(logBufferObsoleteAfter);
+let janitorTimer: DeferredTimer | null = null;
+
+const initJanitor = (): DeferredTimer => {
+    if (janitorTimer === null) {
+        janitorTimer = µb.vAPI.defer.create(( ) => {
+            if ( buffer === null ) { return; }
+            if ( lastReadTime >= (Date.now() - logBufferObsoleteAfter) ) {
+                return initJanitor().on(logBufferObsoleteAfter);
+            }
+            logger.enabled = false;
+            buffer = null;
+            writePtr = 0;
+            logger.ownerId = undefined;
+            broadcastToAll({ what: 'loggerDisabled' });
+        });
     }
-    logger.enabled = false;
-    buffer = null;
-    writePtr = 0;
-    logger.ownerId = undefined;
-    broadcastToAll({ what: 'loggerDisabled' });
-});
+    return janitorTimer;
+};
 
 const boxEntry = (details: LoggerDetails): string => {
     details.tstamp = Date.now() / 1000 | 0;

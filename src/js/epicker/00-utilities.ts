@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Element Picker Module
+    uBlock Resurrected - Element Picker Module
     Utilities
 
     Basic utility functions shared across all epicker modules.

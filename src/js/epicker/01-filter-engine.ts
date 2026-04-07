@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Element Picker Module
+    uBlock Resurrected - Element Picker Module
     Filter Engine
 
     Generates network and cosmetic filters from DOM elements.

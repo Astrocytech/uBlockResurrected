@@ -1,8 +1,8 @@
-# Plan: uBlock Origin MV3 for Firefox
+# Plan: uBlock Resurrected MV3 for Firefox
 
 ## Overview
 
-Convert uBlock Origin from MV2 to MV3 for Firefox 128+, using service workers for the background context, with the goal of creating a code path that can also work in Chrome MV3.
+Convert uBlock Resurrected from MV2 to MV3 for Firefox 128+, using service workers for the background context, with the goal of creating a code path that can also work in Chrome MV3.
 
 ---
 

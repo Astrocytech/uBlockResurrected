@@ -1,9 +1,9 @@
 /*******************************************************************************
 
-    Blocker Core Adapter - Bridges uBlock Origin and Blocker Core
+    Blocker Core Adapter - Bridges uBlock Resurrected and Blocker Core
     
     This adapter integrates Blocker Core (policy management, compilation,
-    DNR adapter) into uBlock Origin while maintaining all existing functionality.
+    DNR adapter) into uBlock Resurrected while maintaining all existing functionality.
     
     Works with both MV2 (Firefox) and MV3 (Chrome).
 

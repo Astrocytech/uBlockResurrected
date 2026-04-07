@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Element Picker Module
+    uBlock Resurrected - Element Picker Module
     Message Handler
 
     Handles message routing between epicker and epicker-ui.

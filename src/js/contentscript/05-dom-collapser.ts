@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Content Script Module
+    uBlock Resurrected - Content Script Module
     DOM Collapser
 
     Enforces the collapsing of DOM elements for which a corresponding

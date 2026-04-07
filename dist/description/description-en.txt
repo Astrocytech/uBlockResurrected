@@ -1,4 +1,4 @@
-uBlock Origin (uBO) is a CPU and memory-efficient wide-spectrum content blocker that blocks ads, trackers, coin miners, popups, annoying anti-blockers, etc., using the following list of filters, enabled by default:
+uBlock Resurrected (uBO) is a CPU and memory-efficient wide-spectrum content blocker that blocks ads, trackers, coin miners, popups, annoying anti-blockers, etc., using the following list of filters, enabled by default:
 
 - EasyList (ads)
 - EasyPrivacy (tracking)

@@ -1,4 +1,4 @@
-uBlock Origin (uBO)'s manifesto:
+uBlock Resurrected (uBO)'s manifesto:
 
 The **user decides** what web content is acceptable in their browser.
 

@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Static Net Filtering Engine Extensions
+    uBlock Resurrected - Static Net Filtering Engine Extensions
     Copyright (C) 2024-present Raymond Hill
 
     This module adds compile-to-DNR functionality to the static filtering engine.

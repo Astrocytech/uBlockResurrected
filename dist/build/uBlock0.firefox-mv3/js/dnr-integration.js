@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - DNR Integration Module
+    uBlock Resurrected - DNR Integration Module
     Copyright (C) 2024-present Raymond Hill
 
     This module handles switching between webRequest (MV2) and DNR (MV3)

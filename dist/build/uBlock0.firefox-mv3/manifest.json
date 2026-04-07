@@ -8,7 +8,7 @@
       "64": "img/icon_64.png"
     },
     "default_popup": "popup-fenix.html",
-    "default_title": "uBlock Origin"
+    "default_title": "uBlock Resurrected"
   },
   "author": "Raymond Hill & contributors",
   "background": {
@@ -114,7 +114,7 @@
     "96": "img/ublock.svg"
   },
   "manifest_version": 3,
-  "name": "uBlock Origin",
+  "name": "uBlock Resurrected",
   "options_page": "dashboard.html",
   "permissions": [
     "alarms",

@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Practical DNR Compiler
+    uBlock Resurrected - Practical DNR Compiler
     Copyright (C) 2024-present Raymond Hill
 
     This is a practical implementation that compiles basic filter patterns

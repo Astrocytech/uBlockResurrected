@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Element Picker Module
+    uBlock Resurrected - Element Picker Module
     Session Management
 
     Handles picker lifecycle, event handlers, and element lookup.

@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Content Script Module
+    uBlock Resurrected - Content Script Module
     CSP Violation Listener
 
     Listens and reports CSP violations so that blocked resources through CSP

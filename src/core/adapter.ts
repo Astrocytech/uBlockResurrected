@@ -1,10 +1,10 @@
 /*******************************************************************************
 
-    uBlock Origin - Blocker Adapter
+    uBlock Resurrected - Blocker Adapter
     Copyright (C) 2014-present Raymond Hill
 
     This adapter provides the interface between the Blocker extension
-    and the uBlock Origin filtering core.
+    and the uBlock Resurrected filtering core.
 
 *******************************************************************************/
 

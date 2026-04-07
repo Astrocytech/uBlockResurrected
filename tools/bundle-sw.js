@@ -20,7 +20,7 @@ const outFile = path.join(__dirname, '../dist/build/uBlock0.chromium-mv3/js/sw.j
 
 async function bundle() {
     try {
-        const result = await esbuild.build({
+        await esbuild.build({
             entryPoints: [entryPoint],
             bundle: true,
             outfile: outFile,
@@ -46,20 +46,9 @@ async function bundle() {
             content = content.replace(/vAPI2/g, 'vAPI');
         }
         
-        // Wrap in explicit global assignment to ensure vAPI is available
-        if (!content.includes('var vAPI')) {
-            content = content.replace(
-                '(() => {',
-                '(() => {\nvar vAPI;\n'
-            );
-        }
-        
         fs.writeFileSync(outFile, content);
         console.log('Service worker bundled successfully:', outFile);
         
-        if (result.errors.length > 0) {
-            console.error('Bundle had errors:', result.errors);
-        }
     } catch (error) {
         console.error('Bundle failed:', error);
         process.exit(1);

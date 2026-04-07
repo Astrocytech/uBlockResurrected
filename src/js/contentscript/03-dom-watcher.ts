@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Origin - Content Script Module
+    uBlock Resurrected - Content Script Module
     DOM Watcher
 
     Watches for changes in the DOM and notifies other components about these

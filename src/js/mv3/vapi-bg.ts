@@ -15,7 +15,7 @@ const browserAPI = self as unknown as typeof globalThis & {
 self.browser = self.browser || chrome;
 
 /**
- * Main vAPI object providing uBlock Origin API shims
+ * Main vAPI object providing uBlock Resurrected API shims
  */
 const vAPI = {
     uBO: true,
