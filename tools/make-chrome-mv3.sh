@@ -22,6 +22,14 @@ cp platform/chrome/manifest.json $DES/
 echo "*** uBlock0.chromium-mv3: Bundling JS files"
 cd $DES/js
 
+# Create stub benchmarks.js BEFORE bundling (messaging.ts imports it dynamically)
+cat > benchmarks.js << 'BENCHMARKEOF'
+// Benchmarks stub - benchmarks are disabled in production
+export const benchmarkStaticNetFiltering = async () => ({ error: 'Benchmarks disabled' });
+export const benchmarkCosmeticFiltering = async () => ({ error: 'Benchmarks disabled' });
+export const benchmarkScriptletFiltering = async () => ({ error: 'Benchmarks disabled' });
+BENCHMARKEOF
+
 # Bundle popup-fenix.ts (has imports from ../lib/punycode.js and ./dom.js, ./i18n.js)
 cat popup-fenix.ts fa-icons.ts > popup-fenix-with-icons.ts
 esbuild popup-fenix-with-icons.ts --bundle --format=iife --outfile=popup-fenix-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
@@ -39,8 +47,8 @@ esbuild i18n.ts --bundle --format=iife --outfile=i18n-bundle.js --target=chrome1
 # Bundle storage.ts
 esbuild storage.ts --bundle --format=iife --outfile=storage-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
-# Bundle messaging.ts
-esbuild messaging.ts --bundle --format=iife --outfile=messaging-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite --external:benchmarks 2>&1 || true
+# Bundle messaging.ts (external flag doesn't work for dynamic imports, use --bundle false)
+esbuild messaging.ts --bundle --format=iife --outfile=messaging-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle uri-utils.ts
 esbuild uri-utils.ts --bundle --format=iife --outfile=uri-utils-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
@@ -131,9 +139,6 @@ sed -i 's|<script src="lib/hsluv|<script src="js/i18n-fallback.js"></script>\n<s
 # Bundle service worker using the new modular system
 echo "*** uBlock0.chromium-mv3: Bundling service worker (modular)"
 node tools/bundle-sw.js
-
-# Create placeholder benchmarks.js for dynamic imports
-touch $DES/js/benchmarks.js
 
 # Bundle epicker modules
 echo "*** uBlock0.chromium-mv3: Bundling epicker modules"

@@ -85,7 +85,7 @@ const logger = {
         if ( buffer === null ) {
             this.enabled = true;
             buffer = [];
-            janitorTimer.on(logBufferObsoleteAfter);
+            initJanitor().on(logBufferObsoleteAfter);
             broadcast({ what: 'loggerEnabled' });
         }
         const out = buffer.slice(0, writePtr);

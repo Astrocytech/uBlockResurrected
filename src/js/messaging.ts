@@ -1924,26 +1924,44 @@ const onMessage = function(request, sender, callback) {
         return;
 
     case 'snfeBenchmark':
-        import('/js/benchmarks.js').then(module => {
-            module.benchmarkStaticNetFiltering({ redirectEngine }).then(result => {
-                callback(result);
-            });
+        Promise.all([
+            import('/js/benchmarks.js').catch(() => ({ benchmarkStaticNetFiltering: async () => ({ error: 'Benchmarks disabled' }) }))
+        ]).then(([module]) => {
+            if (module && typeof module.benchmarkStaticNetFiltering === 'function') {
+                module.benchmarkStaticNetFiltering({ redirectEngine }).then(result => {
+                    callback(result);
+                });
+            } else {
+                callback({ error: 'Benchmarks not available' });
+            }
         });
         return;
 
     case 'cfeBenchmark':
-        import('/js/benchmarks.js').then(module => {
-            module.benchmarkCosmeticFiltering().then(result => {
-                callback(result);
-            });
+        Promise.all([
+            import('/js/benchmarks.js').catch(() => ({ benchmarkCosmeticFiltering: async () => ({ error: 'Benchmarks disabled' }) }))
+        ]).then(([module]) => {
+            if (module && typeof module.benchmarkCosmeticFiltering === 'function') {
+                module.benchmarkCosmeticFiltering().then(result => {
+                    callback(result);
+                });
+            } else {
+                callback({ error: 'Benchmarks not available' });
+            }
         });
         return;
 
     case 'sfeBenchmark':
-        import('/js/benchmarks.js').then(module => {
-            module.benchmarkScriptletFiltering().then(result => {
-                callback(result);
-            });
+        Promise.all([
+            import('/js/benchmarks.js').catch(() => ({ benchmarkScriptletFiltering: async () => ({ error: 'Benchmarks disabled' }) }))
+        ]).then(([module]) => {
+            if (module && typeof module.benchmarkScriptletFiltering === 'function') {
+                module.benchmarkScriptletFiltering().then(result => {
+                    callback(result);
+                });
+            } else {
+                callback({ error: 'Benchmarks not available' });
+            }
         });
         return;
 
