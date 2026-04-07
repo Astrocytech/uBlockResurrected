@@ -12,8 +12,10 @@ import { initUtilities } from './00-utilities.js';
 import { initFilterEngine } from './01-filter-engine.js';
 import { initHighlighter, setPickerFramePort } from './02-highlighter.js';
 import { initDOMInterface, filterToDOMInterface } from './03-dom-interface.js';
-import { initSession, startPicker, quitPicker, showDialog, highlightElementAtPoint, filterElementAtPoint, zapElementAtPoint } from './04-session.js';
+import { initSession, startPicker, quitPicker, showDialog, highlightElementAtPoint, filterElementAtPoint, zapElementAtPoint, setPickerFrame } from './04-session.js';
 import { initMessageHandler, onDialogMessage } from './05-message-handler.js';
+
+/* global vAPI */
 
 interface VAPI {
     messaging: {
@@ -125,26 +127,16 @@ const applyPickerCSS = function(): void {
 };
 
 const bootstrap = async (): Promise<HTMLElement | undefined> => {
-    console.log('[EPICKER] bootstrap() called');
-
     try {
         epickerState.pickerBootArgs = await vAPI.messaging.send('elementPicker', {
             what: 'elementPickerArguments',
         }) as EpickerState['pickerBootArgs'];
-        console.log('[EPICKER] Got pickerBootArgs:', epickerState.pickerBootArgs);
     } catch (e) {
-        console.log('[EPICKER] ERROR getting pickerBootArgs:', e);
         return;
     }
 
-    if ( typeof epickerState.pickerBootArgs !== 'object' ) {
-        console.log('[EPICKER] pickerBootArgs is not an object');
-        return;
-    }
-    if ( epickerState.pickerBootArgs === null ) {
-        console.log('[EPICKER] pickerBootArgs is null');
-        return;
-    }
+    if ( typeof epickerState.pickerBootArgs !== 'object' ) { return; }
+    if ( epickerState.pickerBootArgs === null ) { return; }
 
     const eprom = epickerState.pickerBootArgs.eprom || null;
     if ( eprom !== null && eprom.lastNetFilterSession === epickerState.lastNetFilterSession ) {
@@ -174,11 +166,9 @@ const bootstrap = async (): Promise<HTMLElement | undefined> => {
             'pointer-events: auto'
         ].join(' !important; ');
 
-        console.log('[EPICKER] Creating iframe with URL:', url.href);
         document.documentElement.appendChild(iframe);
 
         iframe.addEventListener('load', () => {
-            console.log('[EPICKER] Iframe LOADED successfully');
             iframe.setAttribute(`${epickerState.pickerUniqueId}-loaded`, '');
 
             const channel = new MessageChannel();
@@ -187,7 +177,6 @@ const bootstrap = async (): Promise<HTMLElement | undefined> => {
                 onDialogMessage(ev.data || {});
             };
             pickerFramePort.onmessageerror = () => {
-                console.log('[EPICKER] MessageChannel error!');
                 quitPicker();
             };
 
@@ -201,8 +190,7 @@ const bootstrap = async (): Promise<HTMLElement | undefined> => {
             resolve(iframe);
         }, { once: true });
 
-        iframe.addEventListener('error', (e) => {
-            console.log('[EPICKER] Iframe ERROR:', e);
+        iframe.addEventListener('error', () => {
         });
 
         iframe.contentWindow!.location = url.href;
@@ -210,16 +198,17 @@ const bootstrap = async (): Promise<HTMLElement | undefined> => {
 };
 
 function initialize(): void {
-    if ( typeof vAPI !== 'object' ) {
-        debugLog('entry', 'vAPI is not an object');
-        return;
-    }
-    if ( vAPI === null ) {
-        debugLog('entry', 'vAPI is null');
-        return;
-    }
+    if ( typeof vAPI !== 'object' ) { return; }
+    if ( vAPI === null ) { return; }
 
-    if ( vAPI.pickerFrame ) { return; }
+    if ( vAPI.pickerFrame === true ) {
+        const pickerFrameEl = document.querySelector('[id^="ublock-"]');
+        if ( pickerFrameEl === null ) {
+            vAPI.pickerFrame = false;
+        } else {
+            return;
+        }
+    }
     vAPI.pickerFrame = true;
 
     epickerState.pickerUniqueId = vAPI.randomToken();
@@ -271,7 +260,6 @@ function initialize(): void {
         safeQuerySelectorAll: epickerState.safeQuerySelectorAll as Parameters<typeof initFilterEngine>[1]['safeQuerySelectorAll'],
         getPageDocument: epickerState.getPageDocument as Parameters<typeof initFilterEngine>[1]['getPageDocument'],
         debugLog: epickerState.debugLog as Parameters<typeof initFilterEngine>[1]['debugLog'],
-        elementFromPoint: null,
         pickerFrame: null,
     });
 
@@ -322,24 +310,50 @@ function initialize(): void {
 }
 
 async function start(): Promise<void> {
-    console.log('[EPICKER] Script starting...');
-
     initialize();
     applyPickerCSS();
 
-    pickerFrame = await bootstrap() || null;
+    try {
+        pickerFrame = await bootstrap() || null;
+        setPickerFrame(pickerFrame);
+    } catch (e) {
+        return;
+    }
 
-    console.log('[EPICKER] bootstrap() returned, pickerFrame:', pickerFrame);
     if ( pickerFrame === null ) {
-        console.log('[EPICKER] pickerFrame is falsy, calling quitPicker()');
         epickerState.quitPicker();
     }
-    console.log('[EPICKER] Script initialization complete');
 }
 
 start();
 
+// Handle tab visibility changes - check if picker is in a broken state
+document.addEventListener('visibilitychange', () => {
+    if ( document.visibilityState === 'visible' ) {
+        if ( vAPI.pickerFrame === true ) {
+            const pickerFrameEl = document.querySelector('[id^="ublock-"]');
+            if ( pickerFrameEl === null ) {
+                vAPI.pickerFrame = false;
+                epickerState.pickerFrame = null;
+            } else {
+                (pickerFrameEl as HTMLElement)?.focus();
+            }
+        }
+    }
+});
+
 void 0;
+
+/*******************************************************************************
+
+    DO NOT:
+    - Remove the following code
+    - Add code beyond the following code
+    Reason:
+    - https://github.com/gorhill/uBlock/pull/3721
+    - uBO never uses the return value from injected content scripts
+
+**/
 
 /*******************************************************************************
 

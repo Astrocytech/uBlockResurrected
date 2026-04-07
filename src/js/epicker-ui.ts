@@ -21,23 +21,15 @@
 
 // Debug logging - accumulate logs and provide way to retrieve them
 var DEBUG_LOGS = [];
-var debugLog = function(source) {
-    var args = Array.prototype.slice.call(arguments).slice(1);
-    var msg = '[' + source + '] ' + args.map(function(a) {
-        return typeof a === 'object' ? JSON.stringify(a) : String(a);
-    }).join(' ');
-    DEBUG_LOGS.push(new Date().toISOString() + ' ' + msg);
-    console.log('[EPICKER-UI]', msg);  // Also log to browser console
-};
+var debugLog = function(source) {};
 
 // Expose for debugging
 self.getDebugLogs = function() { return DEBUG_LOGS.join('\n'); };
 
-debugLog('epicker-ui', 'Script starting...');
-
 /* global CodeMirror */
 
 import './codemirror/ubo-static-filtering.js';
+import './webext-flavor.js';
 
 import * as sfp from './static-filtering-parser.js';
 
@@ -70,7 +62,7 @@ const pickerRoot = document.documentElement;
 const dialog = $stor('aside');
 const staticFilteringParser = new sfp.AstFilterParser({
     interactive: true,
-    nativeCssHas: vAPI.webextFlavor.env.includes('native_css_has'),
+    nativeCssHas: vAPI.webextFlavor?.env.includes('native_css_has') ?? false,
 });
 
 const svgRoot = $stor('svg#sea');
@@ -94,6 +86,13 @@ let resultsetOpt;
 let cosmeticFilterCandidates = [];
 let computedCandidate = '';
 let needBody = false;
+let pickerContentPort: MessagePort | undefined;
+
+const pickerPortSend = function(msg: object): void {
+    if ( pickerContentPort ) {
+        pickerContentPort.postMessage(msg);
+    }
+};
 
 /******************************************************************************/
 
@@ -327,7 +326,7 @@ const cosmeticCandidatesFromFilterChoice = function(filterChoice) {
         candidates.push(paths);
     }
 
-    pickerContentPort.postMessage({
+    pickerPortSend({
         what: 'optimizeCandidates',
         candidates,
         slot,
@@ -355,15 +354,13 @@ const onSvgClicked = function(ev) {
     // Use page coordinates since the extension iframe is fullscreen overlay
     const mx = ev.pageX;
     const my = ev.pageY;
-    console.log('[EPICKER-UI] onSvgClicked - mx:', mx, 'my:', my, 'zap:', pickerRoot.classList.contains('zap'));
-    debugLog('epicker-ui', 'onSvgClicked page coords:', mx, my, 'zap:', pickerRoot.classList.contains('zap'));
     
     // If zap mode - use zapElementAtPoint to block element and stay in mode
     if ( pickerRoot.classList.contains('zap') ) {
         console.log('[EPICKER-UI] Zap mode - calling zapElementAtPoint');
         
         // Use zapElementAtPoint with stay: true to stay in zapper mode after blocking
-        pickerContentPort.postMessage({
+        pickerPortSend({
             what: 'zapElementAtPoint',
             mx,
             my,
@@ -386,7 +383,7 @@ const onSvgClicked = function(ev) {
     if ( ev.type === 'touch' ) {
         pickerRoot.classList.add('show');
     }
-    pickerContentPort.postMessage({
+    pickerPortSend({
         what: 'filterElementAtPoint',
         mx,
         my,
@@ -460,7 +457,7 @@ const onSvgTouch = (( ) => {
             pickerRoot.classList.contains('zap') &&
             svgIslands.getAttribute('d') !== NoPaths
         ) {
-            pickerContentPort.postMessage({
+            pickerPortSend({
                 what: 'unhighlight'
             });
             return;
@@ -491,7 +488,7 @@ const onCandidateChanged = function() {
     $id('resultsetModifiers').classList.toggle(
         'hide', text === '' || text !== computedCandidate
     );
-    pickerContentPort.postMessage({
+    pickerPortSend({
         what: 'dialogSetFilter',
         filter,
         compiled: reCosmeticAnchor.test(filter)
@@ -504,7 +501,7 @@ const onCandidateChanged = function() {
 
 const onPreviewClicked = function() {
     const state = pickerRoot.classList.toggle('preview');
-    pickerContentPort.postMessage({
+    pickerPortSend({
         what: 'togglePreview',
         state,
     });
@@ -534,7 +531,7 @@ const onCreateClicked = function() {
     // Stay in zapper mode after create if in zap mode
     const stayInZapper = pickerRoot.classList.contains('zap');
     console.log('[EPICKER] onCreateClicked - stayInZapper:', stayInZapper);
-    pickerContentPort.postMessage({
+    pickerPortSend({
         what: 'dialogCreate',
         filter: candidate,
         stay: stayInZapper,
@@ -617,8 +614,7 @@ const onKeyPressed = function(ev) {
         (ev.key === 'Delete' || ev.key === 'Backspace') &&
         pickerRoot.classList.contains('zap')
     ) {
-        // Use last known mouse position from svgListening
-        pickerContentPort.postMessage({
+        pickerPortSend({
             what: 'zapElementAtPoint',
             mx: vAPI.mouseClick ? vAPI.mouseClick.x : 0,
             my: vAPI.mouseClick ? vAPI.mouseClick.y : 0,
@@ -627,11 +623,21 @@ const onKeyPressed = function(ev) {
         return;
     }
     // Esc
-    if ( ev.key === 'Escape' || ev.which === 27 ) {
+    if ( ev.key === 'Escape' || ev.which === 27 || ev.code === 'Escape' ) {
+        ev.preventDefault();
+        ev.stopPropagation();
         onQuitClicked();
         return;
     }
 };
+
+// Also add document-level listener as fallback for when iframe loses focus
+document.addEventListener('keydown', (ev) => {
+    if ( ev.key === 'Escape' || ev.which === 27 || ev.code === 'Escape' ) {
+        ev.preventDefault();
+        onQuitClicked();
+    }
+}, true);
 
 /******************************************************************************/
 
@@ -734,8 +740,8 @@ const svgListening = (( ) => {
 
     const onTimer = ( ) => {
         timer = undefined;
-        debugLog('epicker-ui', 'Sending highlightElementAtPoint:', mx, my);
-        pickerContentPort.postMessage({
+        //debugLog('epicker-ui', 'Sending highlightElementAtPoint:', mx, my);
+        pickerPortSend({
             what: 'highlightElementAtPoint',
             mx,
             my,
@@ -747,19 +753,19 @@ const svgListening = (( ) => {
         // pageX/pageY are relative to the page, not the iframe
         mx = ev.pageX;
         my = ev.pageY;
-        debugLog('epicker-ui', 'mousemove page coords:', mx, my);
+        //debugLog('epicker-ui', 'mousemove page coords:', mx, my);
         if ( timer === undefined ) {
             timer = self.requestAnimationFrame(onTimer);
         }
     };
 
     return state => {
-        debugLog('epicker-ui', 'svgListening state:', state);
+        //debugLog('epicker-ui', 'svgListening state:', state);
         if ( state === on ) { return; }
         on = state;
         if ( on ) {
             window.addEventListener('mousemove', onHover, { passive: true });
-            debugLog('epicker-ui', 'mousemove listener added to window');
+            //debugLog('epicker-ui', 'mousemove listener added to window');
             return;
         }
         window.removeEventListener('mousemove', onHover, { passive: true });
@@ -796,25 +802,24 @@ const populateCandidates = function(candidates, selector) {
 /******************************************************************************/
 
 const showDialog = function(details) {
-    debugLog('epicker-ui', 'showDialog CALLED, netFilters:', details.netFilters?.length, 'cosmeticFilters:', details.cosmeticFilters?.length, 'filter:', details.filter);
+    //debugLog('epicker-ui', 'showDialog CALLED, netFilters:', details.netFilters?.length, 'cosmeticFilters:', details.cosmeticFilters?.length, 'filter:', details.filter);
     
     // Log filter details for debugging
     if (details.filter) {
-        debugLog('epicker-ui', 'filter object:', JSON.stringify(details.filter));
+        //debugLog('epicker-ui', 'filter object:', JSON.stringify(details.filter));
         if (details.filter.filters) {
-            debugLog('epicker-ui', 'filter.filters:', JSON.stringify(details.filter.filters));
-            debugLog('epicker-ui', 'filter.slot:', details.filter.slot);
+            //debugLog('epicker-ui', 'filter.filters:', JSON.stringify(details.filter.filters));
+            //debugLog('epicker-ui', 'filter.slot:', details.filter.slot);
             // Log what filter will be shown in editor
             const slot = details.filter.slot || 0;
             const selectedFilter = details.filter.filters[slot] || details.filter.filters[details.filter.filters.length - 1];
-            debugLog('epicker-ui', 'Will display in editor:', selectedFilter);
+            //debugLog('epicker-ui', 'Will display in editor:', selectedFilter);
         }
     }
     
     // Store the debug logs from epicker
     if (details.debugLogs) {
         DEBUG_LOGS.push('=== FROM EPICKER.JS ===\n' + details.debugLogs);
-        console.log('=== EPICKER.JS LOGS ===\n' + details.debugLogs);
     }
     
     // Display logs on screen for debugging
@@ -864,14 +869,14 @@ const showDialog = function(details) {
         };
 
         const text = candidateFromFilterChoice(filterChoice);
-        debugLog('epicker-ui', 'candidateFromFilterChoice result:', text);
+        //debugLog('epicker-ui', 'candidateFromFilterChoice result:', text);
         if ( text !== undefined ) {
             cmEditor.setValue(text);
             onCandidateChanged();
         }
     } else if (netFilters.length > 0 || cosmeticFilters.length > 0) {
         // We have candidates but no filter object - try to use first cosmetic filter
-        debugLog('epicker-ui', 'No filter object, using fallback - first cosmetic:', cosmeticFilters[0]);
+        //debugLog('epicker-ui', 'No filter object, using fallback - first cosmetic:', cosmeticFilters[0]);
         if (cosmeticFilters.length > 0) {
             cmEditor.setValue(cosmeticFilters[0]);
             onCandidateChanged();
@@ -889,7 +894,7 @@ const showDialog = function(details) {
     // Update resultset count display
     $id('resultsetCount').textContent = `${netFilters.length + cosmeticFilters.length} filter(s)`;
     
-    debugLog('epicker-ui', 'showDialog complete');
+    //debugLog('epicker-ui', 'showDialog complete');
 };
 
 /******************************************************************************/
@@ -913,7 +918,7 @@ const pausePicker = function() {
 const unpausePicker = function() {
     dom.cl.remove(pickerRoot, 'paused', 'preview');
     dom.cl.add(pickerRoot, 'minimized');
-    pickerContentPort.postMessage({
+    pickerPortSend({
         what: 'togglePreview',
         state: false,
     });
@@ -923,22 +928,20 @@ const unpausePicker = function() {
 /******************************************************************************/
 
 const startPicker = function() {
-    debugLog('epicker-ui', 'startPicker called, zap:', pickerRoot.classList.contains('zap'));
-    console.log('[DEBUG epicker-ui] startPicker called');
     self.addEventListener('keydown', onKeyPressed, true);
     const svg = $stor('svg#sea');
-    debugLog('epicker-ui', 'svg element:', svg ? 'found' : 'null');
+    //debugLog('epicker-ui', 'svg element:', svg ? 'found' : 'null');
     svg.addEventListener('click', onSvgClicked);
     svg.addEventListener('touchstart', onSvgTouch);
     svg.addEventListener('touchend', onSvgTouch);
 
-    debugLog('epicker-ui', 'Calling unpausePicker');
+    //debugLog('epicker-ui', 'Calling unpausePicker');
     unpausePicker();
 
     $id('quit').addEventListener('click', onQuitClicked);
 
     if ( pickerRoot.classList.contains('zap') ) { 
-        debugLog('epicker-ui', 'Zap mode active, SVG should be active');
+        //debugLog('epicker-ui', 'Zap mode active, SVG should be active');
         return; 
     }
 
@@ -965,25 +968,27 @@ const startPicker = function() {
 /******************************************************************************/
 
 const quitPicker = function() {
-    pickerContentPort.postMessage({ what: 'quitPicker' });
-    pickerContentPort.close();
-    pickerContentPort = undefined;
+    pickerPortSend({ what: 'quitPicker' });
+    if ( pickerContentPort ) {
+        pickerContentPort.close();
+        pickerContentPort = undefined;
+    }
 };
 
 /******************************************************************************/
 
 const onPickerMessage = function(msg) {
-    debugLog('epicker-ui', 'onPickerMessage received:', msg.what, msg);
+    //debugLog('epicker-ui', 'onPickerMessage received:', msg.what, msg);
     switch ( msg.what ) {
     case 'candidatesOptimized':
         onCandidatesOptimized(msg);
         break;
     case 'showDialog':
-        debugLog('epicker-ui', 'Received showDialog message');
+        //debugLog('epicker-ui', 'Received showDialog message');
         showDialog(msg);
         break;
     case 'logContent':
-        debugLog('epicker-ui', 'Received logContent from epicker');
+        //debugLog('epicker-ui', 'Received logContent from epicker');
         // Log the epicker logs
         if (msg.log) {
             console.log('=== EPICKER LOGS ===\n' + msg.log);
@@ -1001,21 +1006,21 @@ const onPickerMessage = function(msg) {
         break;
     }
     case 'svgPaths': {
-        debugLog('epicker-ui', 'svgPaths received:', msg.ocean ? 'has ocean' : 'no ocean', 'islands:', msg.islands ? msg.islands.length : 0);
+        //debugLog('epicker-ui', 'svgPaths received:', msg.ocean ? 'has ocean' : 'no ocean', 'islands:', msg.islands ? msg.islands.length : 0);
         let { ocean, islands } = msg;
         ocean += islands;
-        debugLog('epicker-ui', 'Setting svgOcean d:', ocean.substring(0, 100));
-        debugLog('epicker-ui', 'Setting svgIslands d:', islands ? islands.substring(0, 100) : 'empty');
+        //debugLog('epicker-ui', 'Setting svgOcean d:', ocean.substring(0, 100));
+        //debugLog('epicker-ui', 'Setting svgIslands d:', islands ? islands.substring(0, 100) : 'empty');
         svgOcean.setAttribute('d', ocean);
         svgIslands.setAttribute('d', islands || NoPaths);
-        debugLog('epicker-ui', 'SVG paths set, checking visibility');
-        debugLog('epicker-ui', 'svgRoot style:', svgRoot.style.cssText);
-        debugLog('epicker-ui', 'svgRoot display:', self.getComputedStyle(svgRoot).display);
-        debugLog('epicker-ui', 'svgRoot visibility:', self.getComputedStyle(svgRoot).visibility);
+        //debugLog('epicker-ui', 'SVG paths set, checking visibility');
+        //debugLog('epicker-ui', 'svgRoot style:', svgRoot.style.cssText);
+        //debugLog('epicker-ui', 'svgRoot display:', self.getComputedStyle(svgRoot).display);
+        //debugLog('epicker-ui', 'svgRoot visibility:', self.getComputedStyle(svgRoot).visibility);
         break;
     }
     case 'saveFilterFromZapper': {
-        debugLog('epicker-ui', 'saveFilterFromZapper received - filter:', msg.filter, 'docURL:', msg.docURL);
+        //debugLog('epicker-ui', 'saveFilterFromZapper received - filter:', msg.filter, 'docURL:', msg.docURL);
         console.log('[EPICKER-UI] ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★');
         console.log('[EPICKER-UI] ★★★ saveFilterFromZapper RECEIVED ★★★');
         console.log('[EPICKER-UI] msg:', JSON.stringify(msg));
@@ -1045,7 +1050,7 @@ const onPickerMessage = function(msg) {
         break;
     }
     case 'dialogCreate': {
-        debugLog('epicker-ui', 'dialogCreate received - stay:', msg.stay);
+        //debugLog('epicker-ui', 'dialogCreate received - stay:', msg.stay);
         // In zap mode with stay=true, DON'T quit or re-launch - just stay in zapper mode
         // The epicker.js will handle staying in zapper mode automatically
         // DO NOT quit and re-launch as it causes issues with sessionId mismatch
@@ -1060,34 +1065,35 @@ const onPickerMessage = function(msg) {
 
 // Wait for the content script to establish communication
 
-let pickerContentPort;
-
 globalThis.addEventListener('message', ev => {
     const msg = ev.data || {};
-    console.log('[EPICKER-UI] ★★★ MESSAGE EVENT received, msg.what:', msg.what);
-    console.log('[EPICKER-UI] ev.ports:', ev.ports);
     if ( msg.what !== 'epickerStart' ) { return; }
-    if ( Array.isArray(ev.ports) === false ) { 
-        console.log('[EPICKER-UI] ERROR: ev.ports is not an array!');
+    if ( Array.isArray(ev.ports) === false || ev.ports.length === 0 ) { 
         return; 
     }
-    if ( ev.ports.length === 0 ) { 
-        console.log('[EPICKER-UI] ERROR: ev.ports.length is 0!');
-        return; 
-    }
-    console.log('[EPICKER-UI] ★★★ Setting up pickerContentPort ★★★');
     pickerContentPort = ev.ports[0];
     pickerContentPort.onmessage = ev => {
         const msg = ev.data || {};
-        console.log('[EPICKER-UI] ★★★ PICKER CONTENT MESSAGE received, msg.what:', msg.what);
         onPickerMessage(msg);
     };
-    pickerContentPort.onmessageerror = ( ) => {
+    pickerContentPort.onmessageerror = () => {
         quitPicker();
     };
     startPicker();
-    pickerContentPort.postMessage({ what: 'start' });
+    pickerPortSend({ what: 'start' });
 }, { once: true });
+
+document.addEventListener('visibilitychange', () => {
+    if ( document.visibilityState === 'visible' ) {
+        self.focus();
+    }
+});
+
+self.addEventListener('pageshow', () => {
+    self.focus();
+});
+
+setTimeout(() => { self.focus(); }, 100);
 
 /******************************************************************************/
 

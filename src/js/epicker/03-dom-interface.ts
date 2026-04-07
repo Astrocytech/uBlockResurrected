@@ -184,16 +184,17 @@ interface ResultSetItem {
     opt?: string;
 }
 
-const filterToDOMInterface = (() => {
-    vAPI.epickerStyleProxies = vAPI.epickerStyleProxies || new Map<string, string>();
+let epickerStyleProxies: Map<string, string> | undefined;
 
+const filterToDOMInterface = (() => {
     let lastFilter: string;
     let lastResultset: ResultSetItem[] | undefined;
     let previewing = false;
 
     const unapply = function(): void {
+        if ( epickerStyleProxies === undefined ) { return; }
         const pageDoc = getPageDocument();
-        for ( const styleToken of vAPI.epickerStyleProxies!.values() ) {
+        for ( const styleToken of epickerStyleProxies.values() ) {
             for ( const elem of pageDoc.querySelectorAll(`[${styleToken}]`) ) {
                 elem.removeAttribute(styleToken);
             }
@@ -201,6 +202,7 @@ const filterToDOMInterface = (() => {
     };
 
     const apply = function(): void {
+        if ( epickerStyleProxies === undefined ) { return; }
         unapply();
         if ( Array.isArray(lastResultset) === false ) { return; }
         const pageDoc = getPageDocument();
@@ -210,10 +212,10 @@ const filterToDOMInterface = (() => {
             if ( elem === pickerFrame ) { continue; }
             if ( style === undefined ) { continue; }
             if ( elem === rootElem && style === vAPI.hideStyle ) { continue; }
-            let styleToken = vAPI.epickerStyleProxies!.get(style);
+            let styleToken = epickerStyleProxies!.get(style);
             if ( styleToken === undefined ) {
                 styleToken = vAPI.randomToken();
-                vAPI.epickerStyleProxies!.set(style, styleToken);
+                epickerStyleProxies!.set(style, styleToken);
                 vAPI.userStylesheet.add(`[${styleToken}]\n{${style}}`, true);
             }
             elem.setAttribute(styleToken, '');
@@ -285,6 +287,7 @@ export function initDOMInterface(state: EpickerState, deps: EpickerDeps): void {
     getPageDocument = deps.getPageDocument;
     pickerFrame = deps.pickerFrame;
     vAPI = deps.vAPI;
+    epickerStyleProxies = vAPI.epickerStyleProxies = vAPI.epickerStyleProxies || new Map<string, string>();
 
     state.filterToDOMInterface = filterToDOMInterface;
 }

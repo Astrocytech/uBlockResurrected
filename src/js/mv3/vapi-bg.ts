@@ -20,6 +20,7 @@ self.browser = self.browser || chrome;
 const vAPI = {
     uBO: true,
     version: VAPI_VERSION,
+    inElementPickerMode: false,
     inZapperMode: false,
     isBehindTheSceneTabId: function(tabId: number): boolean { return tabId === -1; },
     noTabId: -1,

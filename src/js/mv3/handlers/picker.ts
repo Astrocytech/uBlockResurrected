@@ -33,6 +33,12 @@ function createPickerHandler() {
             handleCreateUserFilter(request, portDetails, callback);
             break;
 
+        case 'closePicker':
+            vAPI.inElementPickerMode = false;
+            vAPI.inZapperMode = false;
+            callback({ closed: true });
+            break;
+
         default:
             callback({});
             break;

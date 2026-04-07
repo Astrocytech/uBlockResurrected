@@ -104,7 +104,7 @@ function handleGetPopupData(
     callback: (response?: unknown) => void,
     api: { version: string; inZapperMode: boolean }
 ): void {
-    const tabId = request.tabId || -1;
+    let tabId = request.tabId || -1;
     let tabTitle = "";
     let rawURL = "";
     let pageURL = "";
@@ -113,6 +113,9 @@ function handleGetPopupData(
     let canElementPicker = true;
 
     function buildPopupData(tab: chrome.tabs.Tab | null): void {
+        if (tab) {
+            tabId = tab.id || tabId;  // Use actual tab ID
+        }
         if (tab?.url) {
             tabTitle = tab.title || "";
             rawURL = tab.url;
@@ -208,12 +211,11 @@ function handleLaunchElementPicker(
         const chain = injectScripts(tabId, [
             ['js/vapi-content.js'],
             ['js/scriptlets/epicker.js']
-        ]);
+        ], true);
 
         chain.then(function() {
             callback({ success: true });
         }).catch(function(err: Error) {
-            console.error('[PopupHandler] Failed to inject scripts:', err);
             callback({ success: false, error: err instanceof Error ? err.message : 'Injection failed' });
         });
     }
@@ -221,9 +223,16 @@ function handleLaunchElementPicker(
     if (targetTabId && targetTabId > 0) {
         activatePicker(targetTabId);
     } else {
-        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-            if (tabs && tabs.length > 0 && tabs[0].id) {
-                activatePicker(tabs[0].id);
+        chrome.tabs.query({}, function(tabs) {
+            const webTab = tabs?.find(function(tab) {
+                const url = tab.url || '';
+                return (
+                    (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('file://')) &&
+                    !url.startsWith('chrome-extension://')
+                );
+            });
+            if (webTab && webTab.id) {
+                activatePicker(webTab.id);
             } else {
                 callback({ success: false, error: 'no active tab' });
             }

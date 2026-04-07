@@ -1021,11 +1021,6 @@ const showDialog = function(options: { broad?: boolean }): void {
     if (bestCandidateFilter && bestCandidateFilter.filters && bestCandidateFilter.filters.length > 0) {
         const slot = bestCandidateFilter.slot || 0;
         selectedFilter = bestCandidateFilter.filters[slot] || bestCandidateFilter.filters[bestCandidateFilter.filters.length - 1];
-        debugLog('epicker', 'Selected filter (slot', slot, '):', selectedFilter);
-    }
-    
-    if (selectedFilter) {
-        console.log('[EPICKER] Full filter: ' + self.location.hostname + '##' + selectedFilter);
     }
     
     pickerFramePort.postMessage({
@@ -1428,7 +1423,6 @@ const onDialogMessage = function(msg: DialogMessage): void {
         quitPicker();
         break;
     case 'highlightElementAtPoint':
-        debugLog('epicker', 'highlightElementAtPoint received:', msg.mx, msg.my);
         highlightElementAtPoint(msg.mx, msg.my);
         break;
     case 'unhighlight':
@@ -1438,8 +1432,6 @@ const onDialogMessage = function(msg: DialogMessage): void {
         filterElementAtPoint(msg.mx, msg.my, msg.broad);
         break;
     case 'zapElementAtPoint':
-        console.log('[EPICKER] Received zapElementAtPoint - mx:', msg.mx, 'my:', msg.my, 'options:', msg.options);
-        debugLog('epicker', 'Received zapElementAtPoint - mx:', msg.mx, 'my:', msg.my, 'options:', msg.options);
         zapElementAtPoint(msg.mx, msg.my, msg.options);
         if ( msg.options.highlight !== true && msg.options.stay !== true ) {
             quitPicker();
@@ -1509,33 +1501,16 @@ const pickerCSS = `
 vAPI.userStylesheet.add(pickerCSS);
 vAPI.userStylesheet.apply();
 
-console.log('[EPICKER] Script starting...');
-
 const bootstrap = async ( ): Promise<HTMLIFrameElement | undefined> => {
-    console.log('[EPICKER] bootstrap() called');
-    debugLog('epicker', 'bootstrap starting');
     try {
-        console.log('[EPICKER] Sending elementPickerArguments request...');
         pickerBootArgs = await vAPI.messaging.send('elementPicker', {
             what: 'elementPickerArguments',
         }) as PickerBootArgs;
-        console.log('[EPICKER] Got pickerBootArgs:', pickerBootArgs);
-        debugLog('epicker', 'got pickerBootArgs:', pickerBootArgs);
     } catch (e) {
-        console.log('[EPICKER] ERROR getting pickerBootArgs:', e);
-        debugLog('epicker', 'error getting pickerBootArgs:', e);
         return;
     }
-    if ( typeof pickerBootArgs !== 'object' ) { 
-        console.log('[EPICKER] pickerBootArgs is not an object, type:', typeof pickerBootArgs);
-        debugLog('epicker', 'pickerBootArgs not an object');
-        return; 
-    }
-    if ( pickerBootArgs === null ) { 
-        console.log('[EPICKER] pickerBootArgs is null');
-        debugLog('epicker', 'pickerBootArgs is null');
-        return; 
-    }
+    if ( typeof pickerBootArgs !== 'object' ) { return; }
+    if ( pickerBootArgs === null ) { return; }
     const eprom = pickerBootArgs.eprom || null;
     if ( eprom !== null && eprom.lastNetFilterSession === lastNetFilterSession ) {
         lastNetFilterHostname = eprom.lastNetFilterHostname || '';
@@ -1562,51 +1537,37 @@ const bootstrap = async ( ): Promise<HTMLIFrameElement | undefined> => {
             'pointer-events: auto'
         ].join(' !important; ');
         
-        console.log('[EPICKER] Creating iframe with URL:', url.href);
         document.documentElement.appendChild(iframe);
-        console.log('[EPICKER] Iframe appended to document');
         
         iframe.addEventListener('load', ( ) => {
-            console.log('[EPICKER] Iframe LOADED successfully');
             iframe.setAttribute(`${pickerUniqueId}-loaded`, '');
-            debugLog('epicker', 'iframe loaded, setting visibility to visible');
             const channel = new MessageChannel();
             pickerFramePort = channel.port1;
             pickerFramePort.onmessage = ev => {
                 onDialogMessage(ev.data as DialogMessage);
             };
             pickerFramePort.onmessageerror = ( ) => {
-                console.log('[EPICKER] MessageChannel error!');
                 quitPicker();
             };
-            console.log('[EPICKER] Sending epickerStart message with MessageChannel port');
             iframe.contentWindow.postMessage(
                 { what: 'epickerStart' },
                 url.href,
                 [ channel.port2 ]
             );
-            console.log('[EPICKER] epickerStart sent, resolving bootstrap');
             resolve(iframe);
         }, { once: true });
         
         iframe.addEventListener('error', (e) => {
-            console.log('[EPICKER] Iframe ERROR:', e);
         });
         
-        console.log('[EPICKER] Setting iframe location to:', url.href);
         iframe.contentWindow.location = url.href;
-        console.log('[EPICKER] Location set, waiting for load...');
     });
 };
 
-console.log('[EPICKER] Calling bootstrap()...');
 pickerFrame = await bootstrap();
-console.log('[EPICKER] bootstrap() returned, pickerFrame:', pickerFrame);
 if ( Boolean(pickerFrame) === false ) {
-    console.log('[EPICKER] pickerFrame is falsy, calling quitPicker()');
     quitPicker();
 }
-console.log('[EPICKER] Script initialization complete');
 
 /******************************************************************************/
 

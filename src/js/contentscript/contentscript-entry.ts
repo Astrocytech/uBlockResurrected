@@ -20,12 +20,12 @@
 
 *******************************************************************************/
 
-import './01-vapi-extensions.js';
-import { initDOMFilterer } from './04-dom-filterer.js';
-import { initDOMWatcher } from './03-dom-watcher.js';
-import { initDOMCollapser } from './05-dom-collapser.js';
-import { initDOMSurveyor } from './06-dom-surveyor.js';
-import { initBootstrap, startBootstrap } from './07-bootstrap.js';
+import './01-vapi-extensions.ts';
+import { initDOMFilterer } from './04-dom-filterer.ts';
+import { initDOMWatcher } from './03-dom-watcher.ts';
+import { initDOMCollapser } from './05-dom-collapser.ts';
+import { initDOMSurveyor } from './06-dom-surveyor.ts';
+import { initBootstrap, startBootstrap } from './07-bootstrap.ts';
 
 vAPI.contentScript = true;
 

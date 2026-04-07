@@ -340,6 +340,10 @@ const showDialog = function(options?: object): void {
     });
 };
 
+export function setPickerFrame(frame: HTMLElement | null): void {
+    pickerFrame = frame;
+}
+
 export function initSession(state: EpickerState, deps: EpickerDeps): void {
     epickerState = state;
     highlightElements = deps.highlightElements;

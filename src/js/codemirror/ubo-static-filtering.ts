@@ -322,7 +322,7 @@ class ModeState {
     constructor() {
         this.astParser = new sfp.AstFilterParser({
             interactive: true,
-            nativeCssHas: vAPI.webextFlavor.env.includes('native_css_has'),
+            nativeCssHas: vAPI.webextFlavor?.env.includes('native_css_has') ?? false,
         });
         this.astWalker = this.astParser.getWalker();
         this.currentWalkerNode = 0;
@@ -452,7 +452,7 @@ CodeMirror.defineOption('uboHints', null, (cm, hints: HintOptions) => {
 function initHints(): void {
     const astParser = new sfp.AstFilterParser({
         interactive: true,
-        nativeCssHas: vAPI.webextFlavor.env.includes('native_css_has'),
+        nativeCssHas: vAPI.webextFlavor?.env.includes('native_css_has') ?? false,
     });
     const proceduralOperatorNames = new Map<string, number>(
         Array.from(sfp.proceduralOperatorTokens)
@@ -567,11 +567,12 @@ function initHints(): void {
                 if (desc.blockOnly) { continue; }
             } else {
                 if (desc.allowOnly) { continue; }
+                let hintText = text;
                 if ((assignPos === -1) && desc.mustAssign) {
-                    text += '=';
+                    hintText += '=';
                 }
+                hints.push(hintText);
             }
-            hints.push(text);
         }
         return pickBestHints(cursor, seedLeft, seedRight, hints);
     };
@@ -787,7 +788,7 @@ CodeMirror.registerHelper('fold', 'ubo-static-filtering', (() => {
 {
     const astParser = new sfp.AstFilterParser({
         interactive: true,
-        nativeCssHas: vAPI.webextFlavor.env.includes('native_css_has'),
+        nativeCssHas: vAPI.webextFlavor?.env.includes('native_css_has') ?? false,
     });
 
     const changeset: { from: number; to: number }[] = [];

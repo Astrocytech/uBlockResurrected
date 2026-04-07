@@ -62,7 +62,6 @@ interface EpickerDeps {
     safeQuerySelectorAll: (node: Node | null, selector: string) => NodeListOf<Element>;
     getPageDocument: () => Document;
     debugLog: (source: string, ...args: unknown[]) => void;
-    elementFromPoint: (x: number, y: number) => Element | null;
     pickerFrame: HTMLElement | null;
 }
 
@@ -70,7 +69,6 @@ let epickerState: EpickerState;
 let safeQuerySelectorAll: (node: Node | null, selector: string) => NodeListOf<Element>;
 let getPageDocument: () => Document;
 let debugLog: (source: string, ...args: unknown[]) => void;
-let elementFromPoint: (x: number, y: number) => Element | null;
 let pickerFrame: HTMLElement | null;
 
 const mergeStrings = function(urls: string[]): string {
@@ -434,7 +432,7 @@ const filtersFrom = function(x: number | undefined, y: number | undefined, first
     let element = first;
     if ( element === undefined ) {
         if ( typeof x === 'number' && typeof y === 'number' ) {
-            element = elementFromPoint(x, y);
+            element = epickerState.elementFromPoint(x, y);
         }
     } else {
         x = undefined;
@@ -475,7 +473,6 @@ export function initFilterEngine(state: EpickerState, deps: EpickerDeps): void {
     safeQuerySelectorAll = deps.safeQuerySelectorAll;
     getPageDocument = deps.getPageDocument;
     debugLog = deps.debugLog;
-    elementFromPoint = deps.elementFromPoint;
     pickerFrame = deps.pickerFrame;
 
     state.filtersFrom = filtersFrom;

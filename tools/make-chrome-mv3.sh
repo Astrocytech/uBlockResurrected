@@ -132,13 +132,36 @@ sed -i 's|<script src="lib/hsluv|<script src="js/i18n-fallback.js"></script>\n<s
 echo "*** uBlock0.chromium-mv3: Bundling service worker (modular)"
 node tools/bundle-sw.js
 
+# Create placeholder benchmarks.js for dynamic imports
+touch $DES/js/benchmarks.js
+
 # Bundle epicker modules
 echo "*** uBlock0.chromium-mv3: Bundling epicker modules"
 cd src/js
 esbuild epicker/epicker-entry.ts \
     --bundle \
     --format=iife \
-    --outfile=../$DES/js/scriptlets/epicker.js \
+    --outfile=../../$DES/js/scriptlets/epicker.js \
+    --target=chrome120 \
+    --platform=browser \
+    --minify=false \
+    --allow-overwrite 2>&1 || true
+
+# Bundle subscriber.js for filter subscription handling
+esbuild scriptlets/subscriber.ts \
+    --bundle \
+    --format=iife \
+    --outfile=../../$DES/js/scriptlets/subscriber.js \
+    --target=chrome120 \
+    --platform=browser \
+    --minify=false \
+    --allow-overwrite 2>&1 || true
+
+# Bundle updater.js for list update handling
+esbuild scriptlets/updater.ts \
+    --bundle \
+    --format=iife \
+    --outfile=../../$DES/js/scriptlets/updater.js \
     --target=chrome120 \
     --platform=browser \
     --minify=false \
@@ -151,11 +174,11 @@ cd src/js
 esbuild contentscript/contentscript-entry.ts \
     --bundle \
     --format=iife \
-    --outfile=../$DES/js/contentscript.js \
+    --outfile=../../$DES/js/contentscript.js \
     --target=chrome120 \
     --platform=browser \
     --minify=false \
-    --allow-overwrite 2>&1 || true
+    --allow-overwrite 2>&1
 cd - > /dev/null
 
 # Create vapi-content.js for element picker
