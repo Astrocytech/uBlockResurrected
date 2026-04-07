@@ -56,6 +56,10 @@ vAPI.Net.prototype = {
     setSuspendableListener: function(): void {}
 };
 
+vAPI.Net.canSuspend = function(): boolean {
+    return false;
+};
+
 vAPI.net = {
     addListener: function(): void {},
     removeListener: function(): void {},
@@ -191,7 +195,7 @@ vAPI.app = {
 
 // WebRequest shim (MV3 doesn't support blocking webRequest)
 (function() {
-    const originalWebRequest = chrome.webRequest;
+    const originalWebRequest = chrome.webRequest || {} as typeof chrome.webRequest;
     chrome.webRequest = {
         onBeforeRequest: {
             addListener: function(
@@ -202,10 +206,14 @@ vAPI.app = {
                 if (opts && opts.indexOf("blocking") !== -1) {
                     return;
                 }
-                originalWebRequest.onBeforeRequest.addListener(cb, filters, opts as chrome.webRequest.RequestOptions);
+                if (originalWebRequest.onBeforeRequest) {
+                    originalWebRequest.onBeforeRequest.addListener(cb, filters, opts as chrome.webRequest.RequestOptions);
+                }
             },
             removeListener: function(cb: (details: chrome.webRequest.WebRequestDetails) => void) { 
-                originalWebRequest.onBeforeRequest.removeListener(cb); 
+                if (originalWebRequest.onBeforeRequest) {
+                    originalWebRequest.onBeforeRequest.removeListener(cb); 
+                }
             }
         },
         onHeadersReceived: {
@@ -214,18 +222,38 @@ vAPI.app = {
                 filters: chrome.webRequest.RequestFilter,
                 opts?: chrome.webRequest.OnHeadersReceivedOptions
             ) {
-                originalWebRequest.onHeadersReceived.addListener(cb, filters, opts);
+                if (originalWebRequest.onHeadersReceived) {
+                    originalWebRequest.onHeadersReceived.addListener(cb, filters, opts);
+                }
             },
             removeListener: function(cb: (details: chrome.webRequest.WebRequestHeadersDetails) => void) { 
-                originalWebRequest.onHeadersReceived.removeListener(cb); 
+                if (originalWebRequest.onHeadersReceived) {
+                    originalWebRequest.onHeadersReceived.removeListener(cb); 
+                }
             }
         },
-        ResourceType: originalWebRequest.ResourceType,
+        ResourceType: originalWebRequest.ResourceType || {},
         handlerBehaviorChanged: function(): void {}
     };
 })();
 
 // DOM shims for service worker context
+// Note: Service workers don't have document, but some modules expect it
+self.document = self.document || {
+    querySelector: function() { return null; },
+    querySelectorAll: function() { return []; },
+    createElement: function() { return { style: {} }; },
+    createDocumentFragment: function() { return { appendChild: function() {} }; },
+    createTextNode: function() { return {}; },
+    getElementsByTagName: function() { return []; },
+    getElementById: function() { return null; },
+    addEventListener: function() {},
+    removeEventListener: function() {},
+    body: { appendChild: function() {}, style: {} },
+    head: { appendChild: function() {} },
+    readyState: 'complete',
+};
+
 self.CSS = self.CSS || {
     escape: function(s: string): string { return s; },
     supports: function(): boolean { return false; }

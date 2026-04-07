@@ -691,6 +691,7 @@ async function runTests() {
     await cleanupUserDataDir();
     
     let context = null;
+    let jsErrors = [];
     
     try {
         log('Launching browser with extension...');
@@ -713,7 +714,6 @@ async function runTests() {
         log('Browser launched');
         
         // Setup error tracking for service workers
-        const jsErrors = [];
         const workers = context.serviceWorkers();
         log(`Found ${workers.length} service workers`);
         
