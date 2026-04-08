@@ -188,35 +188,6 @@ chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
         return true;
     }
 
-    if (request.what === "launchElementPicker") {
-        vAPI.inZapperMode = (request as { zap?: boolean }).zap === true;
-
-        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-            if (tabs && tabs.length > 0 && tabs[0].id) {
-                const targetTabId = tabs[0].id;
-
-                let injectChain = Promise.resolve();
-                injectChain = injectChain.then(function() {
-                    return new Promise(function(resolve) {
-                        chrome.scripting.executeScript({
-                            target: { tabId: targetTabId, allFrames: true },
-                            files: ['js/vapi-content.js']
-                        }, function() { resolve(); });
-                    });
-                });
-                injectChain = injectChain.then(function() {
-                    return new Promise(function(resolve) {
-                        chrome.scripting.executeScript({
-                            target: { tabId: targetTabId, allFrames: true },
-                            files: ['js/scriptlets/epicker.js']
-                        }, function() { resolve(); });
-                    });
-                });
-            }
-        });
-        return true;
-    }
-
     sendResponse({});
     return true;
 });
