@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html id="ubol-picker">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Picker</title>
+    <link rel="stylesheet" href="/css/picker-ui.css">
+</head>
+<body class="loading">
+    <aside>
+        <div id="windowbar">
+            <div id="minimize"></div>
+            <div id="move"></div>
+            <div id="quit" title="Close (ESC)">
+                <span class="fa-icon">times</span>
+            </div>
+        </div>
+        
+        <section id="dialog" data-view="0">
+            <section id="filterArea">
+                <textarea id="filterText" spellcheck="false" placeholder="CSS selector..."></textarea>
+            </section>
+            <section id="resultsetWidgets">
+                <label for="slider">
+                    <span id="resultsetCount">0</span>
+                    <span id="resultsetLabel">element(s)</span>
+                </label>
+                <input id="slider" type="range" min="0" max="10" step="any" value="10">
+            </section>
+            <section id="candidateFilters">
+                <ul></ul>
+            </section>
+        </section>
+        
+        <section id="toolbar">
+            <div>
+                <button id="pick" type="button" title="Pick element">
+                    <span class="fa-icon">hand-pointer</span>
+                </button>
+                <button id="preview" type="button" title="Preview">
+                    <span class="fa-icon">eye</span>
+                </button>
+            </div>
+            <button id="create" type="button" class="preferred" disabled title="Create filter">
+                <span class="fa-icon">plus</span>
+                <span>Create</span>
+            </button>
+        </section>
+    </aside>
+
+    <svg id="overlay">
+        <path/>
+        <path/>
+    </svg>
+
+    <div id="tooltip"></div>
+
+    <script src="/js/fa-icons-bundle.js"></script>
+    <script src="/js/scripting/tool-overlay-ui.js"></script>
+    <script src="/js/scripting/picker-ui.js"></script>
+</body>
+</html>

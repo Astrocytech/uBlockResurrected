@@ -1,13 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Playwright Configuration for Zapper Tests
+ * Playwright Configuration for Zapper and Picker Tests
  * 
- * Tests for uBlock Resurrected zapper feature
- * See: reconstructing_docs/Zapper.md
+ * Tests for uBlock Resurrected zapper and picker features
+ * See: reconstructing_docs/Zapper.md, reconstructing_docs/Picker.md
  */
 export default defineConfig({
-    testDir: './tests/zapper_tests',
+    testDir: './tests',
     fullyParallel: true,
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,

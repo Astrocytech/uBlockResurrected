@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Picker Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        .test-section h2 {
+            margin-top: 0;
+        }
+        
+        #simple-div {
+            padding: 10px;
+            background-color: #e0e0e0;
+            margin: 5px 0;
+        }
+        
+        #simple-span {
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #d0d0d0;
+        }
+        
+        #simple-paragraph {
+            padding: 10px;
+            background-color: #c0c0c0;
+            margin: 5px 0;
+        }
+        
+        #element-with-id {
+            padding: 10px;
+            background-color: #90EE90;
+        }
+        
+        .element-with-class {
+            padding: 10px;
+            background-color: #87CEEB;
+            margin: 5px 0;
+        }
+        
+        .class-one.class-two {
+            padding: 10px;
+            background-color: #DDA0DD;
+        }
+        
+        [data-testid="test-element"] {
+            padding: 10px;
+            background-color: #F08080;
+        }
+        
+        [data-attribute="test-value"] {
+            padding: 10px;
+            background-color: #ADD8E6;
+        }
+        
+        #nested-container {
+            padding: 15px;
+            background-color: #FFFACD;
+            margin: 5px 0;
+        }
+        
+        #nested-inner {
+            padding: 10px;
+            background-color: #E6E6FA;
+        }
+        
+        [data-nested="true"] {
+            padding: 8px;
+            background-color: #98FB98;
+        }
+        
+        #multi-class-element {
+            padding: 10px;
+            background-color: #FFA07A;
+        }
+        
+        .hidden-element {
+            display: none;
+        }
+        
+        .visible-element {
+            padding: 10px;
+            background-color: #20B2AA;
+            color: white;
+        }
+        
+        #clickable-element {
+            padding: 15px;
+            background-color: #FF6347;
+            color: white;
+            cursor: pointer;
+        }
+        
+        #target-one, #target-two, #target-three {
+            padding: 8px;
+            margin: 3px 0;
+            background-color: #B0C4DE;
+        }
+        
+        #same-class-one, #same-class-two, #same-class-three {
+            padding: 8px;
+            margin: 3px 0;
+            background-color: #DEB887;
+        }
+        
+        #dynamic-content {
+            padding: 10px;
+            background-color: #8FBC8F;
+        }
+        
+        .test-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .test-list li {
+            padding: 8px;
+            margin: 3px 0;
+            background-color: #D3D3D3;
+        }
+        
+        #anchor-test {
+            display: block;
+            padding: 10px;
+            background-color: #CD853F;
+            color: white;
+            text-decoration: none;
+            margin: 5px 0;
+        }
+        
+        img#test-image {
+            width: 100px;
+            height: 100px;
+            background-color: #4682B4;
+            display: block;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Picker Test Page</h1>
+    <p>This page contains various elements for testing the picker functionality.</p>
+    
+    <div class="test-section">
+        <h2>Simple Elements</h2>
+        <div id="simple-div">Simple div element</div>
+        <span id="simple-span">Simple span element</span>
+        <p id="simple-paragraph">Simple paragraph element</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Elements with ID</h2>
+        <div id="element-with-id">Element with ID</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Elements with Classes</h2>
+        <div class="element-with-class">Element with class</div>
+        <div class="element-with-class">Another element with class</div>
+        <div id="multi-class-element" class="class-one class-two">Element with multiple classes</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Elements with Data Attributes</h2>
+        <div data-testid="test-element">Element with data-testid</div>
+        <div data-attribute="test-value">Element with data-attribute</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Nested Elements</h2>
+        <div id="nested-container">
+            <div>Outer container</div>
+            <div id="nested-inner">
+                <span>Inner element</span>
+                <div data-nested="true">Deeply nested element</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Same Tag Elements</h2>
+        <div id="target-one">Target one</div>
+        <div id="target-two">Target two</div>
+        <div id="target-three">Target three</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Same Class Elements</h2>
+        <div id="same-class-one" class="same-class">Same class one</div>
+        <div id="same-class-two" class="same-class">Same class two</div>
+        <div id="same-class-three" class="same-class">Same class three</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>List Elements</h2>
+        <ul class="test-list">
+            <li>List item one</li>
+            <li>List item two</li>
+            <li>List item three</li>
+        </ul>
+    </div>
+    
+    <div class="test-section">
+        <h2>Clickable Elements</h2>
+        <div id="clickable-element">Click me</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Anchor Elements</h2>
+        <a id="anchor-test" href="#">Anchor link</a>
+    </div>
+    
+    <div class="test-section">
+        <h2>Image Elements</h2>
+        <img id="test-image" alt="Test image" />
+    </div>
+    
+    <div class="test-section">
+        <h2>Dynamic Content</h2>
+        <div id="dynamic-content">Dynamic content</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Hidden Elements</h2>
+        <div class="hidden-element">Hidden element</div>
+        <div class="visible-element">Visible element</div>
+    </div>
+</body>
+</html>

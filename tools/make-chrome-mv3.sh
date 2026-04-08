@@ -80,6 +80,13 @@ cp src/js/scripting/zapper-ui.js $DES/js/scripting/ 2>/dev/null || true
 cp src/js/scripting/dom.js $DES/js/scripting/ 2>/dev/null || true
 cp src/js/scripting/ext.js $DES/js/scripting/ 2>/dev/null || true
 
+# Copy picker files
+echo "*** uBlock0.chromium-mv3: Copying picker files"
+cp src/picker-ui.html $DES/
+cp src/css/picker-ui.css $DES/css/ 2>/dev/null || true
+cp src/js/scripting/picker.js $DES/js/scripting/ 2>/dev/null || true
+cp src/js/scripting/picker-ui.js $DES/js/scripting/ 2>/dev/null || true
+
 # Update popup-fenix.html to use bundled JS
 echo "*** uBlock0.chromium-mv3: Updating popup-fenix.html"
 sed -i 's|<script src="js/popup-fenix.js" type="module"></script>|<script src="js/fa-icons-bundle.js"></script>\n<script src="js/popup-fenix-bundle.js"></script>|' $DES/popup-fenix.html

@@ -22,6 +22,7 @@
 import { dom, qs$, qsa$ } from './dom.js';
 import { i18n$ } from './i18n.js';
 import { injectZapperScripts } from './popup-zapper.js';
+import { injectPickerScripts } from './popup-picker.js';
 import punycode from '../lib/punycode.js';
 
 /******************************************************************************/
@@ -69,19 +70,21 @@ const gotoZap = async function() {
 
 /******************************************************************************/
 
-const gotoPick = function() {
-    messaging.send('popupPanel', {
-        what: 'launchElementPicker',
-        tabId: popupData.tabId,
-    }).then(() => {
-        console.log('[DEBUG] launchElementPicker message sent');
-    }).catch(err => {
-        console.error('[DEBUG] launchElementPicker message failed:', err);
-    });
+const gotoPick = async function() {
+    if ( typeof chrome !== 'undefined' ) {
+        try {
+            const injected = await injectPickerScripts(popupData, chrome);
+            if ( injected === false ) {
+                console.log('[Picker] No tab ID available');
+            } else {
+                console.log('[Picker] Picker scripts injected successfully');
+            }
+        } catch (err) {
+            console.error('[Picker] Failed to inject scripts:', err);
+        }
+    }
 
-    setTimeout(() => {
-        vAPI.closePopup();
-    }, 200);
+    vAPI.closePopup();
 };
 const scopeToSrcHostnameMap = {
     '/': '*',
