@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ignori ĝeneralajn ornamajn filtrilojn",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Ĝenerikaj kozmetikaj filtriloj estas tiuj kozmetikaj filtriloj, kiuj estas intencitaj esti aplikitaj sur ĉiuj retejoj. Aktivigante tiun opcion, oni eliminigos la memoran kaj procesorecan ŝarĝon, kiu estas aldonita al retpaĝoj pro la pritraktado de ĝenerikaj kozmetikaj filtriloj.\n\nEstas rekomendite aktivigi tiun opcion sur aparatoj ne estas potencaj.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blokita",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Listoj de filtriloj",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Eksteraj dependaĵoj (kongruaj kun GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "La proprajn filtrilojn de uBO gastigas la jenaj <a href=\"https://en.wikipedia.org/wiki/Content_delivery_network\">enhavo-liverantaj retoj</a>:",
+    "message": "La proprajn filtrilojn de uBR gastigas la jenaj <a href=\"https://en.wikipedia.org/wiki/Content_delivery_network\">enhavo-liverantaj retoj</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

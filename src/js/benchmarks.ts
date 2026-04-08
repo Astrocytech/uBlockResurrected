@@ -45,11 +45,11 @@ import µb from './background.js';
 //
 // Copy the file into ./tmp/requests.json.gz
 //
-// If the file is present when you build uBO using `make-[target].sh` from
+// If the file is present when you build uBR using `make-[target].sh` from
 // the shell, the resulting package will have `./assets/requests.json`, which
 // will be looked-up by the method below to launch a benchmark session.
 //
-// From uBO's dev console, launch the benchmark:
+// From uBR's dev console, launch the benchmark:
 //   µBlock.staticNetFilteringEngine.benchmark();
 //
 // The usual browser dev tools can be used to obtain useful profiling

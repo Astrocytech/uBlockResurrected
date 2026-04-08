@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Անտեսել ընդհանուր կոսմետիկ զտիչները",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Ընդհանուր կոսմետիկ զտիչներն այն կոսմետիկ զտիչներն են, որոնք նախատեսված են կիրառվել բոլոր կայքերում։ Այս ընտրանքը միացնելը կվերացնի հիշողության և մշակիչի բեռնվածությունը, որը կայքեջերի մոտ ավելանում է ընդհանուր կոսմետիկ զտիչների մշակման արդյունքում։\n\nԽորհուրդ է տրվում միացնել այս ընտրանքը ոչ բավականաչափ հզոր սարքերում։",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "արգելափակված",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Զտիչների ցանկեր",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Արտաքին կախվածություններ (GPLv3-համատեղելի)՝",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO-ի սեփական զտիչների ցանկերն ազատորեն տեղաբաշխված են հետևյալ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-երում</a>.",
+    "message": "uBR-ի սեփական զտիչների ցանկերն ազատորեն տեղաբաշխված են հետևյալ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-երում</a>.",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

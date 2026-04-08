@@ -57,8 +57,8 @@ export interface VAPI {
     /** Version string */
     version: string;
     
-    /** Whether running in uBO variant */
-    uBO: boolean;
+    /** Whether running in uBR variant */
+    uBR: boolean;
     
     /** Session start time */
     T0: number;

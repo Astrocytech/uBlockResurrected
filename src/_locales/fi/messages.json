@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ohita kosmeettiset yleissuodattimet",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Kosmeettiset yleissuodattimet ovat sellaisia kosmeettisia suodattimia, jotka on tarkoitettu käytettäväksi kaikilla verkkosivustoilla. Tämä asetus poistaa tällaisten suodattimien käsittelystä verkkosivuille aiheutuvan, korkeamman keskusmuistin ja suorittimen kuormituksen.\n\nAsetuksen käyttö on suositeltavaa heikkotehoisilla laitteilla.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "tapahtumarikas",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "estetty",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Suodatinlistat",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Ulkopuoliset riippuvuudet (GPLv3-yhteensopiva):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO:n omat suodatinlistat ovat vapaasti saatavilla seuraavista <a href=\"https://fi.wikipedia.org/wiki/Sis%C3%A4ll%C3%B6njakeluverkko\">sisällönjakeluverkoista</a>:",
+    "message": "uBR:n omat suodatinlistat ovat vapaasti saatavilla seuraavista <a href=\"https://fi.wikipedia.org/wiki/Sis%C3%A4ll%C3%B6njakeluverkko\">sisällönjakeluverkoista</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

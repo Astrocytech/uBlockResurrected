@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ignorera allmänna kosmetiska filter",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Allmänna kosmetiska filter är de kosmetiska filter som är avsedda att tillämpas på alla webbplatser. Att aktivera detta alternativ kommer att eliminera minnes- och processoranvändningen som läggs till på webbsidor som ett resultat av hantering av allmänna kosmetiska filter.\n\nDet rekommenderas att aktivera detta alternativ på mindre kraftfulla enheter.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "händelserikt",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blockerad",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Filterlistor",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Externa beroenden (GPLv3-kompatibla):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO:s egna filterlistor finns fritt tillgängligt på följande <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN:er</a>:",
+    "message": "uBR:s egna filterlistor finns fritt tillgängligt på följande <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN:er</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ignorišite opće estetske filtere.",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Opći estetski filteri su onakvi estetski filteri koji su namijenjeni za primjenu na svim sajtovima. Uključivanjem ove postavke će se eliminirati dodatna upotreba memorije i procesora na sajtovima kao rezultat upravljanja općih estetskih filtera.\n\nPreporučeno je omogućiti ovu postavku na slabijim uređajima.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "puno događaja",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blokirano",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Liste filtera",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Vanjske zavisnosti (GPLv3-kompatiblini):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Sopstveni zapisi filtera uBO-a su besplatno hostani na sljedećim <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-ovima</a>:\n",
+    "message": "Sopstveni zapisi filtera uBR-a su besplatno hostani na sljedećim <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-ovima</a>:\n",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

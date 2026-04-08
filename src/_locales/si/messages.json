@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "සාමාන්‍ය රූපලාවන්‍ය පෙරහන් නොසලකා හරින්න.",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "සාමාන්‍ය රූපලාවන්‍ය පෙරහන් යනු සියලුම වෙබ් අඩවිවල යෙදීමට අදහස් කරන රූපලාවන්‍ය පෙරහන් වේ. මෙම විකල්පය සක්‍රීය කිරීමෙන් සාමාන්‍ය රූපලාවන්‍ය පෙරහන් හැසිරවීමේ ප්‍රතිඵලයක් ලෙස වෙබ් පිටුවලට එකතු වන මතකය සහ CPU උඩිස් බර ඉවත් කරනු ඇත.\n\nඅඩු බලවත් උපාංගවල මෙම විකල්පය සක්‍රීය කිරීම නිර්දේශ කෙරේ.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "අවහිරයි",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "පෙරහන් ලැයිස්තු",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "බාහිර පරායත්ත (GPLv3-අනුකූල):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO හි පෙරහන් ලැයිස්තු පහත <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>මත නිදහසේ සත්කාරකත්වය දරයි:",
+    "message": "uBR හි පෙරහන් ලැයිස්තු පහත <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>මත නිදහසේ සත්කාරකත්වය දරයි:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

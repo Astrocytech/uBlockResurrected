@@ -25,7 +25,7 @@ interface VAPI {
 
 declare const vAPI: VAPI | undefined;
 
-// Code below has been imported from uMatrix and modified to fit uBO:
+// Code below has been imported from uMatrix and modified to fit uBR:
 // https://github.com/gorhill/uMatrix/blob/3f8794dd899a05e066c24066c6c0a2515d5c60d2/src/js/contentscript.js#L464-L531
 
 /******************************************************************************/

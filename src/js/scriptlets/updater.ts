@@ -43,7 +43,7 @@ declare const vAPI: VAPI | undefined;
 
 if ( document instanceof HTMLDocument === false ) { return; }
 
-// Maybe uBO has gone away meanwhile.
+// Maybe uBR has gone away meanwhile.
 if ( typeof vAPI !== 'object' || vAPI === null ) { return; }
 
 function updateStockLists(target: HTMLAnchorElement): boolean | undefined {

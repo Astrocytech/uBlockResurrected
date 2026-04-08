@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ober fae ouzh ar siloù kenedel hollek",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Ar siloù kenedel hollek a zo siloù kenedel bet savet evit bezañ implijet war an holl lec'hiennoù. Ma'z enaouit an dibarzh-mañ e vo implijer nebeutoc'h a vevor hag ar reizhiad korvoiñ (CPU) war al lec'hiennoù-se.\n\nErbedet eo deoc'h enaouiñ an dibarzh-mañ m'emaoc'h oc'h ober gant un ardivink re zic'halloudek.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "stanket",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Rolloù ar siloù",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Dalc'hioù diavaez (a glot gant GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Ar rolloù siloù a zo da uBO e-unan a zo herberc'hiet digoust war ar <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>où-mañ:",
+    "message": "Ar rolloù siloù a zo da uBR e-unan a zo herberc'hiet digoust war ar <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>où-mañ:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

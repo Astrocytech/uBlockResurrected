@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Игнориране на общите козметични филтри",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Общокозметични са филтрите, предназначени за прилагане във всички сайтове. Разрешаването на тази опция ще премахне натоварването на паметта и процесора, добавено към уеб страниците в резултат на обработката на общите козметични филтри.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "изпълнен със събития",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "блокирани",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Списъци с филтри",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Външни зависимости (съвместими с GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Собствените списъци с филтри на uBO се хостват свободно на следните <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-и</a>:",
+    "message": "Собствените списъци с филтри на uBR се хостват свободно на следните <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-и</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

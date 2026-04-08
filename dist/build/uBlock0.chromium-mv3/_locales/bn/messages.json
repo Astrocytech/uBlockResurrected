@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "জেরেরিক প্রসাধনী ছাঁকনি উপেক্ষা করুন।",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "<p>জেনেরিক প্রসাধনী ছাঁকনি হচ্ছে সেইসব প্রসাধনী ছাঁকনি যা সব ওয়েবসাইটে প্রয়োগের জন্য অভিপ্রেত।<p>যদিও তা uBlock₀ দ্বারা দক্ষতার সঙ্গে পরিচালনা করে, কিন্তু জেনেরিক প্রসাধন ফিল্টার এখনও কিছু ওয়েব পাতার পরিমাপযোগ্য মেমরি ও CPU-র অত্যাধিক চাপ সৃষ্টিতে অবদান রাখতে পারে, বিশেষ করে বড় এবং দীর্ঘ একটিতে।<p>এই অপশন সক্রিয় করলে জেনেরিক প্রসাধনী ছাঁকনি পরিচালিত হবে যা ওয়েব পাতার পরিমাপযোগ্য মেমরি ও CPU-র অত্যাধিক চাপ সৃষ্টি দূর করবে এবং uBlock₀ নিজেই মেমরি পদাঙ্ক অর্ধ করবে।<p>এটা কম শক্তিশালী ডিভাইসে এই অপশনটি সক্রিয় করার জন্য সুপারিশ করা হচ্ছে।",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "অবরুদ্ধ",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "ফিল্টার লিস্ট",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "বাহ্যিকভাবে নির্ভশীলসমূহ (জিপিএল ভা.৩-সঙ্গতিপূর্ণ)",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO-এর নিজস্ব ফিল্টার তালিকাগুলি নিম্নলিখিত <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> এ অবাধে হোস্ট করা হয়েছে:",
+    "message": "uBR-এর নিজস্ব ফিল্টার তালিকাগুলি নিম্নলিখিত <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> এ অবাধে হোস্ট করা হয়েছে:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

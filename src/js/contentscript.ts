@@ -54,7 +54,7 @@
   domLogger:
     Surveys the page to find and report the injected cosmetic filters blocking
     actual elements on the current page. This component is dynamically loaded
-    IF AND ONLY IF uBO's logger is opened.
+    IF AND ONLY IF uBR's logger is opened.
 
   If page is whitelisted:
     - domWatcher: off
@@ -78,14 +78,14 @@
     - domCollapser: on
     - domFilterer: on
     - domSurveyor: off
-    - domLogger: on if uBO logger is opened
+    - domLogger: on if uBR logger is opened
 
   If generic cosmetic filtering is enabled:
     - domWatcher: on
     - domCollapser: on
     - domFilterer: on
     - domSurveyor: on
-    - domLogger: on if uBO logger is opened
+    - domLogger: on if uBR logger is opened
 
   Additionally, the domSurveyor can turn itself off once it decides that
   it has become pointless (repeatedly not finding new cosmetic filters).
@@ -171,14 +171,14 @@ vAPI.userStylesheet = {
   then this timer is described as follow:
 
   - time events are throttled by the browser when the viewport is not visible --
-    there is no point for uBO to play with the DOM if the document is not
+    there is no point for uBR to play with the DOM if the document is not
     visible.
   - time events are micro tasks[2].
   - time events are synchronized to monitor refresh, meaning that they can fire
     at most 1/60 (typically).
 
   If a delay value is provided, a plain timer is first used. Plain timers are
-  macro-tasks, so this is good when uBO wants to yield to more important tasks
+  macro-tasks, so this is good when uBR wants to yield to more important tasks
   on a page. Once the plain timer elapse, an animation frame is used to trigger
   the next time at which to execute the job.
 
@@ -458,7 +458,7 @@ vAPI.SafeAnimationFrame = class {
 /******************************************************************************/
 /*******************************************************************************
 
-  The DOM filterer is the heart of uBO's cosmetic filtering.
+  The DOM filterer is the heart of uBR's cosmetic filtering.
 
   DOMFilterer: adds procedural cosmetic filtering
 
@@ -712,7 +712,7 @@ vAPI.DOMFilterer = class {
     // https://github.com/chrisaljoudi/uBlock/issues/174
     //   Do not remove fragment from src URL
     const onProcessed = function(response) {
-        // This happens if uBO is disabled or restarted.
+        // This happens if uBR is disabled or restarted.
         if ( response instanceof Object === false ) {
             toCollapse.clear();
             return;
@@ -1323,7 +1323,7 @@ vAPI.DOMFilterer = class {
     vAPI.bootstrap = function() {
         // VISIBLE INDICATOR - change page title to show content script is running
         try {
-            document.title = "uBO MV3 CS LOADING...";
+            document.title = "uBR MV3 CS LOADING...";
         } catch(e) {}
         
         console.log('########################################');
@@ -1334,7 +1334,7 @@ vAPI.DOMFilterer = class {
         vAPI.messaging.send('contentscript', {
             what: 'retrieveContentScriptParameters',
             url: vAPI.effectiveSelf.location.href,
-            needScriptlets: self.uBO_scriptletsInjected === undefined,
+            needScriptlets: self.uBR_scriptletsInjected === undefined,
         }).then(response => {
             if (response && response.specificCosmeticFilters) {
                 if (response.specificCosmeticFilters.injectedCSS && response.specificCosmeticFilters.injectedCSS.length > 0) {

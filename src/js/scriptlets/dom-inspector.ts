@@ -950,7 +950,7 @@ startInspector();
     - Add code beyond the following code
     Reason:
     - https://github.com/gorhill/uBlock/pull/3721
-    - uBO never uses the return value from injected content scripts
+    - uBR never uses the return value from injected content scripts
 
 **/
 

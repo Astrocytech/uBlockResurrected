@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "გარეგნული საერთო ფილტრების უგულებელყოფა",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "გარეგნული საერთო ფილტრებია, რომლებიც ყველა ვებსაიტზე მოქმედებს. ამ პარამეტრის ჩართვით კი თავიდან აიცილებთ გარეგნული საერთო ფილტრებით მეხსიერებისა და პროცესორის ზედმეტ დატვირთვას.\n\nამ პარამეტრის ჩართვა სასურველია სუსტ მოწყობილობებზე.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "საგულისხმო",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "შეზღუდული",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "ფილტრების სიები",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "ცალკეული დაქვემდებარებული პროექტები (GPLv3-თან თავსებადი):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO საკუთარ ფილტრებს ღიად ათავსებს მოცემულ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-ებზე</a>:",
+    "message": "uBR საკუთარ ფილტრებს ღიად ათავსებს მოცემულ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-ებზე</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

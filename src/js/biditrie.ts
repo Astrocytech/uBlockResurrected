@@ -910,7 +910,7 @@ const getWasmModule = (( ) => {
         if ( typeof WebAssembly !== 'object' ) { return; }
 
         // Soft-dependency on vAPI so that the code here can be used outside of
-        // uBO (i.e. tests, benchmarks)
+        // uBR (i.e. tests, benchmarks)
         if ( typeof vAPI === 'object' && vAPI.canWASM !== true ) { return; }
 
         // The wasm module will work only if CPU is natively little-endian,

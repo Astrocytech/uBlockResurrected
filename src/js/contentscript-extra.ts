@@ -57,7 +57,7 @@ class PSelectorTask {
 class PSelectorVoidTask extends PSelectorTask {
     constructor(task) {
         super();
-        console.info(`uBO: :${task[0]}() operator does not exist`);
+        console.info(`uBR: :${task[0]}() operator does not exist`);
     }
     transpose() {
     }
@@ -586,7 +586,7 @@ class ProceduralFilterer {
             const t1 = Date.now();
             pselector.budget += t0 - t1;
             if ( pselector.budget < -500 ) {
-                console.info('uBO: disabling %s', pselector.raw);
+                console.info('uBR: disabling %s', pselector.raw);
                 pselector.budget = -0x7FFFFFFF;
             }
             t0 = t1;
@@ -711,7 +711,7 @@ vAPI.DOMProceduralFilterer = ProceduralFilterer;
     - Add code beyond the following code
     Reason:
     - https://github.com/gorhill/uBlock/pull/3721
-    - uBO never uses the return value from injected content scripts
+    - uBR never uses the return value from injected content scripts
 
 **/
 

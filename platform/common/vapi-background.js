@@ -222,11 +222,11 @@ vAPI.browserSettings = (( ) => {
                 case 'webrtcIPAddress': {
                     // https://github.com/uBlockOrigin/uBlock-issues/issues/1928
                     // https://www.reddit.com/r/uBlockOrigin/comments/sl7p74/
-                    //   Hypothetical: some browsers _think_ uBO is still using
+                    //   Hypothetical: some browsers _think_ uBR is still using
                     //   the setting possibly based on cached state from the
-                    //   past, and making an explicit API call that uBO is not
+                    //   past, and making an explicit API call that uBR is not
                     //   using the setting appears to solve those unexpected
-                    //   reported occurrences of uBO interfering despite never
+                    //   reported occurrences of uBR interfering despite never
                     //   using the API.
                     const mustEnable = !details[setting];
                     if ( this.canLeakLocalIPAddresses === false ) {
@@ -1041,7 +1041,7 @@ if ( browserActionOnClicked instanceof Object ) {
 /******************************************************************************/
 
 // https://github.com/uBlockOrigin/uBlock-issues/issues/710
-//   uBO uses only ports to communicate with its auxiliary pages and
+//   uBR uses only ports to communicate with its auxiliary pages and
 //   content scripts. Whether a message can trigger a privileged operation is
 //   decided based on whether the port from which a message is received is
 //   privileged, which is a status evaluated once, at port connection time.
@@ -1273,10 +1273,10 @@ vAPI.messaging = {
 
 // https://github.com/gorhill/uBlock/issues/3474
 // https://github.com/gorhill/uBlock/issues/2823
-//   Foil ability of web pages to identify uBO through
+//   Foil ability of web pages to identify uBR through
 //   its web accessible resources.
 // https://github.com/gorhill/uBlock/issues/3497
-//   Prevent web pages from interfering with uBO's element picker
+//   Prevent web pages from interfering with uBR's element picker
 // https://github.com/uBlockOrigin/uBlock-issues/issues/550
 //   Support using a new secret for every network request.
 
@@ -1286,7 +1286,7 @@ vAPI.messaging = {
     const shortSecrets = [];
     let lastShortSecretTime = 0;
 
-    // Long secrets are valid until revoked or uBO restarts. The realm is one
+    // Long secrets are valid until revoked or uBR restarts. The realm is one
     // value out of 36^18 = over 10^28 values.
     const longSecrets = new Set();
 
@@ -1522,7 +1522,7 @@ vAPI.Net = class {
 // To be defined by platform-specific code.
 
 vAPI.scriptletsInjector = (( ) => {
-    self.uBO_scriptletsInjected = '';
+    self.uBR_scriptletsInjected = '';
 }).toString();
 
 /******************************************************************************/

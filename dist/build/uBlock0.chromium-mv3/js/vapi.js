@@ -25,7 +25,7 @@
 
 // EMERGENCY DEBUG - write to document title to verify script is running
 try {
-    document.title = "uBO LOADING...";
+    document.title = "uBR LOADING...";
     console.log("VAPI JS EXECUTING");
 } catch(e) {
     // Ignore
@@ -66,7 +66,7 @@ var vAPI = self.vAPI; // jshint ignore:line
 // The condition should check if we need to (re)initialize vAPI with proper localStorage
 // We want to run this block if:
 // 1. We're in a document context (popup, content script, etc.) AND
-// 2. Either vAPI doesn't exist yet OR it exists but doesn't have uBO: true flag
+// 2. Either vAPI doesn't exist yet OR it exists but doesn't have uBR: true flag
 if (
     (
         typeof document !== 'undefined' &&
@@ -81,11 +81,11 @@ if (
     (
         typeof self.vAPI === 'undefined' || 
         self.vAPI === null ||
-        self.vAPI.uBO !== true
+        self.vAPI.uBR !== true
     )
 ) {
     vAPI = self.vAPI = { 
-        uBO: true,
+        uBR: true,
         // Add localStorage for MV3 Chrome - use chrome.storage.local
         localStorage: {
 getItemAsync: function(key) { 
@@ -152,7 +152,7 @@ getItemAsync: function(key) {
     - Add code beyond the following code
     Reason:
     - https://github.com/gorhill/uBlock/pull/3721
-    - uBO never uses the return value from injected content scripts
+    - uBR never uses the return value from injected content scripts
 
 **/
 

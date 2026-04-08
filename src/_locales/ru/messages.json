@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Игнорировать общие косметические фильтры",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Общие косметические фильтры — это те косметические фильтры, которые должны применяться на всех веб-сайтах. Включение этой опции снизит потребление памяти и избавит процессор от обработки общих косметических фильтров на веб-страницах.\n\nРекомендуется включить эту опцию на недостаточно мощных устройствах.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blocked",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Списки фильтров",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Внешние зависимости (GPLv3-совместимые):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Собственные списки фильтров uBO свободно размещены на следующих <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>:",
+    "message": "Собственные списки фильтров uBR свободно размещены на следующих <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

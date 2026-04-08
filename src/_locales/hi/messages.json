@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "जेनेरिक कम्सेटिक फिल्टरों को नजरंदाज करें",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "जेनेरिक कॉस्मेटिक फिल्टरस वो कॉस्मेटिक फिल्टरस हैं जो सब वेब साइट्स पर लागू होते हैं। यह विकल्प को चालू कराने से मेमोरी और सीपीयू पर जो उपर का दबाव पड़ता है वो नहीं रहेगा जो कॉस्मेटिक फिल्टरों को जारी करने से हुआ था।\n\nइस विकल्प को कमज़ोर डिवाइसों पर चालू कराने की सलाह दी जाती है।",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "ब्लॉक किया हुआ ",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "फिल्टर सूची",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "बाहरी डिपेंडेंसीज (GPLv3-compatible):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO's स्वयं की फ़िल्टर सूचियाँ निम्नलिखित पर स्वतंत्र रूप से होस्ट की जाती हैं <a href=\"https://wikipedia.org/wiki/Content_delivery_network\"> CDNs </a>",
+    "message": "uBR's स्वयं की फ़िल्टर सूचियाँ निम्नलिखित पर स्वतंत्र रूप से होस्ट की जाती हैं <a href=\"https://wikipedia.org/wiki/Content_delivery_network\"> CDNs </a>",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

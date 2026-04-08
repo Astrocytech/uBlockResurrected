@@ -186,7 +186,7 @@ export function initBootstrap(): void {
 
     vAPI.bootstrap = function(): void {
         try {
-            document.title = "uBO MV3 CS LOADING...";
+            document.title = "uBR MV3 CS LOADING...";
         } catch(e) {}
 
         console.log('########################################');
@@ -197,7 +197,7 @@ export function initBootstrap(): void {
         vAPI.messaging.send('contentscript', {
             what: 'retrieveContentScriptParameters',
             url: vAPI.effectiveSelf.location.href,
-            needScriptlets: (self as Record<string, unknown>).uBO_scriptletsInjected === undefined,
+            needScriptlets: (self as Record<string, unknown>).uBR_scriptletsInjected === undefined,
         }).then(response => {
             if (response && (response as BootstrapResponse).specificCosmeticFilters) {
                 const scf = (response as BootstrapResponse).specificCosmeticFilters!;

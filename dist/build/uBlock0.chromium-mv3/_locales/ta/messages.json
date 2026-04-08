@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "பொதுவான ஒப்பனை வடிகட்டிகளை புறக்கணி",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "பொதுவான ஒப்பனை வடிப்பான்கள் அனைத்து ஒப்பனை வடிப்பான்களாகும், அவை எல்லா வலைத்தளங்களிலும் பொருந்தும். இந்த விருப்பத்தை இயக்குவது பொதுவான ஒப்பனை வடிப்பான்களைக் கையாளுவதன் விளைவாக வலைப்பக்கங்களில் சேர்க்கப்பட்ட நினைவகம் மற்றும் CPU மேல்நிலை ஆகியவற்றை நீக்கும்.குறைந்த சக்திவாய்ந்த சாதனங்களில் இந்த விருப்பத்தை இயக்க பரிந்துரைக்கப்படுகிறது.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "தடுக்கப்பட்டது",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "பட்டியல்களை வடிகட்டவும்",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "வெளிப்புற சார்புகள் (GPLv3- இணக்கமானது):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO வின் சொந்த வடிகட்டி பட்டியல்கள் பின்வருவனவற்றில் இலவசமாக வழங்கப்படுகின்றன <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
+    "message": "uBR வின் சொந்த வடிகட்டி பட்டியல்கள் பின்வருவனவற்றில் இலவசமாக வழங்கப்படுகின்றன <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

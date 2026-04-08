@@ -111,14 +111,14 @@ const isolatedWorldInjector = (( ) => {
     const parts = [
         '(',
         `function(details) {
-            if ( self.uBO_isolatedScriptlets === 'done' ) { return; }
+            if ( self.uBR_isolatedScriptlets === 'done' ) { return; }
             const doc = document;
             if ( doc.location === null ) { return; }
             const hostname = doc.location.hostname;
             if ( hostname !== '' && details.hostname !== hostname ) { return; }
             const isolatedScriptlets = function(){};
             isolatedScriptlets();
-            self.uBO_isolatedScriptlets = 'done';
+            self.uBR_isolatedScriptlets = 'done';
             return 0;
         }`,
         ')(',
@@ -155,7 +155,7 @@ const onScriptletMessageInjector = (( ) => {
     const parts = [
         '(',
         function(name) {
-            if ( self.uBO_bcSecret ) { return; }
+            if ( self.uBR_bcSecret ) { return; }
             try {
                 const bcSecret = new self.BroadcastChannel(name);
                 bcSecret.onmessage = ev => {
@@ -169,13 +169,13 @@ const onScriptletMessageInjector = (( ) => {
                         if ( self.vAPI && self.vAPI.messaging ) {
                             self.vAPI.messaging.send('contentscript', msg);
                         } else {
-                            console.log(`[uBO][${msg.type}]${msg.text}`);
+                            console.log(`[uBR][${msg.type}]${msg.text}`);
                         }
                         break;
                     }
                 };
                 bcSecret.postMessage('iamready!');
-                self.uBO_bcSecret = bcSecret;
+                self.uBR_bcSecret = bcSecret;
             } catch {
             }
         }.toString(),

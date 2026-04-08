@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ігнараваць агульныя касметычныя фільтры",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Агульныя касметычныя фільтры — гэта тыя касметычныя фільтры, якія прызначаны для прымянення на ўсіх вэб-сайтах. Уключэнне гэтай налады знізіць спажыванне памяці і працэсара, дададзенае да вэб-старонак у выніку працы агульных касметычных фільтраў.\n\nРэкамендуецца ўключыць гэту наладу на менш магутных прыладах.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "заблакаваны",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Спісы фільтраў",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Вонкавыя залежнасці (GPLv3-сумяшчальныя):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Уласныя спісы фільтраў uBO свабодна размяшчаюцца ў наступных сетках <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>:",
+    "message": "Уласныя спісы фільтраў uBR свабодна размяшчаюцца ў наступных сетках <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

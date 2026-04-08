@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Abaikan filter tampilan generik",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Filter tampilan generik adalah filter tampilan yang dibuat untuk diterapkan pada semua situs web. Mengaktifkan opsi ini akan menghilangkan peningkatan overhead memori ram dan CPU pada halaman web akibat diterapkannya filter tampilan generik.\n\nDirekomendasikan untuk mengaktifkan opsi ini pada perangkat dengan performa rendah.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "diblokir",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Daftar filter",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Dependensi eksternal (kompatibel GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Daftar filter bawaan uBO dihosting secara gratis di <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> berikut:",
+    "message": "Daftar filter bawaan uBR dihosting secara gratis di <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> berikut:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

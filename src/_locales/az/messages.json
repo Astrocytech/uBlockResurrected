@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ümumi kosmetik filtrləri nəzərə alma",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Ümumi kosmetik filtrlərin bütün veb-saytlarda istifadəsi nəzərdə tutulur. Bu seçimi etdiyiniz təqdirdə veb-səhifələrdə ümumi kosmetik filtrlərin işlənməsi ilə əlaqədar yaddaşdan istifadə və prosessor yükü azalacaq.\n\nAz güclü cihazlarda bu seçimin aktivləşdirilməsi tövsiyə olunur.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "əngəllənmiş",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Filtr siyahıları",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Xarici asılılıqlar (GPLv3-uyumlu):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO-nun öz filtr siyahıları ödənişsiz şəkildə bu <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-lərdə</a> yerləşdirilib:",
+    "message": "uBR-nun öz filtr siyahıları ödənişsiz şəkildə bu <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-lərdə</a> yerləşdirilib:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

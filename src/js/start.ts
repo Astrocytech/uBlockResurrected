@@ -107,7 +107,7 @@ const initializeTabs = async ( ) => {
             // https://github.com/chrisaljoudi/uBlock/issues/129
             //   Find out whether content scripts need to be injected
             //   programmatically. This may be necessary for web pages which
-            //   were loaded before uBO launched.
+            //   were loaded before uBR launched.
             toCheck.push(
                 /^https?:\/\//.test(url)
                     ? vAPI.tabs.executeScript(id, checker) 
@@ -140,7 +140,7 @@ const initializeTabs = async ( ) => {
 // To bring older versions up to date
 //
 // https://www.reddit.com/r/uBlockOrigin/comments/s7c9go/
-//   Abort suspending network requests when uBO is merely being installed.
+//   Abort suspending network requests when uBR is merely being installed.
 
 const onVersionReady = async lastVersion => {
     lastVersionInt = vAPI.app.intFromVersion(lastVersion);

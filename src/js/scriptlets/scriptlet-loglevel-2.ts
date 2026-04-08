@@ -22,14 +22,14 @@
 /******************************************************************************/
 
 declare const self: typeof globalThis & {
-    uBO_bcSecret?: BroadcastChannel;
+    uBR_bcSecret?: BroadcastChannel;
 };
 
 (() => {
-    if (self.uBO_bcSecret instanceof BroadcastChannel === false) {
+    if (self.uBR_bcSecret instanceof BroadcastChannel === false) {
         return;
     }
-    self.uBO_bcSecret.postMessage("setScriptletLogLevelToTwo");
+    self.uBR_bcSecret.postMessage("setScriptletLogLevelToTwo");
 })();
 
 /*******************************************************************************
@@ -39,7 +39,7 @@ declare const self: typeof globalThis & {
     - Add code beyond the following code
     Reason:
     - https://github.com/gorhill/uBlock/pull/3721
-    - uBO never uses the return value from injected content scripts
+    - uBR never uses the return value from injected content scripts
 
 **/
 

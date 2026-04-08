@@ -196,7 +196,7 @@ cd - > /dev/null
 echo "*** uBlock0.chromium-mv3: Creating vapi-content.js for element picker"
 cat > $DES/js/vapi-content.js << 'VAPICONTENTEOF'
 var vAPI = vAPI || {};
-vAPI.uBO = true;
+vAPI.uBR = true;
 vAPI.T0 = Date.now();
 vAPI.sessionId = Math.random().toString(36).slice(2, 18);
 

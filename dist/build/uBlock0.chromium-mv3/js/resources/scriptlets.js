@@ -785,7 +785,7 @@ function webrtcIf(
         new Proxy(peerConnectionProto.createDataChannel, {
             apply: function(target, thisArg, args) {
                 if ( isGoodConfig(target, args[1]) === false ) {
-                    log('uBO:', args[1]);
+                    log('uBR:', args[1]);
                     return Reflect.apply(target, thisArg, args.slice(0, 1));
                 }
                 return Reflect.apply(target, thisArg, args);
@@ -795,7 +795,7 @@ function webrtcIf(
         new Proxy(peerConnectionCtor, {
             construct: function(target, args) {
                 if ( isGoodConfig(target, args[0]) === false ) {
-                    log('uBO:', args[0]);
+                    log('uBR:', args[0]);
                     return Reflect.construct(target);
                 }
                 return Reflect.construct(target, args);
@@ -994,7 +994,7 @@ builtinScriptlets.push({
 });
 // Experimental: Generic nuisance overlay buster.
 // if this works well and proves to be useful, this may end up
-// as a stock tool in uBO's popup panel.
+// as a stock tool in uBR's popup panel.
 function overlayBuster(allFrames) {
     if ( allFrames === '' && window !== window.top ) { return; }
     var tstart;
@@ -1622,10 +1622,10 @@ function multiup() {
  * 
  * Trusted sources are:
  *
- * - uBO's own filter lists, which name starts with "uBlock filters – ", and
+ * - uBR's own filter lists, which name starts with "uBlock filters – ", and
  *   maintained at: https://github.com/uBlockOrigin/uAssets
  * 
- * - The user's own filters as seen in "My filters" pane in uBO's dashboard. 
+ * - The user's own filters as seen in "My filters" pane in uBR's dashboard. 
  * 
  * The trustworthiness of filters using these privileged scriptlets are
  * evaluated at filter list compiled time: when a filter using one of the
@@ -2136,7 +2136,7 @@ function trustedSuppressNativeMethod(
  * @trustedScriptlet trusted-prevent-dom-bypass
  * 
  * @description
- * Prevent the bypassing of uBO scriptlets through anonymous embedded context.
+ * Prevent the bypassing of uBR scriptlets through anonymous embedded context.
  * 
  * Ensure that a target method in the embedded context is using the
  * corresponding parent context's method (which is assumed to be

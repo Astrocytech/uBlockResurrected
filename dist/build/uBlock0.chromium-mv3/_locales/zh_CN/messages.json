@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "忽略通用元素过滤规则",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "通用元素过滤规则是应用到所有网站的元素过滤规则。启用此选项将消除网站因处理通用元素过滤规则而增加的内存和 CPU 占用。\n\n推荐在低性能设备上启用此选项。",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "已应用规则",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "已拦截",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "过滤规则列表",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "外部依赖（兼容 GPLv3 协议）：",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO 本身提供的过滤规则列表免费托管于下列 <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>：",
+    "message": "uBR 本身提供的过滤规则列表免费托管于下列 <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>：",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

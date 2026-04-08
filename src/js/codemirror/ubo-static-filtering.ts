@@ -345,7 +345,7 @@ interface CodeMirrorMode {
     lineComment: string;
 }
 
-const uBOStaticFilteringMode: CodeMirrorMode = (() => {
+const uBRStaticFilteringMode: CodeMirrorMode = (() => {
     return {
         state: null,
         startState() {
@@ -408,7 +408,7 @@ const uBOStaticFilteringMode: CodeMirrorMode = (() => {
     };
 })();
 
-CodeMirror.defineMode('ubo-static-filtering', () => uBOStaticFilteringMode);
+CodeMirror.defineMode('ubo-static-filtering', () => uBRStaticFilteringMode);
 
 /******************************************************************************/
 

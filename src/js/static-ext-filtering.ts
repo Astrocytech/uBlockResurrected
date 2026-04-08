@@ -114,7 +114,7 @@ staticExtFilteringEngine.compile = function(parser, writer) {
     }
 
     // HTML filtering
-    // TODO: evaluate converting Adguard's `$$` syntax into uBO's HTML
+    // TODO: evaluate converting Adguard's `$$` syntax into uBR's HTML
     //       filtering syntax.
     if ( parser.isHtmlFilter() ) {
         htmlFilteringEngine.compile(parser, writer);

@@ -38,7 +38,7 @@ function ubologSet(state = false): void {
 }
 
 function ubologDo(...args: unknown[]): void {
-    console.info('[uBO]', ...args);
+    console.info('[uBR]', ...args);
 }
 
 function ubologIgnore(): void {

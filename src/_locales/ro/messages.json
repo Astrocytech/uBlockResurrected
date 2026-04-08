@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ignoră filtrele cosmetice generice",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "<p>FIltrele cosmetice generice sunt acelea care se aplică tuturor site-urilor.<p>Deși sunt folosite eficient de uBlock₀, filtrele cosmetice generice pot contribui semnificativ la creșterea cantității de memorie și a utilizării procesorului pe anumite pagini, în special cele de mari dimensiuni și care sunt încărcate pentru mult timp.<p>Activarea acestei opțiuni va elimina încărcarea suplimentară a memoriei și a procesorului rezultată în urma folosirii filtrelor cosmetice generice, și, de asemenea, va micșora impactul uBlock₀ asupra sistemului.<p>Se recomandă activarea acestei opțiuni pe dispozitivele mai puțin performante.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "activ",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blocat",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Liste de filtre",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Dependențe externe (compatibile GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "FIltrele proprii uBO sunt găzduite gratuit de următoarele <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">rețele de distribuție de conținut</a>:",
+    "message": "FIltrele proprii uBR sunt găzduite gratuit de următoarele <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">rețele de distribuție de conținut</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

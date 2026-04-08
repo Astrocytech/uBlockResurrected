@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "تجاهل الفلاتر التجميلية العامة",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "التشريحات التجميلية العمومية هي الفلاتر التجميلية التي تنطبق على كل مواقع الإنترنت. تفعيل هذا الخيار سوف يترك مساحة أقل من الذاكرة و قوة المعالجة للاستعمال من قبل صفحات الويب كنتيجة لمعالجة التشريحات التجميلية العمومية.\n\nمن الأفضل تفعيل هذا الخيار على الأجهزة الأقل قوة.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "محظور",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "القوائم المرشحة",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "الإعتماديات الخارجية (متوافقة مع GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "قوائم التصفية الخاصة بـ uBO مستضافة مجانًا على <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a> التالية:",
+    "message": "قوائم التصفية الخاصة بـ uBR مستضافة مجانًا على <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a> التالية:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

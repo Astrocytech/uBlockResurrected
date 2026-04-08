@@ -338,7 +338,7 @@ function addToDNR(context, list) {
 
 // Merge rules where possible by merging arrays of a specific property.
 //
-// https://github.com/uBlockOrigin/uBOL-home/issues/10#issuecomment-1304822579
+// https://github.com/uBlockOrigin/uBRL-home/issues/10#issuecomment-1304822579
 //   Do not merge rules which have errors.
 
 function mergeRules(rulesetMap, mergeTarget) {
@@ -442,7 +442,7 @@ function finalizeRuleset(context, network) {
     mergeRules(rulesetMap, 'responseHeaders');
 
     // Convert back single-entry requestDomains into pattern-based filters
-    // https://github.com/uBlockOrigin/uBOL-home/issues/327
+    // https://github.com/uBlockOrigin/uBRL-home/issues/327
     // TODO: Remove when (if) Safari is changed to interpret requestDomains as
     //       in other browsers.
     for ( const rule of rulesetMap.values() ) {

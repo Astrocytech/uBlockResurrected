@@ -15,7 +15,7 @@ self.console = self.console || {
     info: function() {}
 };
 
-self.vAPI = self.vAPI || { uBO: true };
+self.vAPI = self.vAPI || { uBR: true };
 self.vAPI.T0 = Date.now();
 
 self.window = self;

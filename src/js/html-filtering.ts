@@ -60,7 +60,7 @@ const regexFromString = (s, exact = false) => {
 
 class PSelectorVoidTask {
     constructor(task) {
-        console.info(`[uBO] HTML filtering: :${task[0]}() operator is not supported`);
+        console.info(`[uBR] HTML filtering: :${task[0]}() operator is not supported`);
     }
     transpose() {
     }

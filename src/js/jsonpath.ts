@@ -21,23 +21,23 @@
 */
 
 /**
- * Implement the parsing of uBO-flavored JSON path queries.
+ * Implement the parsing of uBR-flavored JSON path queries.
  * 
  * Reference to original JSON path syntax:
  * https://goessner.net/articles/JsonPath/index.html
  * 
- * uBO-flavored JSON path implementation differs as follow:
+ * uBR-flavored JSON path implementation differs as follow:
  * 
  * - Both $ and @ are implicit. Though you can use them, you do not have to.
  *   Use $ only when the implicit context is not that of root. Example:
  *   -     Official: $..book[?(@.isbn)]
- *   - uBO-flavored: ..book[?(.isbn)]
+ *   - uBR-flavored: ..book[?(.isbn)]
  * 
- * - uBO-flavor syntax does not (yet) support:
+ * - uBR-flavor syntax does not (yet) support:
  *   - Array slice operator
  * 
- * - Regarding filter expressions, uBO-flavored JSON path supports a limited
- *   set of expressions since unlike the official implementation, uBO can't use
+ * - Regarding filter expressions, uBR-flavored JSON path supports a limited
+ *   set of expressions since unlike the official implementation, uBR can't use
  *   JS eval() to evaluate arbitrary JS expressions. The operand MUST be valid
  *   JSON. The currently supported expressions are:
  *   - ==: strict equality
@@ -61,7 +61,7 @@
  *   - ..book[?(.price<10)]
  *   - ..*
  * 
- * uBO-flavored syntax supports assigning a value to a resolved JSON path by
+ * uBR-flavored syntax supports assigning a value to a resolved JSON path by
  * appending `=[value]` to the JSON path query. The assigned value MUST be
  * valid JSON. Examples:
  * - .store..price=0

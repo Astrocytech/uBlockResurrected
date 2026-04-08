@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Huwag pansinin ang mga generikong kosmetikong filter",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Ang generikong kosmetikong filter ay ang mga kosmetikong filter na para sa lahat ng mga website. Nakakatipid ito ng memorya at CPU sapagkat ihihinto ang pagproseso sa mga generikong kosmetikong filter.\n\nMainam na gamitin ang opsyong ito sa mga device na hindi ganoon kalakas.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "inaksyunan",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "hinarang",
@@ -1041,18 +1041,18 @@
   },
   "aboutFilterLists": {
     "message": "Listahan ng mga filter",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Mga panlabas na dependency (angkop sa GPLv3)",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Naka-host sa mga <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> na ito ang mga listahan ng mga filter ng uBO:",
+    "message": "Naka-host sa mga <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> na ito ang mga listahan ng mga filter ng uBR:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
-    "message": "Random na pumipili ng CDN ang uBO kung may listahan ng mga filter na kailangang i-update",
+    "message": "Random na pumipili ng CDN ang uBR kung may listahan ng mga filter na kailangang i-update",
     "description": "Shown in the About pane"
   },
   "aboutBackupDataButton": {

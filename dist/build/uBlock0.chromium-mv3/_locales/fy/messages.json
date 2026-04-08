@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Algemiene kosmetyske filters negearje",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Algemiene kosmetyske filters binne dy kosmetyske filters dy't bedoeld binne om op alle websites tapast te wurden. It ynskeakeljen fan dizze opsje eliminearret de oan websiden tafoege ûnthâld- en cpu-oerhead as gefolch fan it ferwurkjen fan algemiene kosmetyske filters.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "ôfwikseljend",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blokkearre",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Filterlisten",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Eksterne ôfhinklikheden (GPLv3-kompatibel):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO’s eigen filterlisten binne fergees beskikber op de folgjende <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN’s</a>:",
+    "message": "uBR’s eigen filterlisten binne fergees beskikber op de folgjende <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN’s</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

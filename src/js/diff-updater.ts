@@ -227,7 +227,7 @@ async function fetchAndApplyAllPatches(assetDetails) {
             return assetDetails;
         }
     }
-    // uBO-specific, to avoid pointless fetches which are likely to fail
+    // uBR-specific, to avoid pointless fetches which are likely to fail
     // because the patch has not yet been created
     const patchTime = expectedTimeFromPatch(assetDetails);
     if ( patchTime > Date.now() ) {

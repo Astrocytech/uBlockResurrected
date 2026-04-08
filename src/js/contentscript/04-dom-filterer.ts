@@ -3,7 +3,7 @@
     uBlock Resurrected - Content Script Module
     DOM Filterer
 
-    The DOM filterer is the heart of uBO's cosmetic filtering.
+    The DOM filterer is the heart of uBR's cosmetic filtering.
 
     DOMFilterer: adds procedural cosmetic filtering
 

@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ignorér generiske kosmetiske filtre",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Generiske kosmetiske filtre er de kosmetiske filtre, der er beregnet til at gælde på alle websteder. Aktivering af denne indstilling vil eliminere hukommelse- og CPU-forbrug, der tilføjes til websider som et resultat af håndtering af generiske kosmetiske filtre.\n\nDet anbefales at aktivere denne indstilling på mindre kraftfulde enheder.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "begivenhedsrig",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blokerede",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Filterlister",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Eksterne afhængigheder (GPLv3-kompatible):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBOs egne filterlister hostes frit på flg. <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN'er</a>:",
+    "message": "uBRs egne filterlister hostes frit på flg. <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN'er</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

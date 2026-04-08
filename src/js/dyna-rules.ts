@@ -71,7 +71,7 @@ let cleanEditText = '';
 // The following code is to take care of properly internationalizing
 // the tooltips of the arrows used by the CodeMirror merge view. These
 // are hard-coded by CodeMirror ("Push to left", "Push to right"). An
-// observer is necessary because there is no hook for uBO to overwrite
+// observer is necessary because there is no hook for uBR to overwrite
 // reliably the default title attribute assigned by CodeMirror.
 
 {

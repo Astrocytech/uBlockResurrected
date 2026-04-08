@@ -3,7 +3,7 @@
   "type": "object",
   "properties": {
     "adminSettings": {
-      "title": "A valid JSON string compliant with uBO's backup format",
+      "title": "A valid JSON string compliant with uBR's backup format",
       "description": "All entries present will overwrite local settings.",
       "type": "string"
     },

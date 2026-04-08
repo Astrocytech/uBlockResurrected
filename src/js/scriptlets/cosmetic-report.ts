@@ -140,8 +140,8 @@ if ( Array.isArray(allSelectors.exceptions) ) {
     }
 }
 
-if ( self.uBO_scriptletsInjected !== undefined ) {
-    matchedSelectors.push(...self.uBO_scriptletsInjected);
+if ( self.uBR_scriptletsInjected !== undefined ) {
+    matchedSelectors.push(...self.uBR_scriptletsInjected);
 }
 
 if ( matchedSelectors.length === 0 ) { return; }

@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "התעלם ממסננים קוסמטיים כלליים",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "מסננים קוסמטיים כלליים - אלה הם המסננים הקוסמטיים, אשר מיועדים להיות מוחלים על כל דפי האינטרנט. אפשור הגדרה זו תוריד את צריכת הזיכרון והמעבד אשר מתווספות לדפי אינטרנט כתוצאה משימוש במסננים קוסמטיים כלליים.\n\nמומלץ לאפשר הגדרה זו במכשירים פחות חזקים.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "חסום",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "רשימות מסננים",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "תלויות חיצוניות (תואם-GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "רשימות המסננים של uBO מופצות בחינם בשירותי ה <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> הבאים:",
+    "message": "רשימות המסננים של uBR מופצות בחינם בשירותי ה <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> הבאים:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

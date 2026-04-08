@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ezikusi iragazki kosmetiko orokorrak",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "<p>Iragazki kosmetiko orokorrak webgune guztietan aplikatzeko sortu diren iragazki kosmetikoak dira. <p>uBlock₀ aplikazioak ongi kudeatzen baditu ere iragazki kosmetiko orokorrek wegune batzuetan memoria edo PUZ erabilera nabarmena ekar dezakete handiak eta antzinakoak diren horietan gehienbat. <p>Aukera hau gaituz iragazki kosmetiko orokorren erabileraren ondoriozko memoria eta PUZ erabilera gehigarria sahiestuko da, eta baita uBlock₀ beraren memoria erabilera gutxiagotu. <p> Ahalmen gutxiagoko gailuetan aukera hau gaitzea aholkatzen da.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blokeatuta",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Iragazki-zerrendak",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Kanpo menpekotasunak (GPLv3 lizentziarekin bateragarriak):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBOren iragazki zerrendan <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> hauetan daude:",
+    "message": "uBRren iragazki zerrendan <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> hauetan daude:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

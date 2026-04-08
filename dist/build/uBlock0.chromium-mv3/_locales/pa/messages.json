@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "ਆਮ ਦਿੱਖ ਆਧਾਰਿਤ ਫਿਲਟਰ ਅਣਡਿੱਠੇ ਕਰੋ",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Generic cosmetic filters are those cosmetic filters which are meant to apply on all web sites. Enabling this option will eliminate the memory and CPU overhead added to web pages as a result of handling generic cosmetic filters.\n\nIt is recommended to enable this option on less powerful devices.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "ਪਾਬੰਦੀ ਲਾਏ",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "ਫਿਲਟਰ ਸੂਚੀਆਂ",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "ਬਾਹਰੀ ਨਿਰਭਰਤਾਵਾਂ (GPLv3-ਅਨੁਕੂਲ):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO ਦੀਆਂ ਆਪਣੀਆਂ ਫਿਲਟਰ ਸੂਚੀਆਂ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> ਉੱਤੇ ਆਜ਼ਾਦ ਰੂਪ ਵਿੱਚ ਹੋਸਟ ਕੀਤੀਆਂ ਹਨ:",
+    "message": "uBR ਦੀਆਂ ਆਪਣੀਆਂ ਫਿਲਟਰ ਸੂਚੀਆਂ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> ਉੱਤੇ ਆਜ਼ਾਦ ਰੂਪ ਵਿੱਚ ਹੋਸਟ ਕੀਤੀਆਂ ਹਨ:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

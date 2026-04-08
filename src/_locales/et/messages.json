@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Eira üldiseid ilufiltreid.",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Üldised ilufiltrid on need ilufiltrid, mis töötavad kõikidel veebisaitidel. Selle valiku lubamine vähendab veebisaitidel üldiste ilufiltrite kasutamisest tulenevat mälu ja protsessori koormust.\n\nSelle valiku lubamine on soovitatav vähem võimekates seadmetes.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "oluline",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blokeeritud",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Filtriloendid",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Välised sõltuvused (ühilduvad GPLv3-ga):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBO enda filtriloendid on vabalt hostitud järgnevates <a href=\"https://et.wikipedia.org/wiki/Sisuedastusv%C3%B5rk\">sisuedastusvõrkudes</a>:",
+    "message": "uBR enda filtriloendid on vabalt hostitud järgnevates <a href=\"https://et.wikipedia.org/wiki/Sisuedastusv%C3%B5rk\">sisuedastusvõrkudes</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

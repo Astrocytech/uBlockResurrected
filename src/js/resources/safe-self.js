@@ -212,7 +212,7 @@ export function safeSelf() {
         safe.sendToLogger = (type, ...args) => {
             const text = safe.toLogText(type, ...args);
             if ( text === undefined ) { return; }
-            safe.log(`uBO ${text}`);
+            safe.log(`uBR ${text}`);
         };
     }
     return safe;

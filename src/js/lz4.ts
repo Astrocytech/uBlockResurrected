@@ -61,7 +61,7 @@ const init = function() {
 const destroy = function() {
     //if ( lz4CodecInstance !== undefined ) {
     //    console.info(
-    //        'uBO: freeing lz4-block-codec instance (%s KB)',
+    //        'uBR: freeing lz4-block-codec instance (%s KB)',
     //        lz4CodecInstance.bytesInUse() >>> 10
     //    );
     //}
@@ -98,7 +98,7 @@ const encodeValue = function(lz4CodecInstance, dataIn) {
     outputArray[6] = (inputSize >>> 16) & 0xFF;
     outputArray[7] = (inputSize >>> 24) & 0xFF;
     //console.info(
-    //    'uBO: [%s] compressed %d KB => %d KB (%s%%) in %s ms',
+    //    'uBR: [%s] compressed %d KB => %d KB (%s%%) in %s ms',
     //    inputArray.byteLength >> 10,
     //    outputArray.byteLength >> 10,
     //    (outputArray.byteLength / inputArray.byteLength * 100).toFixed(0),
@@ -127,7 +127,7 @@ const decodeValue = function(lz4CodecInstance, inputArray) {
     }
     const s = textDecoder.decode(outputArray);
     //console.info(
-    //    'uBO: [%s] decompressed %d KB => %d KB (%s%%) in %s ms',
+    //    'uBR: [%s] decompressed %d KB => %d KB (%s%%) in %s ms',
     //    inputArray.byteLength >>> 10,
     //    outputSize >>> 10,
     //    (inputArray.byteLength / outputSize * 100).toFixed(0),

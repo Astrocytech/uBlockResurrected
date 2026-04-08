@@ -355,7 +355,7 @@ vAPI.scriptletsInjector = (( ) => {
     const parts = [
         '(',
         `function(details) {
-            if ( self.uBO_scriptletsInjected !== undefined ) { return; }
+            if ( self.uBR_scriptletsInjected !== undefined ) { return; }
             const doc = document;
             const { location } = doc;
             if ( location === null ) { return; }
@@ -382,7 +382,7 @@ vAPI.scriptletsInjector = (( ) => {
             }
             if ( self.wrappedJSObject[sentinel] ) {
                 delete self.wrappedJSObject[sentinel];
-                self.uBO_scriptletsInjected = details.filters;
+                self.uBR_scriptletsInjected = details.filters;
                 return 0;
             }
             // https://github.com/uBlockOrigin/uBlock-issues/issues/235
@@ -399,7 +399,7 @@ vAPI.scriptletsInjector = (( ) => {
                 script.async = false;
                 script.src = url;
                 (doc.head || doc.documentElement || doc).append(script);
-                self.uBO_scriptletsInjected = details.filters;
+                self.uBR_scriptletsInjected = details.filters;
             } catch {
             }
             if ( url ) {

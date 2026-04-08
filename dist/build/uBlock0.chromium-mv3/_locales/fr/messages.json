@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ignorer les filtres esthétiques génériques",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Les filtres esthétiques génériques sont des filtres esthétiques conçus pour être appliqués sur tous les sites Web. Activer cette option réduira l'utilisation en mémoire et en processeur sur les pages Web.\n\nIl est recommandé d'activer ce paramètre sur des appareils à la puissance modeste.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "dynamique",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "bloquée",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Listes de filtres",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Dépendances externes (compatibles GPLv3) :",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Les propres listes de filtres d'uBO sont hébergées gratuitement sur les <a href=\"https://fr.wikipedia.org/wiki/R%C3%A9seau_de_diffusion_de_contenu\">RDC</a> suivants :",
+    "message": "Les propres listes de filtres d'uBR sont hébergées gratuitement sur les <a href=\"https://fr.wikipedia.org/wiki/R%C3%A9seau_de_diffusion_de_contenu\">RDC</a> suivants :",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

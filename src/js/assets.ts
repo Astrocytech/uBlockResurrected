@@ -986,7 +986,7 @@ async function assetCacheMarkAsDirty(pattern: string | RegExp | string[], exclud
 
     TODO(seamless migration):
     Can remove instances of old user asset keys when I am confident all users
-    are using uBO v1.11 and beyond.
+    are using uBR v1.11 and beyond.
 
 **/
 

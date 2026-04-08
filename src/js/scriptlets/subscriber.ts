@@ -43,7 +43,7 @@ declare const vAPI: VAPI | undefined;
 // https://github.com/chrisaljoudi/uBlock/issues/464
 if ( document instanceof HTMLDocument === false ) { return; }
 
-// Maybe uBO has gone away meanwhile.
+// Maybe uBR has gone away meanwhile.
 if ( typeof vAPI !== 'object' || vAPI === null ) { return; }
 
 const onMaybeSubscriptionLinkClicked = function(target: HTMLAnchorElement): boolean | undefined {

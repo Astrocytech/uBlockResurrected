@@ -23,20 +23,20 @@ import webext from './webext.js';
 
 /******************************************************************************/
 
-// Broadcast a message to all uBO contexts
+// Broadcast a message to all uBR contexts
 
 let broadcastChannel;
 
 export function broadcast(message) {
     if ( broadcastChannel === undefined ) {
-        broadcastChannel = new self.BroadcastChannel('uBO');
+        broadcastChannel = new self.BroadcastChannel('uBR');
     }
     broadcastChannel.postMessage(message);
 }
 
 /******************************************************************************/
 
-// Broadcast a message to all uBO contexts and all uBO's content scripts
+// Broadcast a message to all uBR contexts and all uBR's content scripts
 
 export async function broadcastToAll(message) {
     broadcast(message);
@@ -52,7 +52,7 @@ export async function broadcastToAll(message) {
 /******************************************************************************/
 
 export function onBroadcast(listener) {
-    const bc = new self.BroadcastChannel('uBO');
+    const bc = new self.BroadcastChannel('uBR');
     bc.onmessage = ev => listener(ev.data || {});
     return bc;
 }

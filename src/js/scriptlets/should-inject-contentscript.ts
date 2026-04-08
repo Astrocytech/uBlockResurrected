@@ -20,7 +20,7 @@
 */
 
 interface VAPI {
-    uBO?: boolean;
+    uBR?: boolean;
     bootstrap?: () => void;
 }
 
@@ -46,7 +46,7 @@ interface IdleCallbackOptions {
 
 (() => {
     try {
-        const status = vAPI?.uBO !== true;
+        const status = vAPI?.uBR !== true;
         if (status === false && vAPI?.bootstrap) {
             self.requestIdleCallback?.(() => vAPI?.bootstrap?.());
         }

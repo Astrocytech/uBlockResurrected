@@ -6,9 +6,9 @@
   "action": {
     "browser_style": false,
     "default_icon": {
-      "16": "img/icon_16.png",
-      "32": "img/icon_32.png",
-      "64": "img/icon_64.png"
+      "16": "img/ublock16.png",
+      "32": "img/ublock32.png",
+      "64": "img/ublock64.png"
     },
     "default_title": "uBlock Resurrected",
     "default_popup": "popup-fenix.html"
@@ -19,12 +19,13 @@
     "<all_urls>"
   ],
   "icons": {
-    "16": "img/ublock.svg",
-    "32": "img/ublock.svg",
-    "48": "img/ublock.svg",
-    "64": "img/ublock.svg",
-    "96": "img/ublock.svg",
-    "128": "img/ublock.svg"
+    "16": "img/ublock16.png",
+    "32": "img/ublock32.png",
+    "48": "img/ublock48.png",
+    "64": "img/ublock64.png",
+    "96": "img/ublock96.png",
+    "128": "img/ublock128.png",
+    "256": "img/ublock256.png"
   },
   "manifest_version": 3,
   "name": "uBlock Resurrected",

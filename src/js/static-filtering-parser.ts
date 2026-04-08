@@ -3212,7 +3212,7 @@ export const netOptionTokenDescriptors = new Map([
 // https://github.com/gorhill/uBlock/issues/1752
 
 // https://github.com/gorhill/uBlock/issues/2624
-//   Convert Adguard's `-ext-has='...'` into uBO's `:has(...)`.
+//   Convert Adguard's `-ext-has='...'` into uBR's `:has(...)`.
 
 // https://github.com/uBlockOrigin/uBlock-issues/issues/89
 //   Do not discard unknown pseudo-elements.
@@ -3356,7 +3356,7 @@ export class ExtSelectorCompiler {
         //   We have an Adguard/ABP cosmetic filter if and only if the
         //   character is `$`, `%` or `?`, otherwise it's not a cosmetic
         //   filter.
-        // Adguard/EasyList style injection: translate to uBO's format.
+        // Adguard/EasyList style injection: translate to uBR's format.
         if ( this.isStyleInjectionFilter(raw) ) {
             const translated = this.translateStyleInjectionFilter(raw);
             if ( translated === undefined ) { return false; }

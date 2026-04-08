@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ignorar filtros cosméticos genéricos",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Os filtros cosméticos genéricos são destinados para aplicação em todos os sites. Se ativar esta opção irá eliminar o excesso de utilização da memória e CPU, como resultado da manipulação dos filtros cosméticos genéricos.\n\nRecomendamos a ativação desta opção em dispositivos mais fracos.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "bloqueado",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Listas de filtros",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Dependências externas (compatíveis com GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "As listas de filtros do uBO estão livremente hospedadas nas seguintes <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
+    "message": "As listas de filtros do uBR estão livremente hospedadas nas seguintes <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

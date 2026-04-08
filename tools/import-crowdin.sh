@@ -31,15 +31,15 @@ for dir in $SRC/*/; do
   # ubo
   mkdir -p "$DES/$deslang/" && cp "$SRC/$srclang/messages.json" "$DES/$deslang/"
   # ubo lite
-  mkdir -p "$DESMV3/$deslang/" && cp "$SRC/$srclang/uBO-Lite/messages.json" "$DESMV3/$deslang/"
+  mkdir -p "$DESMV3/$deslang/" && cp "$SRC/$srclang/uBR-Lite/messages.json" "$DESMV3/$deslang/"
   # descriptions
   #cp "$SRC/$srclang/description.txt" "./dist/description/description-${deslang}.txt"
-  cp "$SRC/$srclang/uBO-Lite/webstore.txt" "./platform/mv3/description/webstore.$deslang.txt"
+  cp "$SRC/$srclang/uBR-Lite/webstore.txt" "./platform/mv3/description/webstore.$deslang.txt"
 done
 
 # Output files with possible misuse of `$`, as this can lead to severe
 # consequences, such as not being able to run the extension at all.
-# uBO does not use `$`, so any instance of `$` must be investigated.
+# uBR does not use `$`, so any instance of `$` must be investigated.
 # See https://issues.adblockplus.org/ticket/6666
 echo "*** uBlock: Instances of '\$':"
 grep -FR "$" $DES/ || true

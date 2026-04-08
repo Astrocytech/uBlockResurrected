@@ -204,9 +204,9 @@ const µBlock = {  // jshint ignore:line
 
     commandShortcuts: new Map(),
 
-    // Allows to fully customize uBO's assets, typically set through admin
+    // Allows to fully customize uBR's assets, typically set through admin
     // settings. The content of 'assets.json' will also tell which filter
-    // lists to enable by default when uBO is first installed.
+    // lists to enable by default when uBR is first installed.
     assetsBootstrapLocation: undefined,
 
     assetsJsonPath: vAPI.webextFlavor.soup.has('devbuild')
@@ -404,9 +404,9 @@ self.µBlock = µBlock;
 (async () => {
     try {
         await blockerAdapter.init();
-        console.log('[uBO] Blocker Core adapter initialized');
+        console.log('[uBR] Blocker Core adapter initialized');
     } catch (e) {
-        console.error('[uBO] Failed to initialize Blocker Core:', e);
+        console.error('[uBR] Failed to initialize Blocker Core:', e);
     }
 })();
 

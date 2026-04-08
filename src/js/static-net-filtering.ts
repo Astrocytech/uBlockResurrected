@@ -4801,7 +4801,7 @@ StaticNetFilteringEngine.prototype.dnrFromCompiled = function(op, context, ...ar
                     ];
                 }
             }
-            // https://github.com/uBlockOrigin/uBOL-home/discussions/575
+            // https://github.com/uBlockOrigin/uBRL-home/discussions/575
             const { urlFilter } = condition;
             if ( urlFilter === undefined ) {
                 if ( condition.regexFilter === undefined ) {
@@ -4861,7 +4861,7 @@ StaticNetFilteringEngine.prototype.dnrFromCompiled = function(op, context, ...ar
         }
 
         // Some modifiers only work on document resources
-        // Related issue: https://github.com/uBlockOrigin/uBOL-home/issues/156
+        // Related issue: https://github.com/uBlockOrigin/uBRL-home/issues/156
         if ( patchDomainOption ) {
             const domains = rule.condition.initiatorDomains;
             if ( Array.isArray(domains) && domains.length !== 0 ) {

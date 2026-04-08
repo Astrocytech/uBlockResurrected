@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Bỏ qua bộ lọc phần tử ẩn chung",
-    "description": "This will cause uBO to ignore all generic cosmetic filters."
+    "description": "This will cause uBR to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Bộ lọc phần tử chung là những bộ lọc phần tử được áp dụng cho cho mọi trang web. Kích hoạt tùy chọn này sẽ giảm bớt sức nặng lên cpu và bộ nhớ do không còn phải xử lí các bộ lọc phần tử chung.\n\nTùy chọn này được khuyến nghị kích hoạt trên thiết bị cấu hình thấp.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "bị chặn",
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Danh sách bộ lọc",
-    "description": "Link text to uBO's own filter lists repo"
+    "description": "Link text to uBR's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Các phụ thuộc bên ngoài (tương thích GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Danh sách các bộ lọc của riêng uBO được lưu trữ miễn phí tại các <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> sau:",
+    "message": "Danh sách các bộ lọc của riêng uBR được lưu trữ miễn phí tại các <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> sau:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
