@@ -113,7 +113,7 @@
   "version": "1.9.15.101",
   "web_accessible_resources": [
     {
-      "resources": ["/web_accessible_resources/*", "/debug-logs.html", "/js/epicker-ui-bundle.js", "/css/epicker-ui.css", "/js/vapi-content.js"],
+      "resources": ["/web_accessible_resources/*", "/debug-logs.html", "/js/epicker-ui-bundle.js", "/css/epicker-ui.css", "/js/vapi-content.js", "/zapper-ui.html", "/css/zapper-ui.css", "/js/scripting/zapper-ui.js", "/js/scripting/tool-overlay-ui.js", "/js/scripting/tool-overlay.js", "/js/scripting/zapper.js", "/js/scripting/dom.js", "/js/scripting/ext.js"],
       "matches": ["<all_urls>"]
     }
   ]

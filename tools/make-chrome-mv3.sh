@@ -67,6 +67,19 @@ npx esbuild dynamic-net-filtering.ts --bundle --format=iife --outfile=dynamic-ne
 
 cd - > /dev/null
 
+# Copy zapper files
+echo "*** uBlock0.chromium-mv3: Copying zapper files"
+cp src/zapper-ui.html $DES/
+mkdir -p $DES/css
+cp src/css/zapper-ui.css $DES/css/ 2>/dev/null || true
+mkdir -p $DES/js/scripting
+cp src/js/scripting/tool-overlay.js $DES/js/scripting/ 2>/dev/null || true
+cp src/js/scripting/tool-overlay-ui.js $DES/js/scripting/ 2>/dev/null || true
+cp src/js/scripting/zapper.js $DES/js/scripting/ 2>/dev/null || true
+cp src/js/scripting/zapper-ui.js $DES/js/scripting/ 2>/dev/null || true
+cp src/js/scripting/dom.js $DES/js/scripting/ 2>/dev/null || true
+cp src/js/scripting/ext.js $DES/js/scripting/ 2>/dev/null || true
+
 # Update popup-fenix.html to use bundled JS
 echo "*** uBlock0.chromium-mv3: Updating popup-fenix.html"
 sed -i 's|<script src="js/popup-fenix.js" type="module"></script>|<script src="js/fa-icons-bundle.js"></script>\n<script src="js/popup-fenix-bundle.js"></script>|' $DES/popup-fenix.html
@@ -146,19 +159,8 @@ sed -i 's|<script src="lib/hsluv|<script src="js/i18n-fallback.js"></script>\n<s
 echo "*** uBlock0.chromium-mv3: Bundling service worker (modular)"
 node tools/bundle-sw.js
 
-# Bundle epicker modules
-echo "*** uBlock0.chromium-mv3: Bundling epicker modules"
-cd src/js
-npx esbuild epicker/epicker-entry.ts \
-    --bundle \
-    --format=iife \
-    --outfile=../../$DES/js/scriptlets/epicker.js \
-    --target=chrome120 \
-    --platform=browser \
-    --minify=false \
-    --allow-overwrite 2>&1 || true
-
 # Bundle subscriber.js for filter subscription handling
+cd src/js
 npx esbuild scriptlets/subscriber.ts \
     --bundle \
     --format=iife \

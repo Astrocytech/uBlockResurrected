@@ -50,7 +50,7 @@ hr { margin: 8px 0; border: 0; border-top: 1px solid var(--border-1); }
 <link rel="stylesheet" href="css/common.css">
 <link rel="stylesheet" href="css/fa-icons.css">
 <link rel="stylesheet" href="css/popup-fenix.css">
-<link rel="icon" type="image/png" href="img/icon_64.png">
+<link rel="icon" type="image/png" href="img/ublock64.png">
 <title data-i18n="extName"></title>
 </head>
 
@@ -97,7 +97,7 @@ hr { margin: 8px 0; border: 0; border-top: 1px solid var(--border-1); }
             <span data-i18n="popupDomainsConnected_v2">_</span><span>_</span>
             <span data-i18n="popupBlockedSinceInstall_v2" data-more="b">_</span><span data-more="b">_</span>
         </div>
-        <div id="basicTools" class="toolRibbon" data-more="c">
+        <div id="basicTools" class="toolRibbon">
             <span id="gotoZap" class="fa-icon tool enabled needPick" data-i18n-title="popupTipZapper">bolt<span class="caption" data-i18n="popupTipZapper"></span></span>
             <span id="gotoPick" class="fa-icon tool enabled needPick" data-i18n-title="popupTipPicker">eye-dropper<span class="caption" data-i18n="popupTipPicker"></span></span>
             <span id="gotoReport" class="fa-icon tool enabled needPick" data-i18n-title="popupTipReport">comment-alt<span class="caption" data-i18n="popupTipReport"></span></span>
@@ -106,6 +106,9 @@ hr { margin: 8px 0; border: 0; border-top: 1px solid var(--border-1); }
         </div>
         <div id="unprocessedRequestWarning">
             <span data-i18n="unprocessedRequestTooltip"></span><span class="dismiss"><svg viewBox="0 0 20 20"><path d="M0,0 20,20M0,20 20,0" /></svg></span>
+        </div>
+        <div id="userScriptsWarning">
+            <span>Enable "Allow User Scripts" in extension settings and restart to enable blocking</span>
         </div>
         <hr data-more="f">
         <div class="itemRibbon" data-more="f">

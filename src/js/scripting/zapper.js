@@ -1,0 +1,153 @@
+/*******************************************************************************
+
+    uBlock Resurrected - Zapper Content Script
+    Handles element removal and undo functionality
+
+    This script runs in the page context via scripting.executeScript
+
+    Architecture:
+    - tool-overlay.js: Creates ubolOverlay singleton (this file depends on it)
+    - zapper.js: Zapper-specific logic (installs iframe, handles removal)
+    - zapper-ui.js: UI entry point (runs in iframe)
+
+*******************************************************************************/
+
+(function() {
+    'use strict';
+
+    var ubolOverlay = self.ubolOverlay;
+    if ( !ubolOverlay ) { return; }
+    if ( ubolOverlay.file === '/zapper-ui.html' ) { return; }
+
+    var undoStack = [];
+    var messageId = 0;
+
+    function onMessage(msg) {
+        switch ( msg.what ) {
+        case 'startTool':
+            break;
+        case 'quitTool':
+            quitZapper();
+            break;
+        case 'zapElementAtPoint':
+            zapElementAtPoint(msg.mx, msg.my, msg.options);
+            break;
+        case 'unhighlight':
+            ubolOverlay.highlightElements([]);
+            break;
+        case 'highlightElementAtPoint':
+            highlightAtPoint(msg.mx, msg.my);
+            break;
+        case 'undoLastRemoval':
+            undoLastRemoval();
+            break;
+        }
+    }
+
+    function highlightAtPoint(x, y) {
+        var elem = ubolOverlay.elementFromPoint(x, y);
+        if ( elem ) {
+            ubolOverlay.highlightElements([ elem ]);
+        }
+    }
+
+    function zapElementAtPoint(x, y, options) {
+        if ( options && options.highlight ) {
+            if ( x !== undefined && y !== undefined ) {
+                var elem = ubolOverlay.elementFromPoint(x, y);
+                if ( elem ) {
+                    ubolOverlay.highlightElements([ elem ]);
+                }
+            }
+            return;
+        }
+
+        var elemToRemove = null;
+
+        if ( ubolOverlay.highlightedElements && ubolOverlay.highlightedElements.length > 0 ) {
+            elemToRemove = ubolOverlay.highlightedElements[0];
+        } else if ( x !== undefined && y !== undefined ) {
+            elemToRemove = ubolOverlay.elementFromPoint(x, y);
+        }
+
+        if ( !elemToRemove || !(elemToRemove instanceof Element) ) { return; }
+
+        undoStack.push({
+            elem: elemToRemove,
+            parent: elemToRemove.parentNode,
+            nextSibling: elemToRemove.nextSibling
+        });
+
+        handleScrollLock(elemToRemove);
+        elemToRemove.remove();
+        ubolOverlay.highlightElements([]);
+        updateRemovalCount();
+    }
+
+    function handleScrollLock(elem) {
+        var maybeScrollLocked = elem.shadowRoot instanceof DocumentFragment;
+
+        if ( !maybeScrollLocked ) {
+            var current = elem;
+            do {
+                var style = window.getComputedStyle(current);
+                var zIndex = parseInt(style.zIndex, 10);
+                maybeScrollLocked =
+                    (!isNaN(zIndex) && zIndex >= 1000) ||
+                    style.position === 'fixed';
+                current = current.parentElement;
+            } while ( current && !maybeScrollLocked );
+        }
+
+        if ( maybeScrollLocked ) {
+            var body = document.body;
+            var html = document.documentElement;
+
+            var bodyStyle = window.getComputedStyle(body);
+            var htmlStyle = window.getComputedStyle(html);
+
+            if ( bodyStyle.overflowY === 'hidden' ) {
+                body.style.setProperty('overflow', 'auto', 'important');
+            }
+            if ( bodyStyle.position === 'fixed' ) {
+                body.style.setProperty('position', 'initial', 'important');
+            }
+            if ( htmlStyle.position === 'fixed' ) {
+                html.style.setProperty('position', 'initial', 'important');
+            }
+            if ( htmlStyle.overflowY === 'hidden' ) {
+                html.style.setProperty('overflow', 'auto', 'important');
+            }
+        }
+    }
+
+    function undoLastRemoval() {
+        if ( undoStack.length === 0 ) { return; }
+
+        var item = undoStack.pop();
+        if ( item.nextSibling ) {
+            item.parent.insertBefore(item.elem, item.nextSibling);
+        } else {
+            item.parent.appendChild(item.elem);
+        }
+
+        updateRemovalCount();
+    }
+
+    function updateRemovalCount() {
+        if ( ubolOverlay.port === null ) { return; }
+
+        ubolOverlay.port.postMessage({
+            what: 'updateCount',
+            count: undoStack.length
+        });
+    }
+
+    function quitZapper() {
+        undoStack.length = 0;
+        ubolOverlay.stop();
+    }
+
+    ubolOverlay.install('/zapper-ui.html', onMessage);
+
+})();

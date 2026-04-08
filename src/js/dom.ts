@@ -252,7 +252,7 @@ function qsa$(a: string | Element, b?: string): NodeListOf<Element> {
     if (typeof a === 'string') {
         return document.querySelectorAll(a);
     }
-    if (a === null) { return new NodeListOf<Element>(); }
+    if (a === null) { return [] as unknown as NodeListOf<Element>; }
     return a.querySelectorAll(b ?? '') as NodeListOf<Element>;
 }
 

@@ -21,6 +21,7 @@
 
 import { dom, qs$, qsa$ } from './dom.js';
 import { i18n$ } from './i18n.js';
+import { injectZapperScripts } from './popup-zapper.js';
 import punycode from '../lib/punycode.js';
 
 /******************************************************************************/
@@ -44,164 +45,43 @@ vAPI.localStorage.getItemAsync('popupPanelSections').then(bits => {
 
 const messaging = vAPI.messaging;
 
-const ensureServiceWorkerReady = function() {
-    return new Promise(function(resolve) {
-        var checkCount = 0;
-        var maxChecks = 20;
-        var checkDelay = 25;
-        
-        var check = function() {
-            checkCount++;
-            if ( chrome.runtime && chrome.runtime.lastError ) {
-                if ( checkCount < maxChecks ) {
-                    setTimeout(check, checkDelay);
-                    return;
-                }
-                console.log('[Zapper] Service worker not ready after', maxChecks, 'attempts');
-                resolve(false);
-                return;
-            }
-            if ( chrome.scripting && chrome.tabs ) {
-                resolve(true);
-                return;
-            }
-            if ( checkCount < maxChecks ) {
-                setTimeout(check, checkDelay);
-                return;
-            }
-            console.log('[Zapper] chrome.scripting API not available');
-            resolve(false);
-        };
-        
-        check();
-    });
+/******************************************************************************/
+
+const gotoZap = async function() {
+    if ( typeof chrome === 'undefined' ) {
+        console.log('[Zapper] chrome.scripting API not available');
+        return;
+    }
+
+    try {
+        const injected = await injectZapperScripts(popupData, chrome);
+        if ( injected === false ) {
+            console.log('[Zapper] No tab ID available');
+            return;
+        }
+        console.log('[Zapper] Zapper scripts injected successfully');
+    } catch (err) {
+        console.error('[Zapper] Failed to inject scripts:', err);
+    }
+
+    vAPI.closePopup();
 };
 
-const zapperScript = function() {
-    console.log('[Zapper] Script executing in page');
-    
-    (function() {
-        var lastElem = null;
-        
-        var overlay = document.createElement('div');
-        overlay.id = 'ublock-zapper-overlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(128,128,128,0.35);pointer-events:auto;z-index:2147483644;';
-        document.body.appendChild(overlay);
-        
-        var highlight = document.createElement('div');
-        highlight.id = 'ublock-zapper-highlight';
-        highlight.style.cssText = 'position:fixed;border:3px solid #ffff00;background:rgba(255,255,0,0.2);pointer-events:none;display:none;z-index:2147483645;';
-        document.body.appendChild(highlight);
-        
-        var closeBtn = document.createElement('div');
-        closeBtn.id = 'ublock-zapper-close';
-        closeBtn.innerHTML = '<svg viewBox="0 0 64 64" style="width:14px;height:14px;stroke:#fff;stroke-width:4;stroke-linecap:round;"><path d="M16 16L48 48M16 48L48 16"/></svg>';
-        closeBtn.style.cssText = 'position:fixed;top:10px;right:10px;width:32px;height:32px;border-radius:50%;background:#e81123;border:2px solid #a00;display:flex;align-items:center;justify-content:center;cursor:pointer;pointer-events:auto;z-index:2147483647;box-shadow:0 2px 5px rgba(0,0,0,0.3);';
-        closeBtn.title = 'Close (Esc)';
-        document.body.appendChild(closeBtn);
-        
-        var instructions = document.createElement('div');
-        instructions.id = 'ublock-zapper-instructions';
-        instructions.textContent = 'Hover to highlight • Esc or X to close';
-        instructions.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:white;padding:10px 24px;border-radius:25px;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;pointer-events:auto;z-index:2147483647;white-space:nowrap;';
-        document.body.appendChild(instructions);
-        
-        var cursorStyle = document.createElement('style');
-        cursorStyle.id = 'ublock-zapper-cursor-style';
-        cursorStyle.textContent = '* { cursor: default !important; } #ublock-zapper-close { cursor: pointer !important; }';
-        document.head.appendChild(cursorStyle);
-        
-        var zapperActive = true;
-        
-        function closeZapper() {
-            console.log('[Zapper] closeZapper called');
-            zapperActive = false;
-            var overlay = document.getElementById('ublock-zapper-overlay');
-            if (overlay) overlay.remove();
-            var highlight = document.getElementById('ublock-zapper-highlight');
-            if (highlight) highlight.remove();
-            var closeBtn = document.getElementById('ublock-zapper-close');
-            if (closeBtn) closeBtn.remove();
-            var instructions = document.getElementById('ublock-zapper-instructions');
-            if (instructions) instructions.remove();
-            var cursorStyle = document.getElementById('ublock-zapper-cursor-style');
-            if (cursorStyle) cursorStyle.remove();
-            console.log('[Zapper] closeZapper complete');
-        }
-        
-        closeBtn.onclick = function(e) {
-            console.log('[Zapper] close button onclick');
-            e.preventDefault();
-            e.stopPropagation();
-            closeZapper();
-        };
-        
-        document.addEventListener('keydown', function(e) {
-            if (!zapperActive) return;
-            if (e.key === 'Escape') {
-                console.log('[Zapper] Escape pressed');
-                closeZapper();
-                return;
-            }
-            e.preventDefault();
-            e.stopPropagation();
-        }, true);
-        
-        document.addEventListener('click', function(e) {
-            if (!zapperActive) return;
-            if (e.target.id === 'ublock-zapper-close' || 
-                e.target.closest('#ublock-zapper-close') ||
-                e.target.id === 'ublock-zapper-instructions' ||
-                e.target.closest('#ublock-zapper-instructions')) {
-                return;
-            }
-            e.preventDefault();
-            e.stopPropagation();
-        }, true);
-        
-        document.addEventListener('contextmenu', function(e) {
-            if (!zapperActive) return;
-            e.preventDefault();
-            e.stopPropagation();
-        }, true);
-        
-        document.addEventListener('submit', function(e) {
-            if (!zapperActive) return;
-            e.preventDefault();
-            e.stopPropagation();
-        }, true);
-        
-        document.addEventListener('mousemove', function(e) {
-            overlay.style.pointerEvents = 'none';
-            var elem = document.elementFromPoint(e.clientX, e.clientY);
-            overlay.style.pointerEvents = 'auto';
-            
-            if (elem !== lastElem) {
-                lastElem = elem;
-                if (elem && elem.tagName && 
-                    elem.id !== 'ublock-zapper-close' && 
-                    elem.id !== 'ublock-zapper-overlay' && 
-                    elem.id !== 'ublock-zapper-instructions' &&
-                    !elem.closest('#ublock-zapper-close') &&
-                    !elem.closest('#ublock-zapper-instructions')) {
-                    var rect = elem.getBoundingClientRect();
-                    if (rect.width > 0 && rect.height > 0) {
-                        highlight.style.display = 'block';
-                        highlight.style.left = rect.left + 'px';
-                        highlight.style.top = rect.top + 'px';
-                        highlight.style.width = rect.width + 'px';
-                        highlight.style.height = rect.height + 'px';
-                    }
-                } else {
-                    highlight.style.display = 'none';
-                }
-            }
-        }, { passive: true });
-        
-        console.log('[Zapper] Page script loaded');
-    })();
-    
-    console.log('[Zapper] Created');
+/******************************************************************************/
+
+const gotoPick = function() {
+    messaging.send('popupPanel', {
+        what: 'launchElementPicker',
+        tabId: popupData.tabId,
+    }).then(() => {
+        console.log('[DEBUG] launchElementPicker message sent');
+    }).catch(err => {
+        console.error('[DEBUG] launchElementPicker message failed:', err);
+    });
+
+    setTimeout(() => {
+        vAPI.closePopup();
+    }, 200);
 };
 const scopeToSrcHostnameMap = {
     '/': '*',
@@ -1045,46 +925,6 @@ const toggleNetFilteringSwitch = function(ev) {
     });
     renderTooltips('#switch');
     hashFromPopupData();
-};
-
-/******************************************************************************/
-
-const gotoZap = function() {
-    console.log('[DEBUG] gotoZap called - launching full epicker in zap mode');
-    messaging.send('popupPanel', {
-        what: 'launchElementPicker',
-        tabId: popupData.tabId,
-        zap: true  // Set zap mode to true
-    }).then(() => {
-        console.log('[DEBUG] launchElementPicker (zap mode) message sent');
-    }).catch((err) => {
-        console.error('[DEBUG] launchElementPicker message failed:', err);
-    });
-    setTimeout(() => {
-        vAPI.closePopup();
-    }, 200);
-};
-
-/******************************************************************************/
-
-const gotoPick = function() {
-    console.log('[DEBUG] gotoPick called - tabId:', popupData.tabId);
-    
-    // Send message first, then capture position, then close
-    // The message is asynchronous so we need to wait a bit for it to reach background
-    messaging.send('popupPanel', {
-        what: 'launchElementPicker',
-        tabId: popupData.tabId,
-    }).then(() => {
-        console.log('[DEBUG] launchElementPicker message sent');
-    }).catch(err => {
-        console.error('[DEBUG] launchElementPicker message failed:', err);
-    });
-
-    // Delay closing popup to allow mouse position to be captured
-    setTimeout(() => {
-        vAPI.closePopup();
-    }, 200);
 };
 
 /******************************************************************************/

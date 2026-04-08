@@ -100,7 +100,7 @@ body.off #switch {
     flex-grow: 1;
     font-size: 2.2em;
     padding: 0;
-    visibility: hidden;
+    visibility: visible !important;
     }
 .rulesetTools [id]:not(:first-of-type) {
     margin-block-start: 1px;
@@ -108,10 +108,6 @@ body.off #switch {
 .rulesetTools [id] > svg {
     fill: var(--ink-4);
     }
-body.needReload #refresh,
-body.needSave #saveRules,
-body.needSave #revertRules {
-    visibility: visible;
     }
 #hostname {
     background-color: var(--popup-toolbar-surface);
@@ -260,6 +256,16 @@ body.needSave #revertRules {
     }
 #unprocessedRequestWarning > .dismiss > svg {
     width: 100%;
+    }
+#userScriptsWarning {
+    background-color: #fc0;
+    color: rgb(var(--ink-80));
+    display: none;
+    font-size: var(--font-size-smaller);
+    padding: var(--popup-gap-thin);
+    }
+body.needUserScripts #userScriptsWarning {
+    display: block;
     }
 
 #moreOrLess {
