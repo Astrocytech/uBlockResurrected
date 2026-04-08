@@ -75,7 +75,6 @@ npx playwright test --trace on
 - QUIT button click
 - State cleanup
 - Dual handler verification (content script + iframe backup)
-- PICK button (clear highlight)
 
 ### Scroll Lock Tests (`scroll-lock.spec.ts`)
 - Fixed position detection

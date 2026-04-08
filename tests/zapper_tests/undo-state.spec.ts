@@ -13,7 +13,6 @@ test.describe('Zapper Undo State', () => {
             <html>
             <body>
                 <div id="quit"></div>
-                <div id="pick"></div>
                 <div id="undo" aria-disabled="true"></div>
                 <span id="removeCount">0</span>
                 <svg id="overlay"><path></path><path></path></svg>

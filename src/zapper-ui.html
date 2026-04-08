@@ -13,20 +13,10 @@
             <div id="move"></div>
         </div>
         <div id="quit" title="Close (ESC)">
-            <svg viewBox="0 0 64 64">
-                <path d="M16 16L48 48M48 16L16 48"/>
-            </svg>
-        </div>
-        <div id="pick" title="Pick element">
-            <svg viewBox="0 0 64 64">
-                <circle cx="32" cy="32" r="20"/>
-            </svg>
+            <span class="fa-icon">times</span>
         </div>
         <div id="undo" title="Undo (Ctrl+Z)" aria-disabled="true">
-            <svg viewBox="0 0 64 64">
-                <path d="M12 32C12 18 22 8 38 8L50 8"/>
-                <path d="M12 32L20 24M12 32L20 40"/>
-            </svg>
+            <span class="fa-icon">undo</span>
         </div>
         <span id="removeCount" title="Elements removed">0</span>
     </aside>
@@ -38,6 +28,7 @@
 
     <div id="tooltip"></div>
 
+    <script src="/js/fa-icons-bundle.js"></script>
     <script src="/js/scripting/zapper-ui.js"></script>
 </body>
 </html>

@@ -22,7 +22,6 @@ export interface ZapperState {
 export const ZAPPER_SELECTORS = {
     zapperFrame: '#ubol-zapper-frame, [data-ubol-overlay]',
     quitButton: '#quit',
-    pickButton: '#pick',
     undoButton: '#undo',
     overlaySvg: 'svg#overlay',
     overlayPath: 'svg#overlay path',
@@ -114,8 +113,17 @@ export class ZapperTestHelper {
                 document.head.appendChild(css);
             }
             
-            // Check if overlay already exists
-            if ((window as any).ubolOverlay) {
+            // Recreate frame if it doesn't exist (after stop)
+            if (!document.getElementById('ubol-zapper-frame')) {
+                const frame = document.createElement('iframe');
+                frame.id = 'ubol-zapper-frame';
+                frame.setAttribute('data-ubol-overlay', '');
+                frame.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:2147483647;background:transparent;';
+                document.body.appendChild(frame);
+            }
+            
+            // Check if overlay already exists with frame
+            if ((window as any).ubolOverlay && (window as any).ubolOverlay.frame) {
                 return;
             }
             
@@ -205,7 +213,7 @@ export class ZapperTestHelper {
                         const css = document.createElement('style');
                         css.id = 'zapper-ui-css';
                         css.textContent = `
-                            #quit, #pick, #undo {
+                            #quit, #undo {
                                 position: fixed;
                                 padding: 8px 16px;
                                 border: 2px solid yellow;
@@ -218,7 +226,6 @@ export class ZapperTestHelper {
                                 user-select: none;
                             }
                             #quit { bottom: 10px; right: 10px; }
-                            #pick { bottom: 10px; left: 10px; }
                             #undo { bottom: 50px; left: 10px; }
                             #tooltip {
                                 position: fixed;
@@ -250,12 +257,6 @@ export class ZapperTestHelper {
                         quit.textContent = 'QUIT';
                         quit.style.cssText = 'position:fixed;bottom:10px;right:10px;padding:8px 16px;background:rgba(0,0,0,0.8);color:yellow;border:2px solid yellow;cursor:pointer;z-index:2147483647;';
                         document.body.appendChild(quit);
-                        
-                        const pick = document.createElement('button');
-                        pick.id = 'pick';
-                        pick.textContent = 'PICK';
-                        pick.style.cssText = 'position:fixed;bottom:10px;left:10px;padding:8px 16px;background:rgba(0,0,0,0.8);color:yellow;border:2px solid yellow;cursor:pointer;z-index:2147483647;';
-                        document.body.appendChild(pick);
                         
                         const undo = document.createElement('button');
                         undo.id = 'undo';
@@ -309,26 +310,28 @@ export class ZapperTestHelper {
                     if (this.frame) this.frame.remove();
                     document.getElementById('overlay')?.remove();
                     document.getElementById('quit')?.remove();
-                    document.getElementById('pick')?.remove();
                     document.getElementById('undo')?.remove();
                     document.getElementById('tooltip')?.remove();
                     document.getElementById('removeCount')?.remove();
-                    // Reset for potential re-activation
+                    // Reset for potential re-activation (but keep ubolOverlay reference)
                     this.frame = null;
                     this.port = null;
                     this.onmessage = null;
                     this.highlightedElements = [];
-                    // Remove from window to allow re-creation
-                    (window as any).ubolOverlay = null;
-                    // Preserve undo stack for potential restoration
-                    // (window as any).zapperUndoStack = null;
+                    // Don't remove ubolOverlay from window - we need it for re-activation
                 }
             };
             
             (window as any).ubolOverlay = ubolOverlay;
             
             const undoStack: Array<{elem: Element, parent: Node, nextSibling: Node | null}> = [];
-            (window as any).zapperUndoStack = undoStack;
+            if (!(window as any).zapperUndoStack) {
+                (window as any).zapperUndoStack = undoStack;
+            }
+            
+            function syncStackToWindow() {
+                (window as any).zapperUndoStack = undoStack.slice();
+            }
             
             const overlay = ubolOverlay;
             
@@ -355,31 +358,52 @@ export class ZapperTestHelper {
                 undoStack.push({elem: elemToRemove, parent: elemToRemove.parentNode, nextSibling: elemToRemove.nextSibling});
                 elemToRemove.remove();
                 overlay.highlightElements([]);
+                syncStackToWindow();
                 if (overlay.port) {
                     overlay.port.postMessage({what: 'updateCount', count: undoStack.length});
                 }
             }
             
             function undoLastRemoval() {
-                if (undoStack.length === 0) return;
-                const item = undoStack.pop()!;
+                const stack = (window as any).zapperUndoStack;
+                if (!stack || stack.length === 0) return;
+                const item = stack.pop()!;
                 if (item.nextSibling) item.parent.insertBefore(item.elem, item.nextSibling);
                 else item.parent.appendChild(item.elem);
-                if (overlay.port) overlay.port.postMessage({what: 'updateCount', count: undoStack.length});
+                syncStackToWindow();
+                if (overlay.port) {
+                    overlay.port.postMessage({what: 'updateCount', count: stack.length});
+                }
+            }
+            
+            function clearUndoStack() {
+                undoStack.length = 0;
+                syncStackToWindow();
             }
             
             (window as any).zapperMessageHandler = (msg: any) => {
                 switch (msg.what) {
-                    case 'startTool': break;
+                    case 'startTool': 
+                        if (!(window as any).zapperUndoStack) {
+                            (window as any).zapperUndoStack = undoStack;
+                        }
+                        break;
                     case 'quitTool': overlay.stop(); break;
                     case 'zapElementAtPoint': zapElementAtPoint(msg.mx, msg.my, msg.options); break;
                     case 'unhighlight': overlay.highlightElements([]); break;
                     case 'highlightElementAtPoint': highlightAtPoint(msg.mx, msg.my); break;
                     case 'undoLastRemoval': undoLastRemoval(); break;
+                    case 'getStackCount':
+                        if (overlay.port) {
+                            overlay.port.postMessage({ what: 'updateCount', count: (window as any).zapperUndoStack?.length || 0 });
+                        }
+                        break;
                 }
             };
             
             (window as any).zapperUndoLastRemoval = undoLastRemoval;
+            (window as any).zapperClearUndoStack = clearUndoStack;
+            (window as any).zapperClearUndoStack = clearUndoStack;
             
             // Add keyboard event handler for Delete/Backspace and ESC
             document.addEventListener('keydown', (e) => {
@@ -392,17 +416,13 @@ export class ZapperTestHelper {
                 }
             });
             
-            // Handle button clicks (QUIT, PICK, UNDO) from the main page
+            // Handle button clicks (QUIT, UNDO) from the main page
             // These buttons are in the iframe but we handle clicks from the main context
             const handleButtonClick = (buttonId: string) => {
                 switch (buttonId) {
                     case 'quit':
                         if (overlay.port) overlay.port.postMessage({ what: 'quitTool' });
                         overlay.stop();
-                        break;
-                    case 'pick':
-                        overlay.highlightElements([]);
-                        if (overlay.port) overlay.port.postMessage({ what: 'unhighlight' });
                         break;
                     case 'undo':
                         undoLastRemoval();
@@ -413,7 +433,7 @@ export class ZapperTestHelper {
             
             document.addEventListener('click', (e) => {
                 const target = e.target as Element;
-                if (target.id === 'quit' || target.id === 'pick' || target.id === 'undo') {
+                if (target.id === 'quit' || target.id === 'undo') {
                     handleButtonClick(target.id);
                 }
             });
@@ -489,7 +509,11 @@ export class ZapperTestHelper {
             const y = box.y + box.height / 2;
             await this.page.evaluate(({cx, cy}) => {
                 const overlay = (window as any).ubolOverlay;
-                const undoStack = (window as any).zapperUndoStack;
+                let undoStack = (window as any).zapperUndoStack;
+                if (!undoStack) {
+                    undoStack = [];
+                    (window as any).zapperUndoStack = undoStack;
+                }
                 
                 if (!overlay || !overlay.frame) {
                     // Frame not initialized, try direct approach

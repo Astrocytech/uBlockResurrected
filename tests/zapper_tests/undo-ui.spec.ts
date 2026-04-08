@@ -13,7 +13,6 @@ test.describe('Zapper Undo UI', () => {
             <html>
             <body>
                 <div id="quit"></div>
-                <div id="pick"></div>
                 <div id="undo"></div>
                 <span id="removeCount">0</span>
                 <svg id="overlay"><path></path><path></path></svg>

@@ -19,12 +19,23 @@
     if ( !ubolOverlay ) { return; }
     if ( ubolOverlay.file === '/zapper-ui.html' ) { return; }
 
+    var MAX_UNDO_STACK = 1000;
+
     var undoStack = [];
     var messageId = 0;
+
+    if ( !self.zapperUndoStack ) {
+        self.zapperUndoStack = [];
+    }
+
+    function syncStackToWindow() {
+        self.zapperUndoStack = undoStack.slice(-MAX_UNDO_STACK);
+    }
 
     function onMessage(msg) {
         switch ( msg.what ) {
         case 'startTool':
+            undoStack = self.zapperUndoStack || [];
             break;
         case 'quitTool':
             quitZapper();
@@ -40,6 +51,14 @@
             break;
         case 'undoLastRemoval':
             undoLastRemoval();
+            break;
+        case 'getStackCount':
+            if ( ubolOverlay.port ) {
+                ubolOverlay.port.postMessage({
+                    what: 'updateCount',
+                    count: undoStack.length
+                });
+            }
             break;
         }
     }
@@ -81,6 +100,7 @@
         handleScrollLock(elemToRemove);
         elemToRemove.remove();
         ubolOverlay.highlightElements([]);
+        syncStackToWindow();
         updateRemovalCount();
     }
 
@@ -131,6 +151,7 @@
             item.parent.appendChild(item.elem);
         }
 
+        syncStackToWindow();
         updateRemovalCount();
     }
 
@@ -144,9 +165,16 @@
     }
 
     function quitZapper() {
-        undoStack.length = 0;
+        syncStackToWindow();
         ubolOverlay.stop();
     }
+
+    function clearUndoStack() {
+        undoStack.length = 0;
+        self.zapperUndoStack = [];
+    }
+
+    self.zapperClearUndoStack = clearUndoStack;
 
     ubolOverlay.install('/zapper-ui.html', onMessage);
 

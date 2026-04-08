@@ -209,6 +209,10 @@
     }
 
     function startZapper() {
+        if ( typeof faIconsInit === 'function' ) {
+            faIconsInit();
+        }
+        
         if ( toolOverlay.port ) {
             toolOverlay.port.postMessage({ what: 'startTool' });
         }
@@ -227,15 +231,6 @@
             quitBtn.addEventListener('click', quitZapper);
         }
         
-        var pickBtn = document.getElementById('pick');
-        if ( pickBtn ) {
-            pickBtn.addEventListener('click', function() {
-                if ( toolOverlay.port ) {
-                    toolOverlay.port.postMessage({ what: 'unhighlight' });
-                }
-            });
-        }
-
         var undoBtn = document.getElementById('undo');
         if ( undoBtn ) {
             undoBtn.addEventListener('click', function() {
@@ -247,6 +242,11 @@
         }
         
         toolOverlay.updateCount(0);
+        
+        if ( toolOverlay.port ) {
+            toolOverlay.port.postMessage({ what: 'getStackCount' });
+        }
+        
         toolOverlay.highlightElementUnderMouse(true);
     }
 

@@ -369,54 +369,6 @@ test.describe('Zapper Close', () => {
         });
     });
 
-    test.describe('PICK Button (Clear Highlight)', () => {
-        test('should clear highlight when PICK button is clicked', async () => {
-            // First highlight an element
-            await helper.hoverOver(ZAPPER_SELECTORS.simpleDiv);
-
-            let state = await helper.getZapperState();
-            expect(state.highlightedElement).toBe('simple-div');
-
-            // Click PICK button
-            await page.click(ZAPPER_SELECTORS.pickButton);
-
-            state = await helper.getZapperState();
-            expect(state.highlightedElement).toBeNull();
-        });
-
-        test('should not close zapper on PICK click', async () => {
-            await page.click(ZAPPER_SELECTORS.pickButton);
-
-            const state = await helper.getZapperState();
-            // Zapper should still be active
-            expect(state.isActive).toBe(true);
-        });
-
-        test('should send unhighlight message on PICK', async () => {
-            // Track messages
-            await page.evaluate(() => {
-                (window as any).unhighlightMessages = [];
-                const port = (window as any).ubolOverlay?.port;
-                if (port) {
-                    const originalPostMessage = port.postMessage.bind(port);
-                    port.postMessage = (msg: any) => {
-                        if (msg.what === 'unhighlight') {
-                            (window as any).unhighlightMessages.push(msg);
-                        }
-                        originalPostMessage(msg);
-                    };
-                }
-            });
-
-            await page.click(ZAPPER_SELECTORS.pickButton);
-
-            const messages = await page.evaluate(() => {
-                return (window as any).unhighlightMessages || [];
-            });
-
-            expect(messages.length).toBeGreaterThan(0);
-        });
-    });
 });
 
 export { test };
