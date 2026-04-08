@@ -54,9 +54,14 @@
     }
 
 .fa-icon > svg {
+    fill: currentColor;
     height: 1em;
     overflow: visible;
     width: 1em;
+    }
+.fa-icon > svg > path,
+.fa-icon > svg > use {
+    fill: inherit;
     }
 
 .fa-icon > .fa-icon_bar-chart {

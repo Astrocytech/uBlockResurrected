@@ -30,40 +30,46 @@ export const benchmarkCosmeticFiltering = async () => ({ error: 'Benchmarks disa
 export const benchmarkScriptletFiltering = async () => ({ error: 'Benchmarks disabled' });
 BENCHMARKEOF
 
+# Bundle fa-icons.ts first (needed for icon rendering)
+echo "*** Bundling fa-icons.ts"
+npx esbuild fa-icons.ts --bundle --format=iife --outfile=fa-icons-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1
+
 # Bundle popup-fenix.ts (has imports from ../lib/punycode.js and ./dom.js, ./i18n.js)
-cat popup-fenix.ts fa-icons.ts > popup-fenix-with-icons.ts
-esbuild popup-fenix-with-icons.ts --bundle --format=iife --outfile=popup-fenix-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
-rm -f popup-fenix-with-icons.ts
+echo "*** Bundling popup-fenix.ts"
+npx esbuild popup-fenix.ts --bundle --format=iife --outfile=popup-fenix-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1
 
 # Bundle epicker-ui.ts
-esbuild epicker-ui.ts --bundle --format=iife --outfile=epicker-ui-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild epicker-ui.ts --bundle --format=iife --outfile=epicker-ui-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
+# Bundle webext-flavor.ts
+npx esbuild webext-flavor.ts --bundle --format=iife --outfile=webext-flavor.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle theme.ts
-esbuild theme.ts --bundle --format=iife --outfile=theme-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild theme.ts --bundle --format=iife --outfile=theme-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle i18n.ts
-esbuild i18n.ts --bundle --format=iife --outfile=i18n-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild i18n.ts --bundle --format=iife --outfile=i18n-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle storage.ts
-esbuild storage.ts --bundle --format=iife --outfile=storage-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild storage.ts --bundle --format=iife --outfile=storage-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle messaging.ts (external flag doesn't work for dynamic imports, use --bundle false)
-esbuild messaging.ts --bundle --format=iife --outfile=messaging-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild messaging.ts --bundle --format=iife --outfile=messaging-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle uri-utils.ts
-esbuild uri-utils.ts --bundle --format=iife --outfile=uri-utils-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild uri-utils.ts --bundle --format=iife --outfile=uri-utils-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle hnswitches.ts
-esbuild hnswitches.ts --bundle --format=iife --outfile=hnswitches-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild hnswitches.ts --bundle --format=iife --outfile=hnswitches-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle dynamic-net-filtering.ts
-esbuild dynamic-net-filtering.ts --bundle --format=iife --outfile=dynamic-net-filtering-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild dynamic-net-filtering.ts --bundle --format=iife --outfile=dynamic-net-filtering-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 cd - > /dev/null
 
 # Update popup-fenix.html to use bundled JS
 echo "*** uBlock0.chromium-mv3: Updating popup-fenix.html"
-sed -i 's|<script src="js/popup-fenix.js" type="module"></script>|<script src="js/popup-fenix-bundle.js"></script>|' $DES/popup-fenix.html
+sed -i 's|<script src="js/popup-fenix.js" type="module"></script>|<script src="js/fa-icons-bundle.js"></script>\n<script src="js/popup-fenix-bundle.js"></script>|' $DES/popup-fenix.html
 sed -i 's|<script src="js/fa-icons.js" type="module"></script>||' $DES/popup-fenix.html
 sed -i 's|<script src="js/theme.js" type="module"></script>|<script src="js/theme-bundle.js"></script>|' $DES/popup-fenix.html
 sed -i 's|<script src="js/i18n.js" type="module"></script>|<script src="js/i18n-bundle.js"></script>|' $DES/popup-fenix.html
@@ -143,7 +149,7 @@ node tools/bundle-sw.js
 # Bundle epicker modules
 echo "*** uBlock0.chromium-mv3: Bundling epicker modules"
 cd src/js
-esbuild epicker/epicker-entry.ts \
+npx esbuild epicker/epicker-entry.ts \
     --bundle \
     --format=iife \
     --outfile=../../$DES/js/scriptlets/epicker.js \
@@ -153,7 +159,7 @@ esbuild epicker/epicker-entry.ts \
     --allow-overwrite 2>&1 || true
 
 # Bundle subscriber.js for filter subscription handling
-esbuild scriptlets/subscriber.ts \
+npx esbuild scriptlets/subscriber.ts \
     --bundle \
     --format=iife \
     --outfile=../../$DES/js/scriptlets/subscriber.js \
@@ -163,7 +169,7 @@ esbuild scriptlets/subscriber.ts \
     --allow-overwrite 2>&1 || true
 
 # Bundle updater.js for list update handling
-esbuild scriptlets/updater.ts \
+npx esbuild scriptlets/updater.ts \
     --bundle \
     --format=iife \
     --outfile=../../$DES/js/scriptlets/updater.js \
@@ -176,7 +182,7 @@ cd - > /dev/null
 # Bundle content script modules
 echo "*** uBlock0.chromium-mv3: Bundling content script modules"
 cd src/js
-esbuild contentscript/contentscript-entry.ts \
+npx esbuild contentscript/contentscript-entry.ts \
     --bundle \
     --format=iife \
     --outfile=../../$DES/js/contentscript.js \

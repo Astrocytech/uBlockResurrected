@@ -193,14 +193,20 @@ portrait #basicStats > [data-i18n] + span {
     padding: var(--popup-gap)
              var(--popup-gap-thin);
     unicode-bidi: embed;
-    visibility: hidden;
+    visibility: visible !important;
     }
 .toolRibbon .tool:hover {
     color: var(--ink-1);
         fill: var(--ink-1);
     }
-.toolRibbon .tool.enabled {
-    visibility: visible;
+.toolRibbon .tool .fa-icon {
+    visibility: visible !important;
+    color: var(--ink-1);
+    fill: var(--ink-1);
+    }
+.toolRibbon .tool .fa-icon svg {
+    fill: var(--ink-1) !important;
+    visibility: visible !important;
     }
 .toolRibbon .tool .caption {
     font: 10px/12px sans-serif;
@@ -212,7 +218,10 @@ portrait #basicStats > [data-i18n] + span {
     }
 
 #basicTools .needPick:not(.canPick) {
-    visibility: hidden;
+    visibility: visible !important;
+    }
+#basicTools .needPick .fa-icon {
+    visibility: visible !important;
     }
 
 #extraTools .fa-icon {

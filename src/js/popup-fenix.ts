@@ -417,6 +417,9 @@ const updateAllFirewallCells = function(doRules = true, doCounts = true) {
     let a3pScript = 0, b3pScript = 0;
     let a3pFrame = 0, b3pFrame = 0;
 
+    if ( popupData.firewallRules === undefined ) { return; }
+    if ( popupData.hostnameDict === undefined ) { return; }
+
     for ( const row of rows ) {
         const des = dom.attr(row, 'data-des');
         const type = dom.attr(row, 'data-type');
@@ -1174,7 +1177,7 @@ const computedSections = ( ) =>
 
 const sectionBitsFromAttribute = function() {
     const attr = document.body.dataset.more;
-    if ( attr === '' ) { return 0; }
+    if ( attr === '' || attr === undefined || attr === null ) { return 0; }
     let bits = 0;
     for ( const c of attr ) {
         bits |= 1 << (c.charCodeAt(0) - 97);

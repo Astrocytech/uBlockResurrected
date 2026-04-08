@@ -69,9 +69,11 @@ var vAPI = self.vAPI; // jshint ignore:line
 // 2. Either vAPI doesn't exist yet OR it exists but doesn't have uBO: true flag
 if (
     (
-        document instanceof HTMLDocument ||
-        document instanceof XMLDocument &&
-        document.createElement('div') instanceof HTMLDivElement
+        typeof document !== 'undefined' &&
+        (
+            document instanceof HTMLDocument ||
+            (document instanceof XMLDocument && document.createElement('div') instanceof HTMLDivElement)
+        )
     ) &&
     (
         /^image\/|^text\/plain/.test(document.contentType || '') === false

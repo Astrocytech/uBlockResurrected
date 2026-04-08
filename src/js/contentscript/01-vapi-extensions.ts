@@ -20,6 +20,8 @@ interface VAPI {
 
 declare const vAPI: VAPI;
 
+if ( typeof vAPI !== 'undefined' ) {
+
 /******************************************************************************/
 
 {
@@ -132,3 +134,5 @@ vAPI.SafeAnimationFrame = class SafeAnimationFrame {
 };
 
 /******************************************************************************/
+
+} // end if (typeof vAPI !== 'undefined')
