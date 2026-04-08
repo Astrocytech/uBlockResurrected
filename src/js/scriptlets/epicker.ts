@@ -235,6 +235,7 @@ let pickerFrame: HTMLIFrameElement | null = null;
 let pickerFramePort: browser.runtime.Port | null = null;
 
 const highlightElements = function(elems: Element[], force?: boolean): void {
+    console.log('[EPICKER] highlightElements called with', elems ? elems.length : 0, 'elements, force:', force);
     debugLog('epicker', 'highlightElements START - elems:', elems ? elems.length : 0, 'force:', force);
     
     if (
@@ -252,6 +253,7 @@ const highlightElements = function(elems: Element[], force?: boolean): void {
     const ow = pageWin.innerWidth;
     const oh = pageWin.innerHeight;
     
+    console.log('[EPICKER] highlightElements viewport:', ow, oh);
     debugLog('epicker', 'highlightElements: viewport', ow, oh);
     
     const islands: string[] = [];
@@ -1127,6 +1129,7 @@ const elementFromPoint = (function() {
 /******************************************************************************/
 
 const highlightElementAtPoint = function(mx: number, my: number): void {
+    console.log('[EPICKER] highlightElementAtPoint:', mx, my);
     debugLog('epicker', 'highlightElementAtPoint START - page coords:', mx, my);
     
     const x = mx;
@@ -1135,6 +1138,7 @@ const highlightElementAtPoint = function(mx: number, my: number): void {
     debugLog('epicker', 'Using page coords:', x, y);
     
     const elem = elementFromPoint(x, y);
+    console.log('[EPICKER] elementFromPoint result:', elem ? elem.tagName + '#' + elem.id + '.' + elem.className : 'null');
     debugLog('epicker', 'elementFromPoint result:', elem ? elem.tagName : 'null');
     
     debugLog('epicker', 'Calling highlightElements');
@@ -1146,8 +1150,11 @@ const highlightElementAtPoint = function(mx: number, my: number): void {
 /******************************************************************************/
 
 const filterElementAtPoint = function(mx: number, my: number, broad?: boolean): void {
+    console.log('[EPICKER] filterElementAtPoint:', mx, my, 'broad:', broad);
     debugLog('epicker', 'filterElementAtPoint page coords:', mx, my);
-    if ( filtersFrom(mx, my) === 0 ) { return; }
+    const count = filtersFrom(mx, my);
+    console.log('[EPICKER] filtersFrom returned:', count, 'netFilters:', netFilterCandidates.length, 'cosmeticFilters:', cosmeticFilterCandidates.length);
+    if ( count === 0 ) { return; }
     showDialog({ broad });
 };
 
@@ -1377,6 +1384,7 @@ type DialogMessage =
     | { what: 'togglePreview'; state: boolean };
 
 const onDialogMessage = function(msg: DialogMessage): void {
+    console.log('[EPICKER] Message received:', msg.what, 'mx:', (msg as { mx?: number }).mx, 'my:', (msg as { my?: number }).my);
     switch ( msg.what ) {
     case 'getLog':
         if (pickerFramePort) {

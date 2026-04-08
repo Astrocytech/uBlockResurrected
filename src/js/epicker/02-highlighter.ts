@@ -28,11 +28,13 @@ let pickerFrame: HTMLElement | null;
 let pickerFramePort: MessagePort | null;
 
 const highlightElements = function(elems: Element[], force?: boolean): void {
+    console.log('[EPICKER] highlightElements called with', elems ? elems.length : 0, 'elements, force:', force);
     if (
         (force !== true) &&
         (elems.length === epickerState.targetElements.length) &&
         (elems.length === 0 || elems[0] === epickerState.targetElements[0])
     ) {
+        console.log('[EPICKER] highlightElements: skipping (no change)');
         return;
     }
     epickerState.targetElements = [];
@@ -41,6 +43,8 @@ const highlightElements = function(elems: Element[], force?: boolean): void {
     const pageWin = pageDoc.defaultView || window;
     const ow = pageWin.innerWidth;
     const oh = pageWin.innerHeight;
+
+    console.log('[EPICKER] highlightElements viewport:', ow, oh);
 
     const islands: string[] = [];
 
@@ -62,9 +66,13 @@ const highlightElements = function(elems: Element[], force?: boolean): void {
 
         const path = `M${rect.left} ${rect.top}h${rect.width}v${rect.height}h-${rect.width}z`;
         islands.push(path);
+        console.log('[EPICKER] Added island path:', path);
     }
 
+    console.log('[EPICKER] highlightElements: islands count:', islands.length);
+
     if (!pickerFramePort) {
+        console.log('[EPICKER] highlightElements: pickerFramePort is null!');
         return;
     }
 
@@ -73,6 +81,7 @@ const highlightElements = function(elems: Element[], force?: boolean): void {
         ocean: `M0 0h${ow}v${oh}h-${ow}z`,
         islands: islands.join(''),
     });
+    console.log('[EPICKER] highlightElements: sent svgPaths message');
 };
 
 export function initHighlighter(state: EpickerState, deps: EpickerDeps): void {

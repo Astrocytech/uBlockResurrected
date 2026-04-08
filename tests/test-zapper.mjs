@@ -1,7 +1,7 @@
 import { chromium } from 'playwright';
 import { mkdirSync } from 'fs';
 
-const EXTENSION_PATH = '/home/coka/Desktop/ASTROCYTECH/git_project/uBlockResurrected/dist/build/uBlock0.chromium-mv3';
+const EXTENSION_PATH = '/home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/dist/build/uBlock0.chromium-mv3';
 const TEST_URL = 'https://example.com';
 
 function sleep(ms) {

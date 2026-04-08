@@ -59,6 +59,7 @@ const getElementBoundingClientRect = function(elem: Element): DOMRect {
 };
 
 const getPageDocument = function(): Document {
+    console.log('[EPICKER] getPageDocument: self.document.URL:', self.document.URL.substring(0, 80));
     return self.document;
 };
 

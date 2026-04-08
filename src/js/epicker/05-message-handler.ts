@@ -86,6 +86,7 @@ interface DialogMessage {
 }
 
 const onDialogMessage = function(msg: DialogMessage): void {
+    console.log('[EPICKER] onDialogMessage:', msg.what, 'mx:', msg.mx, 'my:', msg.my);
     switch ( msg.what ) {
     case 'getLog':
         if (pickerFramePort) {
@@ -96,6 +97,7 @@ const onDialogMessage = function(msg: DialogMessage): void {
         }
         break;
     case 'start':
+        console.log('[EPICKER] handling start');
         startPicker();
         if ( pickerFramePort === null ) { break; }
         if ( epickerState.targetElements.length === 0 ) {

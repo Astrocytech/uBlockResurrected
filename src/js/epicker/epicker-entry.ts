@@ -166,10 +166,21 @@ const bootstrap = async (): Promise<HTMLElement | undefined> => {
             'pointer-events: auto'
         ].join(' !important; ');
 
+        iframe.src = url.href;
         document.documentElement.appendChild(iframe);
 
         iframe.addEventListener('load', () => {
             iframe.setAttribute(`${epickerState.pickerUniqueId}-loaded`, '');
+
+            let isAboutBlank = false;
+            try {
+                isAboutBlank = iframe.contentWindow && iframe.contentWindow.location.href === 'about:blank';
+            } catch (e) {
+                // Cross-origin iframe access blocked
+            }
+            if ( isAboutBlank ) {
+                return;
+            }
 
             const channel = new MessageChannel();
             pickerFramePort = channel.port1;
@@ -192,8 +203,6 @@ const bootstrap = async (): Promise<HTMLElement | undefined> => {
 
         iframe.addEventListener('error', () => {
         });
-
-        iframe.contentWindow!.location = url.href;
     });
 };
 

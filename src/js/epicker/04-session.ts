@@ -81,6 +81,8 @@ const elementFromPointFunc = (function() {
             lastX = x; lastY = y;
         }
 
+        const pageDoc = getPageDocument();
+
         let frame: HTMLElement | null = null;
 
         if (pickerFrame) {
@@ -89,7 +91,6 @@ const elementFromPointFunc = (function() {
         }
 
         if ( !frame ) {
-            const pageDoc = getPageDocument();
             const iframes = pageDoc.querySelectorAll('iframe');
             for ( let i = 0; i < iframes.length; i++ ) {
                 const iframe = iframes[i];
@@ -101,35 +102,47 @@ const elementFromPointFunc = (function() {
             }
         }
 
-        if ( !frame ) {
-            const pageDoc = getPageDocument();
+        if ( frame ) {
+            const parent = frame.parentNode;
+            const nextSibling = frame.nextSibling;
+            parent?.removeChild(frame);
             const elem = pageDoc.elementFromPoint(x, y);
-            return elem as Element | null;
+            if ( elem === null ) {
+                parent?.insertBefore(frame, nextSibling);
+                return null;
+            }
+            parent?.insertBefore(frame, nextSibling);
+            
+            console.log('[EPICKER] elementFromPointFunc: frame found, elem:', elem ? elem.tagName : 'null');
+            
+            if ( elem === frame ) { return null; }
+            if ( elem.hasAttribute && elem.hasAttribute(epickerState.pickerUniqueId) ) { return null; }
+
+            const getNoCosmeticFiltering = (): boolean => {
+                if ( epickerState.pickerBootArgs && epickerState.pickerBootArgs.zap === true ) { return false; }
+                return vAPI.domFilterer instanceof Object === false ||
+                       vAPI.noSpecificCosmeticFiltering === true;
+            };
+
+            if (
+                elem === pageDoc.body ||
+                elem === pageDoc.documentElement || (
+                    epickerState.pickerBootArgs.zap !== true &&
+                    getNoCosmeticFiltering() &&
+                    resourceURLsFromElement(elem).length === 0
+                )
+            ) {
+                console.log('[EPICKER] elementFromPointFunc: filtered out');
+                return null;
+            }
+
+            console.log('[EPICKER] elementFromPointFunc: returning:', elem.tagName);
+            return elem;
         }
 
-        const pageDoc = getPageDocument();
-        const magicAttr = epickerState.pickerUniqueId + '-clickblind';
-        frame.setAttribute(magicAttr, '');
+        const elem = pageDoc.elementFromPoint(x, y);
 
-        const oldPointerEvents = frame.style.getPropertyValue('pointer-events');
-        const oldPointerEventsPriority = frame.style.getPropertyPriority('pointer-events');
-        frame.style.setProperty('pointer-events', 'none', 'important');
-
-        const elems = pageDoc.elementsFromPoint(x, y);
-        let elem: Element | null = null;
-        for ( let i = 0; i < elems.length; i++ ) {
-            if ( elems[i] === frame ) { continue; }
-            const e = elems[i] as Element;
-            if ( e.hasAttribute && e.hasAttribute(epickerState.pickerUniqueId) ) { continue; }
-            elem = e;
-            break;
-        }
-
-        if (oldPointerEvents) {
-            frame.style.setProperty('pointer-events', oldPointerEvents, oldPointerEventsPriority);
-        } else {
-            frame.style.removeProperty('pointer-events');
-        }
+        if ( elem === null ) { return null; }
 
         const getNoCosmeticFiltering = (): boolean => {
             if ( epickerState.pickerBootArgs && epickerState.pickerBootArgs.zap === true ) { return false; }
@@ -138,7 +151,6 @@ const elementFromPointFunc = (function() {
         };
 
         if (
-            elem === null ||
             elem === pageDoc.body ||
             elem === pageDoc.documentElement || (
                 epickerState.pickerBootArgs.zap !== true &&
@@ -146,20 +158,25 @@ const elementFromPointFunc = (function() {
                 resourceURLsFromElement(elem).length === 0
             )
         ) {
-            elem = null;
+            return null;
         }
-        frame.removeAttribute(magicAttr);
+
         return elem;
     };
 })();
 
 const highlightElementAtPoint = function(mx: number, my: number): void {
+    console.log('[EPICKER] highlightElementAtPoint:', mx, my);
     const elem = elementFromPointFunc(mx, my);
+    console.log('[EPICKER] elementFromPoint result:', elem ? elem.tagName : 'null');
     highlightElements(elem ? [ elem ] : []);
 };
 
 const filterElementAtPoint = function(mx: number, my: number, broad?: boolean): void {
-    if ( epickerState.filtersFrom(mx, my) === 0 ) { return; }
+    console.log('[EPICKER] filterElementAtPoint:', mx, my);
+    const count = epickerState.filtersFrom(mx, my);
+    console.log('[EPICKER] filtersFrom returned:', count);
+    if ( count === 0 ) { return; }
     showDialog({ broad });
 };
 

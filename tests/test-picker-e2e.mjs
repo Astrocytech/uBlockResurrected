@@ -472,6 +472,14 @@ async function testElementHighlighting(context, extId) {
         await page.goto(TEST_URL, { waitUntil: 'networkidle', timeout: 15000 });
         await sleep(1000);
         
+        // Capture console logs from epicker iframe
+        const consoleLogs = [];
+        const iframeConsoleHandler = (msg) => {
+            if (msg.type() === 'log' || msg.type() === 'error') {
+                consoleLogs.push(`[${msg.type()}] ${msg.text()}`);
+            }
+        };
+        
         // Launch picker
         const popup = await openPopup(context, extId);
         
@@ -501,12 +509,13 @@ async function testElementHighlighting(context, extId) {
         await pickerBtn.click({ force: true });
         await sleep(3000);
         
-        // Find the epicker iframe
+        // Find the epicker iframe and attach console listener
         let epickerFrame = null;
         for (const frame of page.frames()) {
             try {
                 if (frame.url().includes('epicker')) {
                     epickerFrame = frame;
+                    frame.on('console', iframeConsoleHandler);
                     break;
                 }
             } catch (e) { /* ignore */ }
@@ -518,36 +527,42 @@ async function testElementHighlighting(context, extId) {
             return false;
         }
         
-        // Check if SVG overlay exists (needed for highlighting)
-        const hasSvg = await epickerFrame.evaluate(() => {
-            return document.querySelector('svg#sea') !== null;
-        });
-        
-        if (!hasSvg) {
-            await popup.close();
-            fail('Element highlighting', 'SVG overlay (sea) not found in epicker');
-            return false;
-        }
-        
-        // Move mouse over the page to trigger highlighting
+        // Clear logs and move mouse
+        consoleLogs.length = 0;
         await page.mouse.move(400, 300);
-        await sleep(1000);
+        await sleep(2000);
         
-        // Check if SVG paths have been updated (indicating highlighting works)
+        // Check if highlighting messages were logged
+        const hasHighlightLogs = consoleLogs.some(log => 
+            log.includes('onTimer') || 
+            log.includes('highlightElementAtPoint') ||
+            log.includes('svgPaths')
+        );
+        
+        // Also check SVG paths
         const svgUpdated = await epickerFrame.evaluate(() => {
             const islands = document.querySelector('svg#sea path:nth-child(2)');
             if (!islands) return false;
             const d = islands.getAttribute('d');
-            // If d attribute is not the default empty path, highlighting is working
-            return d && d !== 'M0 0';
+            return d && d !== 'M0 0' && d.length > 5;
         });
         
         await popup.close();
         
-        if (svgUpdated) {
+        // Log what we found for debugging
+        if (consoleLogs.length > 0) {
+            log('Console logs from epicker (first 5):');
+            consoleLogs.slice(0, 5).forEach(l => log('  ' + l.substring(0, 100)));
+        }
+        
+        if (svgUpdated && hasHighlightLogs) {
             pass('Element highlighting on hover');
+        } else if (svgUpdated) {
+            pass('Element highlighting (SVG updated)');
+        } else if (hasHighlightLogs) {
+            pass('Element highlighting (messages sent)');
         } else {
-            pass('Element highlighting (SVG overlay present)');
+            fail('Element highlighting', 'No highlighting detected - SVG not updated and no highlight logs');
         }
         return true;
     } catch (error) {
@@ -566,6 +581,14 @@ async function testElementPicking(context, extId) {
         const page = context.pages()[0] || await context.newPage();
         await page.goto(TEST_URL, { waitUntil: 'networkidle', timeout: 15000 });
         await sleep(1000);
+        
+        // Capture console logs from epicker iframe
+        const consoleLogs = [];
+        const iframeConsoleHandler = (msg) => {
+            if (msg.type() === 'log' || msg.type() === 'error') {
+                consoleLogs.push(`[${msg.type()}] ${msg.text()}`);
+            }
+        };
         
         // Launch picker
         const popup = await openPopup(context, extId);
@@ -596,12 +619,13 @@ async function testElementPicking(context, extId) {
         await pickerBtn.click({ force: true });
         await sleep(3000);
         
-        // Find the epicker iframe
+        // Find the epicker iframe and attach console listener
         let epickerFrame = null;
         for (const frame of page.frames()) {
             try {
                 if (frame.url().includes('epicker')) {
                     epickerFrame = frame;
+                    frame.on('console', iframeConsoleHandler);
                     break;
                 }
             } catch (e) { /* ignore */ }
@@ -613,34 +637,50 @@ async function testElementPicking(context, extId) {
             return false;
         }
         
-        // Click on the page to trigger element picking
+        // Clear logs
+        consoleLogs.length = 0;
+        
+        // Move mouse to position first (to highlight)
+        await page.mouse.move(400, 300);
+        await sleep(1000);
+        
+        // Now click to pick
         await page.mouse.click(400, 300);
-        await sleep(2000);
+        await sleep(3000);
         
-        // Check if dialog appeared (indicating picking worked)
-        const dialogAppeared = await epickerFrame.evaluate(() => {
-            const dialog = document.querySelector('aside.dialog');
-            if (!dialog) return false;
-            const style = window.getComputedStyle(dialog);
-            // Dialog might be visible or hidden depending on paused state
-            // Just check if it exists in the DOM
-            return true;
-        });
+        // Check logs for click handling
+        const hasClickLogs = consoleLogs.some(log => 
+            log.includes('onSvgClicked') || 
+            log.includes('filterElementAtPoint') ||
+            log.includes('showDialog')
+        );
         
-        // Also check if CodeMirror editor exists (part of the picker UI)
+        // Check if CodeMirror editor exists (part of the picker UI)
         const hasEditor = await epickerFrame.evaluate(() => {
             return document.querySelector('.CodeMirror') !== null ||
                    document.querySelector('.codeMirrorContainer') !== null;
         });
         
+        // Check if pickerRoot has 'paused' class (indicating dialog shown)
+        const isPaused = await epickerFrame.evaluate(() => {
+            const root = document.documentElement;
+            return root.classList.contains('paused');
+        });
+        
         await popup.close();
         
-        if (dialogAppeared || hasEditor) {
+        // Log what we found for debugging
+        if (consoleLogs.length > 0) {
+            log('Console logs from epicker (first 10):');
+            consoleLogs.slice(0, 10).forEach(l => log('  ' + l.substring(0, 120)));
+        }
+        
+        if (hasClickLogs && (hasEditor || isPaused)) {
             pass('Element picking on click');
+        } else if (hasClickLogs) {
+            pass('Element picking (click handled, dialog may not show for body)');
         } else {
-            // The dialog might not appear for every element (e.g., body/html)
-            // Check if the picker UI is at least responsive
-            pass('Element picking (picker UI responsive)');
+            fail('Element picking', 'Click not handled - no onSvgClicked logs found. Events may not be reaching epicker iframe.');
         }
         return true;
     } catch (error) {

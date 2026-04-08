@@ -44,7 +44,14 @@ import punycode from '../lib/punycode.js';
 
 /******************************************************************************/
 
-if ( typeof vAPI !== 'object' ) { return; }
+console.log('[EPICKER-UI] Script starting...');
+
+if ( typeof vAPI !== 'object' ) { 
+    console.log('[EPICKER-UI] vAPI not found, exiting');
+    return; 
+}
+
+console.log('[EPICKER-UI] vAPI found, continuing');
 
 const $id = id => {
     const el = document.getElementById(id);
@@ -353,6 +360,7 @@ const onCandidatesOptimized = function(details) {
 const onSvgClicked = function(ev) {
     const mx = ev.clientX;
     const my = ev.clientY;
+    console.log('[EPICKER-UI] onSvgClicked at', mx, my, 'zap:', pickerRoot.classList.contains('zap'), 'paused:', pickerRoot.classList.contains('paused'));
     
     if ( pickerRoot.classList.contains('zap') ) {
         pickerPortSend({
@@ -380,6 +388,7 @@ const onSvgClicked = function(ev) {
     if ( ev.type === 'touch' ) {
         pickerRoot.classList.add('show');
     }
+    console.log('[EPICKER-UI] sending filterElementAtPoint');
     pickerPortSend({
         what: 'filterElementAtPoint',
         mx,
@@ -737,7 +746,7 @@ const svgListening = (( ) => {
 
     const onTimer = ( ) => {
         timer = undefined;
-        //debugLog('epicker-ui', 'Sending highlightElementAtPoint:', mx, my);
+        console.log('[EPICKER-UI] onTimer: sending highlightElementAtPoint', mx, my);
         pickerPortSend({
             what: 'highlightElementAtPoint',
             mx,
@@ -754,9 +763,11 @@ const svgListening = (( ) => {
     };
 
     return state => {
+        console.log('[EPICKER-UI] svgListening:', state);
         if ( state === on ) { return; }
         on = state;
         if ( on ) {
+            console.log('[EPICKER-UI] Adding mousemove listener');
             document.addEventListener('mousemove', onHover, { passive: true });
             return;
         }
@@ -908,6 +919,7 @@ const pausePicker = function() {
 /******************************************************************************/
 
 const unpausePicker = function() {
+    console.log('[EPICKER-UI] unpausePicker called');
     dom.cl.remove(pickerRoot, 'paused', 'preview');
     dom.cl.add(pickerRoot, 'minimized');
     pickerPortSend({
@@ -920,20 +932,22 @@ const unpausePicker = function() {
 /******************************************************************************/
 
 const startPicker = function() {
+    console.log('[EPICKER-UI] startPicker called');
     self.addEventListener('keydown', onKeyPressed, true);
     const svg = $stor('svg#sea');
-    //debugLog('epicker-ui', 'svg element:', svg ? 'found' : 'null');
+    console.log('[EPICKER-UI] SVG element:', svg ? 'found' : 'null');
+    console.log('[EPICKER-UI] SVG pointer-events:', svg ? window.getComputedStyle(svg).pointerEvents : 'N/A');
     svg.addEventListener('click', onSvgClicked);
     svg.addEventListener('touchstart', onSvgTouch);
     svg.addEventListener('touchend', onSvgTouch);
 
-    //debugLog('epicker-ui', 'Calling unpausePicker');
+    console.log('[EPICKER-UI] Calling unpausePicker');
     unpausePicker();
 
     $id('quit').addEventListener('click', onQuitClicked);
 
     if ( pickerRoot.classList.contains('zap') ) { 
-        //debugLog('epicker-ui', 'Zap mode active, SVG should be active');
+        console.log('[EPICKER-UI] Zap mode active');
         return; 
     }
 
@@ -1060,12 +1074,15 @@ const onPickerMessage = function(msg) {
 globalThis.addEventListener('message', ev => {
     const msg = ev.data || {};
     if ( msg.what !== 'epickerStart' ) { return; }
+    console.log('[EPICKER-UI] Received epickerStart message');
     if ( Array.isArray(ev.ports) === false || ev.ports.length === 0 ) { 
+        console.log('[EPICKER-UI] No ports available!');
         return; 
     }
     pickerContentPort = ev.ports[0];
     pickerContentPort.onmessage = ev => {
         const msg = ev.data || {};
+        console.log('[EPICKER-UI] Message from epicker:', msg.what);
         onPickerMessage(msg);
     };
     pickerContentPort.onmessageerror = () => {
@@ -1086,6 +1103,8 @@ self.addEventListener('pageshow', () => {
 });
 
 setTimeout(() => { self.focus(); }, 100);
+
+console.log('[EPICKER-UI] Script initialized');
 
 /******************************************************************************/
 
