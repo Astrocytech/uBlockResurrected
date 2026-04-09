@@ -150,7 +150,7 @@ test.describe('Picker UI Flow', () => {
         }));
     });
 
-    test('manual filter editing keeps preview usable while create stays disabled', async ({ page }) => {
+    test('manual filter editing keeps preview usable while Confirm enables for valid selectors', async ({ page }) => {
         const html = await readFile(pickerHtmlPath, 'utf8');
         const pickerUiScript = await readFile(pickerUiPath, 'utf8');
 
@@ -210,11 +210,92 @@ test.describe('Picker UI Flow', () => {
 
         await expect(page.locator('#filterText')).toHaveValue('##.content');
         await expect(page.locator('#resultsetCount')).toHaveText('1');
-        await expect(page.locator('#create')).toBeDisabled();
+        await expect(page.locator('#create')).toBeEnabled();
 
         const selectors = await page.evaluate(() =>
             (window as typeof window & { __selectors?: string[] }).__selectors || [],
         );
         expect(selectors).toContain('.content');
+    });
+
+    test('clicking Confirm sends the selected filter to the page script and quits the picker', async ({ page }) => {
+        const html = await readFile(pickerHtmlPath, 'utf8');
+        const pickerUiScript = await readFile(pickerUiPath, 'utf8');
+
+        await page.setContent(
+            html.replace(/<script[\s\S]*?<\/script>/g, ''),
+            { waitUntil: 'domcontentloaded' },
+        );
+
+        await page.evaluate(() => {
+            const globalWindow = window as typeof window & {
+                faIconsInit?: () => void;
+                toolOverlay?: unknown;
+                __messages?: Array<{ what: string; filter?: string }>;
+                __stopped?: number;
+            };
+            globalWindow.__messages = [];
+            globalWindow.__stopped = 0;
+            globalWindow.faIconsInit = () => {};
+            globalWindow.toolOverlay = {
+                start(onmessage: (msg: { what: string }) => void) {
+                    onmessage({ what: 'startTool' });
+                },
+                stop() {
+                    globalWindow.__stopped = (globalWindow.__stopped || 0) + 1;
+                },
+                highlightElementUnderMouse() {},
+                postMessage(msg: { what: string; selector?: string; filter?: string }) {
+                    globalWindow.__messages?.push(msg);
+                    if ( msg.what === 'candidatesAtPoint' ) {
+                        return Promise.resolve({
+                            cosmeticFilters: [
+                                {
+                                    label: '##.listingsignupbar.infobar',
+                                    filters: [
+                                        '##.listingsignupbar.infobar',
+                                    ],
+                                },
+                            ],
+                            filter: {
+                                slot: 0,
+                                specificity: 0,
+                            },
+                        });
+                    }
+                    if ( msg.what === 'highlightFromSelector' ) {
+                        return Promise.resolve({ count: 1 });
+                    }
+                    return Promise.resolve();
+                },
+            };
+        });
+
+        await page.addScriptTag({ content: pickerUiScript });
+        await page.locator('#overlay').click({ position: { x: 40, y: 40 } });
+        await expect(page.locator('#filterText')).toHaveValue('##.listingsignupbar.infobar');
+
+        await page.locator('#create').click();
+
+        const state = await page.evaluate(() => {
+            const globalWindow = window as typeof window & {
+                __messages?: Array<{ what: string; filter?: string }>;
+                __stopped?: number;
+            };
+            return {
+                messages: globalWindow.__messages || [],
+                stopped: globalWindow.__stopped || 0,
+            };
+        });
+
+        expect(state.messages).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    what: 'confirmSelection',
+                    filter: '##.listingsignupbar.infobar',
+                }),
+            ]),
+        );
+        expect(state.stopped).toBe(1);
     });
 });

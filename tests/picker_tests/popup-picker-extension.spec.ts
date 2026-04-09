@@ -47,10 +47,48 @@ const testHtml = `<!DOCTYPE html>
 </body>
 </html>`;
 
-const startTestServer = async (): Promise<{ server: Server; url: string }> => {
+const blockquoteHtml = `<!DOCTYPE html>
+<html>
+<head>
+    <style>
+    body {
+        margin: 0;
+        font-family: sans-serif;
+    }
+    .md {
+        margin: 40px;
+        max-width: 640px;
+    }
+    blockquote {
+        margin: 16px 0;
+        padding: 12px 16px;
+        border-left: 4px solid #ccc;
+        background: #f7f7f7;
+    }
+    </style>
+</head>
+<body>
+    <div class="md">
+        <blockquote>
+            <p>First quote</p>
+        </blockquote>
+        <blockquote>
+            <h1>Welcome!</h1>
+            <p><a href="/r/worldnews">/r/worldnews</a> is for major news from around the world except US-internal news / US politics</p>
+            <p><a href="https://bsky.app/profile/redditworldnews.bsky.social">Follow us on Bluesky @RedditWorldNews</a></p>
+            <p><a href="http://www.reddit.com/r/worldnews/wiki/ama">See all of our AMA events here</a></p>
+        </blockquote>
+        <blockquote>
+            <p>Third quote</p>
+        </blockquote>
+    </div>
+</body>
+</html>`;
+
+const startTestServer = async (html = testHtml): Promise<{ server: Server; url: string }> => {
     const server = createServer((_, res) => {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-        res.end(testHtml);
+        res.end(html);
     });
 
     await new Promise<void>((resolve, reject) => {
@@ -82,134 +120,86 @@ const getExtensionId = async (context: BrowserContext): Promise<string> => {
     return match[1];
 };
 
+const launchExtensionContext = async (userDataDir: string): Promise<BrowserContext> => {
+    return chromium.launchPersistentContext(userDataDir, {
+        channel: 'chromium',
+        headless: true,
+        args: [
+            `--disable-extensions-except=${extensionPath}`,
+            `--load-extension=${extensionPath}`,
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+        ],
+    });
+};
+
 test.describe('Popup Picker Extension', () => {
-    test('clicking Picker in the real popup injects the element-picker iframe into the active tab', async () => {
-        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-picker-'));
+    test('Confirm appends the selected filter to My filters permanently and removes the element from the page', async () => {
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-picker-confirm-'));
         const { server, url } = await startTestServer();
 
         let context: BrowserContext | undefined;
         try {
-            context = await chromium.launchPersistentContext(userDataDir, {
-                channel: 'chromium',
-                headless: true,
-                args: [
-                    `--disable-extensions-except=${extensionPath}`,
-                    `--load-extension=${extensionPath}`,
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                ],
-            });
+            context = await launchExtensionContext(userDataDir);
 
-            const extensionId = await getExtensionId(context);
-            const serviceWorker = context.serviceWorkers()[0]
+            let extensionId = await getExtensionId(context);
+            let serviceWorker = context.serviceWorkers()[0]
                 ?? await context.waitForEvent('serviceworker');
-            const serviceWorkerConsoleMessages: string[] = [];
-            serviceWorker.on('console', message => {
-                serviceWorkerConsoleMessages.push(`${message.type()}: ${message.text()}`);
-            });
-            const page = await context.newPage();
+            let page = await context.newPage();
             await page.goto(url, { waitUntil: 'domcontentloaded' });
             await page.bringToFront();
 
             const [activeTab] = await serviceWorker.evaluate(async targetURL => {
-                const tabs = await chrome.tabs.query({
-                    url: targetURL,
-                });
-                return tabs.map(tab => ({
-                    id: tab.id,
-                    url: tab.url,
-                }));
+                const tabs = await chrome.tabs.query({ url: targetURL });
+                return tabs.map(tab => ({ id: tab.id, url: tab.url }));
             }, url);
             if ( typeof activeTab?.id !== 'number' ) {
                 throw new Error(`Unable to resolve active tab for ${url}`);
             }
 
             const popupPage = await context.newPage();
-            const popupConsoleMessages: string[] = [];
-            popupPage.on('console', message => {
-                popupConsoleMessages.push(`${message.type()}: ${message.text()}`);
-            });
-            popupPage.on('pageerror', error => {
-                popupConsoleMessages.push(`pageerror: ${error.message}`);
-            });
             await popupPage.goto(
                 `chrome-extension://${extensionId}/popup-fenix.html?tabId=${activeTab.id}`,
                 { waitUntil: 'domcontentloaded' },
             );
-            await popupPage.waitForURL(
-                new RegExp(`^chrome-extension://${extensionId}/popup-fenix\\.html\\?tabId=${activeTab.id}`),
-            );
-            await popupPage.bringToFront();
-
-            const popupData = await popupPage.evaluate(async () => {
-                await new Promise(resolve => requestAnimationFrame(() => resolve(undefined)));
-                return chrome.tabs.query({
-                    active: true,
-                    lastFocusedWindow: true,
-                });
-            });
-            void popupData;
-
             await expect(popupPage.locator('#gotoPick')).toBeVisible();
             await popupPage.locator('#gotoPick').click({ noWaitAfter: true });
 
-            const diagnostics = await serviceWorker.evaluate(async targetURL => {
-                const [tab] = await chrome.tabs.query({
-                    url: targetURL,
-                });
-                const tabId = tab?.id;
-                if ( typeof tabId !== 'number' ) {
-                    return { tabId: null };
-                }
-                const [result] = await chrome.scripting.executeScript({
-                    target: { tabId },
-                    func: () => {
-                        const maybeVAPI = (self as typeof self & {
-                            vAPI?: {
-                                pickerFrame?: boolean;
-                                userStylesheet?: object;
-                                messaging?: object;
-                            };
-                        }).vAPI;
-                        return {
-                            href: location.href,
-                            iframeCount: document.querySelectorAll('iframe').length,
-                            hasVAPI: typeof maybeVAPI === 'object' && maybeVAPI !== null,
-                            hasPickerFrameFlag: maybeVAPI?.pickerFrame === true,
-                            hasUserStylesheet: typeof maybeVAPI?.userStylesheet === 'object',
-                            hasMessaging: typeof maybeVAPI?.messaging === 'object',
-                            iframeSrcs: Array.from(document.querySelectorAll('iframe')).map(frame => frame.src),
-                        };
-                    },
-                });
-                return {
-                    tabId,
-                    ...(result?.result ?? {}),
-                };
-            }, url);
-            expect(
-                diagnostics,
-                `picker diagnostics: ${JSON.stringify(diagnostics)}\npopup console: ${popupConsoleMessages.join('\n')}\nservice worker console: ${serviceWorkerConsoleMessages.join('\n')}`,
-            ).toMatchObject({
-                tabId: expect.any(Number),
-                iframeCount: 1,
-            });
-
-            await page.waitForFunction(() => {
-                return Array.from(document.querySelectorAll('iframe'))
-                    .some(frame => frame.src.includes('/picker-ui.html'));
-            });
-
-            const pickerFrameHandle = await page.locator('iframe').elementHandle();
+            const pickerFrameHost = page.locator('iframe[src*="/picker-ui.html"]');
+            await expect(pickerFrameHost).toBeVisible();
+            const pickerFrameHandle = await pickerFrameHost.elementHandle();
             if ( pickerFrameHandle === null ) {
                 throw new Error('Picker iframe did not appear');
             }
-
             const pickerFrame = await pickerFrameHandle.contentFrame();
-            expect(pickerFrame).not.toBeNull();
-            await expect(
-                pickerFrame!.locator('html#ubol-picker'),
-            ).toBeVisible();
+            if ( pickerFrame === null ) {
+                throw new Error('Picker iframe content frame was unavailable');
+            }
+
+            await pickerFrame.locator('#overlay').click({ position: { x: 80, y: 80 } });
+            await expect(pickerFrame.locator('#filterText')).toHaveValue('##.listingsignupbar.infobar');
+            await expect(pickerFrame.locator('#create')).toBeEnabled();
+            await pickerFrame.locator('#create').click();
+
+            await expect(page.locator('iframe[src*="/picker-ui.html"]')).toHaveCount(0);
+            await expect.poll(async () => {
+                return page.locator('a.listingsignupbar.infobar').count();
+            }).toBe(0);
+
+            const dashboardPage = await context.newPage();
+            await dashboardPage.goto(
+                `chrome-extension://${extensionId}/dashboard.html`,
+                { waitUntil: 'domcontentloaded' },
+            );
+            await dashboardPage.locator('#dashboard-nav .tabButton[data-pane="1p-filters.html"]').click();
+            await expect(dashboardPage.locator('#iframe')).toHaveAttribute('src', /1p-filters\.html$/);
+            const dashboardFrame = dashboardPage.frameLocator('#iframe');
+            await expect(dashboardFrame.locator('.CodeMirror')).toBeVisible();
+            await expect.poll(async () => {
+                return dashboardFrame.locator('.CodeMirror').evaluate(node =>
+                    node.CodeMirror.getValue().trim()
+                );
+            }).toContain('##.listingsignupbar.infobar');
         } finally {
             await context?.close();
             await new Promise<void>(resolve => server.close(() => resolve()));
@@ -217,22 +207,13 @@ test.describe('Popup Picker Extension', () => {
         }
     });
 
-    test('clicking the signup bar shows cosmetic filters and the selected filter in the picker window', async () => {
-        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-picker-'));
-        const { server, url } = await startTestServer();
+    test('clicking a bare blockquote prefers an :nth-of-type selector over a broad ancestor class', async () => {
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-picker-blockquote-'));
+        const { server, url } = await startTestServer(blockquoteHtml);
 
         let context: BrowserContext | undefined;
         try {
-            context = await chromium.launchPersistentContext(userDataDir, {
-                channel: 'chromium',
-                headless: true,
-                args: [
-                    `--disable-extensions-except=${extensionPath}`,
-                    `--load-extension=${extensionPath}`,
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                ],
-            });
+            context = await launchExtensionContext(userDataDir);
 
             const extensionId = await getExtensionId(context);
             const serviceWorker = context.serviceWorkers()[0]
@@ -268,12 +249,20 @@ test.describe('Popup Picker Extension', () => {
                 throw new Error('Picker iframe content frame was unavailable');
             }
 
-            await pickerFrame.locator('#overlay').click({ position: { x: 80, y: 80 } });
+            const box = await page.locator('blockquote').nth(1).boundingBox();
+            if ( box === null ) {
+                throw new Error('Target blockquote not found');
+            }
 
-            await expect(pickerFrame.locator('#filterText')).toHaveValue('##.listingsignupbar.infobar');
-            await expect(pickerFrame.locator('#cosmeticFilters')).toContainText('Cosmetic filters');
-            await expect(pickerFrame.locator('#cosmeticFilters li').nth(0)).toHaveText('##.listingsignupbar.infobar');
-            await expect(pickerFrame.locator('#cosmeticFilters li').nth(1)).toHaveText('##.content');
+            await pickerFrame.locator('#overlay').click({
+                position: {
+                    x: Math.round(box.x + Math.min(box.width / 2, 120)),
+                    y: Math.round(box.y + Math.min(box.height / 2, 40)),
+                },
+            });
+
+            await expect(pickerFrame.locator('#filterText')).toHaveValue('##blockquote:nth-of-type(2)');
+            await expect(pickerFrame.locator('#cosmeticFilters li').first()).toHaveText('##blockquote:nth-of-type(2)');
         } finally {
             await context?.close();
             await new Promise<void>(resolve => server.close(() => resolve()));

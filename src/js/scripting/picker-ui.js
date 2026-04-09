@@ -15,6 +15,16 @@
     var cosmeticFilterCandidates = [];
     var selectedDepth = 0;
     var selectedSpecificity = 0;
+    var extensionStorage = self.browser && self.browser.storage && self.browser.storage.local
+        ? self.browser.storage.local
+        : self.chrome && self.chrome.storage && self.chrome.storage.local
+            ? self.chrome.storage.local
+            : null;
+    var runtimeAPI = self.browser && self.browser.runtime
+        ? self.browser.runtime
+        : self.chrome && self.chrome.runtime
+            ? self.chrome.runtime
+            : null;
 
     var qs = function(selector) {
         return document.querySelector(selector);
@@ -30,6 +40,91 @@
         } catch {
         }
         return Promise.resolve(null);
+    }
+
+    function storageGet(keys) {
+        if ( extensionStorage === null ) {
+            return Promise.resolve({});
+        }
+        try {
+            var result = extensionStorage.get(keys);
+            if ( result instanceof Promise ) {
+                return result;
+            }
+        } catch {
+        }
+        return new Promise(function(resolve) {
+            extensionStorage.get(keys, function(items) {
+                resolve(items || {});
+            });
+        });
+    }
+
+    function storageSet(items) {
+        if ( extensionStorage === null ) {
+            return Promise.resolve();
+        }
+        try {
+            var result = extensionStorage.set(items);
+            if ( result instanceof Promise ) {
+                return result;
+            }
+        } catch {
+        }
+        return new Promise(function(resolve) {
+            extensionStorage.set(items, function() {
+                resolve();
+            });
+        });
+    }
+
+    function runtimeSendMessage(message) {
+        if ( runtimeAPI === null || typeof runtimeAPI.sendMessage !== 'function' ) {
+            return Promise.resolve();
+        }
+        try {
+            var result = runtimeAPI.sendMessage(message);
+            if ( result instanceof Promise ) {
+                return result;
+            }
+        } catch {
+        }
+        return Promise.resolve();
+    }
+
+    function appendFilterToMyFilters(filter) {
+        return storageGet([ 'user-filters', 'selectedFilterLists' ]).then(function(bin) {
+            var existing = typeof bin['user-filters'] === 'string'
+                ? bin['user-filters'].trim()
+                : '';
+            var lines = existing === ''
+                ? []
+                : existing.split(/\n+/).map(function(line) { return line.trim(); }).filter(Boolean);
+            if ( lines.indexOf(filter) === -1 ) {
+                lines.push(filter);
+            }
+            var selected = Array.isArray(bin.selectedFilterLists)
+                ? bin.selectedFilterLists.slice()
+                : [];
+            if ( selected.indexOf('user-filters') === -1 ) {
+                selected.push('user-filters');
+            }
+            return storageSet({
+                'user-filters': lines.join('\n'),
+                selectedFilterLists: selected,
+            });
+        }).then(function() {
+            return Promise.allSettled([
+                runtimeSendMessage({
+                    what: 'applyFilterListSelection',
+                    toSelect: [ 'user-filters' ],
+                    merge: true,
+                }),
+                runtimeSendMessage({
+                    what: 'reloadAllFilters',
+                }),
+            ]);
+        });
     }
 
     function initFrameTheme() {
@@ -103,7 +198,7 @@
             span.textContent = String(count);
             span.removeAttribute('title');
         }
-        qs('#create').disabled = true;
+        qs('#create').disabled = error !== null || count === 0;
     }
 
     function setActiveCandidate() {
@@ -289,6 +384,21 @@
         updatePreview();
     }
 
+    function onCreateClicked() {
+        var filter = qs('#filterText').value.trim();
+        if ( filter === '' ) { return; }
+        updatePreview(false);
+        Promise.allSettled([
+            appendFilterToMyFilters(filter),
+            toolOverlay.postMessage({
+                what: 'confirmSelection',
+                filter: filter,
+            }),
+        ]).finally(function() {
+            toolOverlay.stop();
+        });
+    }
+
     function updatePreview(state) {
         if ( state === undefined ) {
             state = root.classList.contains('preview');
@@ -348,7 +458,7 @@
         qs('#resultsetSpecificity input').addEventListener('input', onSpecificityChanged);
         qs('#pick').addEventListener('click', resetPicker);
         qs('#preview').addEventListener('click', onPreviewClicked);
-        qs('#create').addEventListener('click', function() {});
+        qs('#create').addEventListener('click', onCreateClicked);
         qs('#candidateFilters').addEventListener('click', onCandidateClicked);
         toolOverlay.highlightElementUnderMouse(true);
     }

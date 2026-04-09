@@ -50,6 +50,10 @@ npx esbuild theme.ts --bundle --format=iife --outfile=theme-bundle.js --target=c
 # Bundle i18n.ts
 npx esbuild i18n.ts --bundle --format=iife --outfile=i18n-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
+# Bundle dashboard-common.ts
+echo "*** Bundling dashboard-common.ts"
+npx esbuild dashboard-common.ts --bundle --format=iife --outfile=dashboard-common-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
 # Bundle storage.ts
 npx esbuild storage.ts --bundle --format=iife --outfile=storage-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
@@ -63,7 +67,12 @@ npx esbuild uri-utils.ts --bundle --format=iife --outfile=uri-utils-bundle.js --
 npx esbuild hnswitches.ts --bundle --format=iife --outfile=hnswitches-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle dynamic-net-filtering.ts
+echo "*** Bundling dynamic-net-filtering.ts"
 npx esbuild dynamic-net-filtering.ts --bundle --format=iife --outfile=dynamic-net-filtering-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
+# Bundle 1p-filters.ts
+echo "*** Bundling 1p-filters.ts"
+npx esbuild 1p-filters.ts --bundle --format=iife --outfile=1p-filters-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 cd - > /dev/null
 

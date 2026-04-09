@@ -20,6 +20,13 @@
 */
 
 import * as s14e from './s14e-serializer.js';
+import {
+    getAllCustomFilters,
+    addCustomFilters,
+    removeCustomFilters,
+    removeAllCustomFilters,
+    customFiltersFromHostname,
+} from './filter-storage.js';
 import * as sfp from './static-filtering-parser.js';
 
 import {
@@ -1522,18 +1529,45 @@ const onMessage = function(request, sender, callback) {
             console.log('[MV3-DEBUG] Cosmetic filter lines found:', cosmeticLines.length);
             cosmeticLines.forEach((line, i) => console.log('[MV3-DEBUG] Cosmetic filter', i, ':', line));
         }
-        if ( request.enabled ) {
-            µb.applyFilterListSelection({
-                toSelect: [ µb.userFiltersPath ],
-                merge: true,
+        return Promise.resolve().then(async ( ) => {
+            const selected = new Set(µb.selectedFilterLists);
+            if ( request.enabled ) {
+                selected.add(µb.userFiltersPath);
+            } else {
+                selected.delete(µb.userFiltersPath);
+            }
+            await µb.saveSelectedFilterLists(Array.from(selected));
+            µb.changeUserSettings('userFiltersTrusted', request.trusted || false);
+            const result = await µb.saveUserFilters(request.content || '');
+            callback(result);
+        }).catch(reason => {
+            callback({
+                error: reason instanceof Error ? reason.message : String(reason),
             });
-        } else {
-            µb.applyFilterListSelection({
-                toRemove: [ µb.userFiltersPath ],
-            });
-        }
-        µb.changeUserSettings('userFiltersTrusted', request.trusted || false);
-        return µb.saveUserFilters(request.content).then(result => {
+        });
+
+    case 'getAllCustomFilters':
+        return getAllCustomFilters().then(result => {
+            callback(result);
+        });
+
+    case 'addCustomFilters':
+        return addCustomFilters(request.hostname, request.selectors).then(result => {
+            callback(result);
+        });
+
+    case 'removeCustomFilters':
+        return removeCustomFilters(request.hostname, request.selectors).then(result => {
+            callback(result);
+        });
+
+    case 'removeAllCustomFilters':
+        return removeAllCustomFilters(request.hostname).then(result => {
+            callback(result);
+        });
+
+    case 'customFiltersFromHostname':
+        return customFiltersFromHostname(request.hostname).then(result => {
             callback(result);
         });
 

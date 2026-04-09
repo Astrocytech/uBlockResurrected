@@ -19,6 +19,32 @@
     var ignoredClassNames = new Set([
         'login-required',
     ]);
+    var genericContainerTags = new Set([
+        'article',
+        'aside',
+        'div',
+        'footer',
+        'header',
+        'main',
+        'nav',
+        'section',
+    ]);
+    var ignorablePickedTags = new Set([
+        'B',
+        'CODE',
+        'EM',
+        'H1',
+        'H2',
+        'H3',
+        'H4',
+        'H5',
+        'H6',
+        'I',
+        'P',
+        'SMALL',
+        'SPAN',
+        'STRONG',
+    ]);
 
     function qsa(node, selector) {
         if ( ubolOverlay.qsa ) {
@@ -33,10 +59,30 @@
         }
     }
 
+    function filterToSelector(filter) {
+        if ( typeof filter !== 'string' ) { return ''; }
+        if ( filter.startsWith('##') ) {
+            return filter.slice(2);
+        }
+        return filter;
+    }
+
     function escapeClassNames(classList) {
         return classList.map(function(name) {
             return '.' + CSS.escape(name);
         }).join('');
+    }
+
+    function nthOfTypeIndex(elem) {
+        var index = 1;
+        var prev = elem.previousElementSibling;
+        while ( prev ) {
+            if ( prev.localName === elem.localName ) {
+                index += 1;
+            }
+            prev = prev.previousElementSibling;
+        }
+        return index;
     }
 
     function filterClasses(elem) {
@@ -60,6 +106,22 @@
         return classes;
     }
 
+    function normalizePickedElement(elem) {
+        while ( elem && elem.parentElement ) {
+            if ( ignorablePickedTags.has(elem.tagName) === false ) {
+                break;
+            }
+            if ( typeof elem.id === 'string' && elem.id !== '' ) {
+                break;
+            }
+            if ( filterClasses(elem).length !== 0 ) {
+                break;
+            }
+            elem = elem.parentElement;
+        }
+        return elem;
+    }
+
     function selectorCount(selector) {
         var elems = qsa(document, selector);
         return Array.isArray(elems) ? elems.length : 0;
@@ -68,10 +130,23 @@
     function filterRank(filter) {
         var selector = filter.slice(2);
         var score = 0;
-        if ( selector.startsWith('.') ) {
-            score -= 100;
-        } else if ( selector.startsWith('#') ) {
-            score -= 80;
+        var tagMatch = /^[a-z][a-z0-9-]*/i.exec(selector);
+        var tagName = tagMatch ? tagMatch[0].toLowerCase() : '';
+        if ( selector.startsWith('#') ) {
+            score -= 200;
+        } else if ( selector.startsWith('.') ) {
+            var classCount = (selector.match(/\./g) || []).length;
+            if ( classCount >= 2 ) {
+                score -= 120;
+            } else {
+                score += 20;
+            }
+        }
+        if ( selector.indexOf(':nth-of-type(') !== -1 ) {
+            score -= 20;
+        }
+        if ( genericContainerTags.has(tagName) ) {
+            score += 40;
         }
         if ( selector.indexOf('[') !== -1 ) {
             score += 20;
@@ -100,6 +175,11 @@
             filters.push('###' + CSS.escape(elem.id));
             filters.push('##' + tagName + '#' + CSS.escape(elem.id));
         }
+
+        var tagSelector = '##' + tagName;
+        var nthSelector = '##' + tagName + ':nth-of-type(' + nthOfTypeIndex(elem) + ')';
+        filters.push(nthSelector);
+        filters.push(tagSelector);
 
         if ( filters.length === 0 ) {
             return null;
@@ -140,6 +220,7 @@
         }
 
         if (!elem) { return; }
+        elem = normalizePickedElement(elem);
 
         var groups = [];
         while (elem && elem !== document.body && elem !== document.documentElement) {
@@ -152,10 +233,37 @@
 
         if ( groups.length === 0 ) { return; }
 
+        var bestIndex = 0;
+        for ( var i = 1; i < groups.length; i++ ) {
+            var currentFilter = groups[i].label;
+            var bestFilter = groups[bestIndex].label;
+            var currentCount = selectorCount(currentFilter.slice(2));
+            var bestCount = selectorCount(bestFilter.slice(2));
+            if ( currentCount < bestCount ) {
+                bestIndex = i;
+                continue;
+            }
+            if ( currentCount > bestCount ) {
+                continue;
+            }
+            var currentRank = filterRank(currentFilter);
+            var bestRank = filterRank(bestFilter);
+            if ( currentRank < bestRank ) {
+                bestIndex = i;
+                continue;
+            }
+            if ( currentRank > bestRank ) {
+                continue;
+            }
+            if ( i < bestIndex ) {
+                bestIndex = i;
+            }
+        }
+
         return {
             cosmeticFilters: groups,
             filter: {
-                slot: 0,
+                slot: bestIndex,
                 specificity: 0,
             }
         };
@@ -181,6 +289,41 @@
             document.head.appendChild(style);
             previewedCSS = selector;
         }
+    }
+
+    function removeElementsFromSelector(selector) {
+        var fromSelector = typeof ubolOverlay.elementsFromSelector === 'function'
+            ? ubolOverlay.elementsFromSelector(selector)
+            : { elems: qsa(document, selector), error: undefined };
+        var elems = Array.isArray(fromSelector.elems) ? fromSelector.elems.slice() : [];
+        for ( var i = 0; i < elems.length; i++ ) {
+            if ( elems[i] && typeof elems[i].remove === 'function' ) {
+                elems[i].remove();
+            }
+        }
+        ubolOverlay.highlightElements([]);
+        return {
+            count: elems.length,
+            error: fromSelector.error || null,
+        };
+    }
+
+    function confirmSelection(filter) {
+        if ( typeof filter !== 'string' || filter.trim() === '' ) {
+            return Promise.resolve({ count: 0, error: 'No filter selected' });
+        }
+        var normalizedFilter = filter.trim();
+        var selector = filterToSelector(normalizedFilter);
+        var removal = removeElementsFromSelector(selector);
+        return Promise.resolve().then(function() {
+            previewSelector('');
+            return removal;
+        }).catch(function(error) {
+            return {
+                count: removal.count,
+                error: error instanceof Error ? error.message : String(error),
+            };
+        });
     }
 
     function highlightFromSelector(selector) {
@@ -224,6 +367,8 @@
         case 'previewSelector':
             previewSelector(msg.selector);
             break;
+        case 'confirmSelection':
+            return confirmSelection(msg.filter);
         case 'unhighlight':
             ubolOverlay.highlightElements([]);
             break;

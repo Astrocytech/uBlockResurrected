@@ -59,7 +59,11 @@ test.describe('Dashboard Extension', () => {
             ).not.toHaveClass(/notReady/);
             await expect(page.locator('#dashboard-nav')).toBeVisible();
             await expect(page.locator('#dashboard-nav .tabButton[data-pane="settings.html"]')).toHaveText(/Settings/i);
+            await expect(page.locator('#dashboard-nav .tabButton[data-pane="3p-filters.html"]')).toHaveText(/Filter lists/i);
             await expect(page.locator('#dashboard-nav .tabButton[data-pane="1p-filters.html"]')).toHaveText(/My filters/i);
+            await expect(page.locator('#dashboard-nav .tabButton[data-pane="dyna-rules.html"]')).toHaveText(/My rules/i);
+            await expect(page.locator('#dashboard-nav .tabButton[data-pane="whitelist.html"]')).toHaveText(/Trusted sites/i);
+            await expect(page.locator('#dashboard-nav .tabButton[data-pane="support.html"]')).toHaveText(/Support/i);
             await expect(page.locator('#dashboard-nav .tabButton[data-pane="about.html"]')).toHaveText(/About/i);
             await expect(
                 page.locator('#dashboard-nav .tabButton.selected[data-pane="settings.html"]'),
@@ -69,10 +73,40 @@ test.describe('Dashboard Extension', () => {
             await expect(frame.locator('.fieldset').first()).toBeVisible();
             await expect(frame.locator('[data-i18n="settingsCollapseBlockedPrompt"]')).not.toBeEmpty();
 
+            await page.locator('#dashboard-nav .tabButton[data-pane="3p-filters.html"]').click();
+            await expect(page.locator('#iframe')).toHaveAttribute('src', /3p-filters\.html$/);
+            await expect(frame.locator('#actions')).toBeVisible();
+            await expect(frame.locator('#lists')).toBeVisible();
+            await expect(frame.locator('#buttonApply')).toBeVisible();
+
+            await page.locator('#dashboard-nav .tabButton[data-pane="1p-filters.html"]').click();
+            await expect(page.locator('#iframe')).toHaveAttribute('src', /1p-filters\.html$/);
+            await expect(frame.locator('#userFiltersApply')).toBeVisible();
+            await expect(frame.locator('#userFilters')).toBeVisible();
+            await expect(frame.locator('#enableMyFilters')).toBeVisible();
+
+            await page.locator('#dashboard-nav .tabButton[data-pane="dyna-rules.html"]').click();
+            await expect(page.locator('#iframe')).toHaveAttribute('src', /dyna-rules\.html$/);
+            await expect(frame.locator('#diff')).toBeVisible();
+            await expect(frame.locator('#ruleFilter')).toBeVisible();
+            await expect(frame.locator('#commitButton')).toBeVisible();
+
+            await page.locator('#dashboard-nav .tabButton[data-pane="whitelist.html"]').click();
+            await expect(page.locator('#iframe')).toHaveAttribute('src', /whitelist\.html$/);
+            await expect(frame.locator('#whitelistApply')).toBeVisible();
+            await expect(frame.locator('#whitelist')).toBeVisible();
+
+            await page.locator('#dashboard-nav .tabButton[data-pane="support.html"]').click();
+            await expect(page.locator('#iframe')).toHaveAttribute('src', /support\.html$/);
+            await expect(frame.locator('#filterReport')).toBeVisible();
+            await expect(frame.locator('#bugReport')).toBeVisible();
+            await expect(frame.locator('#supportData')).toBeVisible();
+
             await page.locator('#dashboard-nav .tabButton[data-pane="about.html"]').click();
             await expect(page.locator('#iframe')).toHaveAttribute('src', /about\.html$/);
             await expect(page.locator('#dashboard-nav .tabButton.selected[data-pane="about.html"]')).toBeVisible();
             await expect(frame.locator('#aboutNameVer')).not.toHaveText('');
+            await expect(frame.locator('[data-i18n="aboutPrivacyPolicy"]')).toBeVisible();
         } finally {
             await context?.close();
             await rm(userDataDir, { recursive: true, force: true });

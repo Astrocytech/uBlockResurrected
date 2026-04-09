@@ -41,6 +41,12 @@ interface UserFiltersDetails {
     error?: string;
 }
 
+interface StoredUserFiltersBin {
+    'user-filters'?: string;
+    selectedFilterLists?: string[];
+    userFiltersTrusted?: boolean;
+}
+
 interface AutoCompleteDetails {
     hintUpdateToken?: number;
 }
@@ -58,6 +64,31 @@ declare const CodeMirror: any;
 declare const vAPI: any;
 declare const uBlockDashboard: any;
 declare const self: any;
+declare const browser: any;
+declare const chrome: any;
+
+const extensionStorage = browser?.storage?.local || chrome?.storage?.local;
+
+const storageGet = async (keys: string | string[]): Promise<StoredUserFiltersBin> => {
+    const result = extensionStorage.get(keys);
+    if ( result instanceof Promise ) {
+        return await result;
+    }
+    return await new Promise(resolve => {
+        extensionStorage.get(keys, resolve);
+    });
+};
+
+const storageSet = async (bin: StoredUserFiltersBin): Promise<void> => {
+    const result = extensionStorage.set(bin);
+    if ( result instanceof Promise ) {
+        await result;
+        return;
+    }
+    await new Promise<void>(resolve => {
+        extensionStorage.set(bin, ( ) => { resolve(); });
+    });
+};
 
 /******************************************************************************/
 
@@ -223,17 +254,26 @@ function threeWayMerge(newContent: string): string {
 /******************************************************************************/
 
 async function renderUserFilters(): Promise<void> {
-    const details = await vAPI.messaging.send('dashboard', {
-        what: 'readUserFilters',
-    }) as UserFiltersDetails | undefined;
-    if ( details instanceof Object === false || details.error ) { return; }
+    const bin = await storageGet([
+        'user-filters',
+        'selectedFilterLists',
+        'userFiltersTrusted',
+    ]) as StoredUserFiltersBin | undefined;
+    if ( bin instanceof Object === false ) { return; }
 
-    cmEditor.setOption('trustedSource', details.trusted);
+    const enabled = Array.isArray(bin.selectedFilterLists) &&
+        bin.selectedFilterLists.includes('user-filters');
+    const trusted = bin.userFiltersTrusted === true;
+    const content = typeof bin['user-filters'] === 'string'
+        ? bin['user-filters']
+        : '';
 
-    qs$('#enableMyFilters input').checked = details.enabled;
-    qs$('#trustMyFilters input').checked = details.trusted;
+    cmEditor.setOption('trustedSource', trusted);
 
-    setEditorText(details.content?.trim() || '');
+    qs$('#enableMyFilters input').checked = enabled;
+    qs$('#trustMyFilters input').checked = trusted;
+
+    setEditorText(content.trim());
     userFiltersChanged({ changed: false });
 
     rememberCurrentState();
@@ -288,16 +328,25 @@ function exportUserFiltersToFile(): void {
 
 async function applyChanges(): Promise<void> {
     const state = getCurrentState();
-    const details = await vAPI.messaging.send('dashboard', {
-        what: 'writeUserFilters',
-        content: state.filters,
-        enabled: state.enabled,
-        trusted: state.trusted,
-    }) as UserFiltersDetails | undefined;
-    if ( details instanceof Object === false || details.error ) { return; }
+    const bin = await storageGet('selectedFilterLists') as StoredUserFiltersBin | undefined;
+    const selected = new Set(
+        Array.isArray(bin?.selectedFilterLists)
+            ? bin.selectedFilterLists
+            : []
+    );
+    if ( state.enabled ) {
+        selected.add('user-filters');
+    } else {
+        selected.delete('user-filters');
+    }
+    await storageSet({
+        'user-filters': state.filters.trim(),
+        selectedFilterLists: Array.from(selected),
+        userFiltersTrusted: state.trusted,
+    });
     rememberCurrentState();
     userFiltersChanged({ changed: false });
-    vAPI.messaging.send('dashboard', {
+    void vAPI.messaging.send('dashboard', {
         what: 'reloadAllFilters',
     });
 }
