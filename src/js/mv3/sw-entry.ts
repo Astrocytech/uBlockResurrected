@@ -42,6 +42,17 @@ type HostnameDetails = {
     totals?: FirewallCounts;
 };
 
+type TabRequestState = {
+    pageHostname: string;
+    pageCounts: FirewallCounts;
+    hostnameDict: Record<string, HostnameDetails>;
+};
+
+type CollectedHostnameData = {
+    pageCounts: FirewallCounts;
+    hostnameDict: Record<string, HostnameDetails>;
+};
+
 const userSettingsDefault = {
     advancedUserEnabled: false,
     colorBlindFriendly: false,
@@ -321,6 +332,26 @@ class DynamicFirewallRules {
             this.setCell(srcHostname, desHostname, type, action);
         }
     }
+
+    addFromRuleParts(parts: [string, string, string, string]) {
+        if ( parts.length < 4 ) { return false; }
+        const [ srcHostname, desHostname, type, actionName ] = parts;
+        const action = firewallActionValues[actionName];
+        if ( action === undefined || firewallTypeBitOffsets[type] === undefined ) {
+            return false;
+        }
+        this.setCell(srcHostname, desHostname, type, action);
+        return true;
+    }
+
+    removeFromRuleParts(parts: [string, string, string, string]) {
+        if ( parts.length < 4 ) { return false; }
+        const [ srcHostname, desHostname, type ] = parts;
+        if ( firewallTypeBitOffsets[type] === undefined ) {
+            return false;
+        }
+        return this.unsetCell(srcHostname, desHostname, type);
+    }
 }
 
 const popupState = {
@@ -330,6 +361,10 @@ const popupState = {
     permanentFirewall: new DynamicFirewallRules(),
     sessionFirewall: new DynamicFirewallRules(),
 };
+
+const tabRequestStates = new Map<number, TabRequestState>();
+const requestStateStorage = chrome.storage.session || chrome.storage.local;
+const tabRequestStateKey = (tabId: number) => `firewallTabState:${tabId}`;
 
 const getActiveTab = async () => {
     const [ tab ] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -342,6 +377,19 @@ const getTabForRequest = async (tabId?: number | null) => {
     }
     return getActiveTab();
 };
+
+const mergeCounts = (into: FirewallCounts, from: FirewallCounts) => {
+    into.allowed.any += from.allowed.any;
+    into.allowed.frame += from.allowed.frame;
+    into.allowed.script += from.allowed.script;
+    into.blocked.any += from.blocked.any;
+    into.blocked.frame += from.blocked.frame;
+    into.blocked.script += from.blocked.script;
+};
+
+const delay = (ms: number) => new Promise(resolve => {
+    self.setTimeout(resolve, ms);
+});
 
 const loadPopupState = async () => {
     const items = await chrome.storage.local.get([ 'userSettings', 'dynamicFilteringString' ]);
@@ -399,7 +447,6 @@ const compileFirewallRulesToDnr = (firewall: DynamicFirewallRules) => {
 
     for ( const rule of firewall.toArray() ) {
         const [ srcHostname, desHostname, type, actionName ] = rule.split(' ');
-        if ( actionName === 'noop' ) { continue; }
         const resourceTypes = firewallRuleResourceTypes(type);
         for ( const resourceType of resourceTypes ) {
             if ( nextRuleId > FIREWALL_RULE_ID_MAX ) { break; }
@@ -421,10 +468,12 @@ const compileFirewallRulesToDnr = (firewall: DynamicFirewallRules) => {
             addRules.push({
                 id: nextRuleId++,
                 priority: 2_000_000 +
-                    (actionName === 'allow' ? 10_000 : 0) +
+                    ((actionName === 'allow' || actionName === 'noop') ? 10_000 : 0) +
                     (srcHostname !== '*' ? 1_000 : 0),
                 action: {
-                    type: actionName === 'allow' ? 'allow' : 'block',
+                    // MV3 DNR has no direct noop equivalent; treat it as a
+                    // higher-priority allow so it cancels broader firewall blocks.
+                    type: (actionName === 'allow' || actionName === 'noop') ? 'allow' : 'block',
                 },
                 condition,
             });
@@ -440,7 +489,7 @@ const syncFirewallDnrRules = async () => {
     const removeRuleIds = existingRules
         .map(rule => rule.id)
         .filter(id => id >= FIREWALL_RULE_ID_MIN && id <= FIREWALL_RULE_ID_MAX);
-    const addRules = compileFirewallRulesToDnr(popupState.permanentFirewall);
+    const addRules = compileFirewallRulesToDnr(popupState.sessionFirewall);
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
 };
 
@@ -448,6 +497,198 @@ const zeroHostnameDetails = (hostname: string): HostnameDetails => ({
     domain: domainFromHostname(hostname),
     counts: createCounts(),
 });
+
+const cloneHostnameDetails = (details: HostnameDetails): HostnameDetails => ({
+    domain: details.domain,
+    counts: {
+        allowed: { ...details.counts.allowed },
+        blocked: { ...details.counts.blocked },
+    },
+});
+
+const ensureTabRequestState = (tabId: number, pageHostname = ''): TabRequestState => {
+    let state = tabRequestStates.get(tabId);
+    if ( state !== undefined ) { return state; }
+    state = {
+        pageHostname,
+        pageCounts: createCounts(),
+        hostnameDict: {},
+    };
+    if ( pageHostname !== '' ) {
+        state.hostnameDict[pageHostname] = zeroHostnameDetails(pageHostname);
+    }
+    tabRequestStates.set(tabId, state);
+    return state;
+};
+
+const persistTabRequestState = async (tabId: number) => {
+    const state = tabRequestStates.get(tabId);
+    if ( state === undefined ) { return; }
+    await requestStateStorage.set({
+        [tabRequestStateKey(tabId)]: state,
+    });
+};
+
+const loadTabRequestState = async (tabId: number) => {
+    const inMemory = tabRequestStates.get(tabId);
+    if ( inMemory !== undefined ) { return inMemory; }
+    const items = await requestStateStorage.get(tabRequestStateKey(tabId));
+    const state = items[tabRequestStateKey(tabId)] as TabRequestState | undefined;
+    if ( state !== undefined ) {
+        tabRequestStates.set(tabId, state);
+    }
+    return state;
+};
+
+const loadTabRequestStateWithRetry = async (tabId: number, attempts = 3) => {
+    for ( let i = 0; i < attempts; i++ ) {
+        const state = await loadTabRequestState(tabId);
+        if ( state !== undefined && Object.keys(state.hostnameDict).length > 1 ) {
+            return state;
+        }
+        if ( i + 1 < attempts ) {
+            await delay(100);
+        }
+    }
+    return loadTabRequestState(tabId);
+};
+
+const clearTabRequestState = async (tabId: number) => {
+    tabRequestStates.delete(tabId);
+    await requestStateStorage.remove(tabRequestStateKey(tabId));
+};
+
+const incrementCounts = (
+    counts: FirewallCounts,
+    resourceType: chrome.webRequest.ResourceType,
+) => {
+    counts.allowed.any += 1;
+    if ( resourceType === 'script' ) {
+        counts.allowed.script += 1;
+    } else if ( resourceType === 'sub_frame' ) {
+        counts.allowed.frame += 1;
+    }
+};
+
+const recordTabRequest = (details: chrome.webRequest.WebRequestBodyDetails) => {
+    if ( details.tabId < 0 ) { return; }
+    let hostname = '';
+    try {
+        hostname = new URL(details.url).hostname;
+    } catch {
+        return;
+    }
+
+    if ( details.type === 'main_frame' ) {
+        const state: TabRequestState = {
+            pageHostname: hostname,
+            pageCounts: createCounts(),
+            hostnameDict: {},
+        };
+        state.hostnameDict[hostname] = zeroHostnameDetails(hostname);
+        tabRequestStates.set(details.tabId, state);
+        void persistTabRequestState(details.tabId);
+        return;
+    }
+
+    const state = ensureTabRequestState(details.tabId);
+    if ( state.hostnameDict[hostname] === undefined ) {
+        state.hostnameDict[hostname] = zeroHostnameDetails(hostname);
+    }
+    incrementCounts(state.pageCounts, details.type);
+    incrementCounts(state.hostnameDict[hostname].counts, details.type);
+    void persistTabRequestState(details.tabId);
+};
+
+const collectTabHostnameData = async (
+    tabId: number,
+    pageHostname: string,
+): Promise<CollectedHostnameData | undefined> => {
+    if ( chrome.scripting?.executeScript === undefined ) { return; }
+    try {
+        const [ result ] = await chrome.scripting.executeScript({
+            target: { tabId },
+            world: 'MAIN',
+            func: (currentPageHostname: string) => {
+                const createCounts = () => ({
+                    allowed: { any: 0, frame: 0, script: 0 },
+                    blocked: { any: 0, frame: 0, script: 0 },
+                });
+                const isIPAddress = hostname =>
+                    /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
+                const domainFromHostname = hostname => {
+                    if ( hostname === '' || hostname === '*' ) { return hostname; }
+                    if ( hostname === 'localhost' || isIPAddress(hostname) ) { return hostname; }
+                    const parts = hostname.split('.').filter(Boolean);
+                    if ( parts.length <= 2 ) { return hostname; }
+                    return parts.slice(-2).join('.');
+                };
+                const hostnameDict = Object.create(null);
+                const ensureHostname = hostname => {
+                    if ( hostnameDict[hostname] !== undefined ) { return hostnameDict[hostname]; }
+                    hostnameDict[hostname] = {
+                        domain: domainFromHostname(hostname),
+                        counts: createCounts(),
+                    };
+                    return hostnameDict[hostname];
+                };
+                ensureHostname(currentPageHostname);
+                const pageCounts = createCounts();
+                const addResource = (hostname, kind) => {
+                    if ( hostname === '' || hostname === currentPageHostname ) { return; }
+                    const entry = ensureHostname(hostname);
+                    entry.counts.allowed.any += 1;
+                    pageCounts.allowed.any += 1;
+                    if ( kind === 'script' ) {
+                        entry.counts.allowed.script += 1;
+                        pageCounts.allowed.script += 1;
+                    } else if ( kind === 'frame' ) {
+                        entry.counts.allowed.frame += 1;
+                        pageCounts.allowed.frame += 1;
+                    }
+                };
+
+                const scanElements = (selector, attribute, kind) => {
+                    for ( const element of document.querySelectorAll(selector) ) {
+                        const raw = element.getAttribute(attribute);
+                        if ( !raw ) { continue; }
+                        try {
+                            const url = new URL(raw, location.href);
+                            addResource(url.hostname, kind);
+                        } catch {
+                        }
+                    }
+                };
+
+                // DOM-scanning is more deterministic than relying only on
+                // performance entries, especially in MV3 when the popup opens
+                // after the page has already settled.
+                scanElements('img[src]', 'src', 'other');
+                scanElements('script[src]', 'src', 'script');
+                scanElements('iframe[src]', 'src', 'frame');
+
+                for ( const resource of performance.getEntriesByType('resource') ) {
+                    try {
+                        const url = new URL(resource.name, location.href);
+                        let kind = 'other';
+                        if ( resource.initiatorType === 'script' ) {
+                            kind = 'script';
+                        } else if ( resource.initiatorType === 'iframe' ) {
+                            kind = 'frame';
+                        }
+                        addResource(url.hostname, kind);
+                    } catch {
+                    }
+                }
+
+                return { pageCounts, hostnameDict };
+            },
+            args: [ pageHostname ],
+        });
+        return result?.result as CollectedHostnameData | undefined;
+    } catch {
+    }
+};
 
 const getFirewallRulesForPopup = (srcHostname: string, hostnameDict: Record<string, HostnameDetails>) => {
     const firewallRules: Record<string, string> = {};
@@ -491,9 +732,36 @@ const getPopupData = async (request: PopupRequest) => {
         }
     })();
     const pageDomain = domainFromHostname(pageHostname);
+    const trackedState = typeof tabId === 'number'
+        ? await loadTabRequestStateWithRetry(tabId)
+        : undefined;
+    const liveState = typeof tabId === 'number' && pageHostname !== ''
+        ? await collectTabHostnameData(tabId, pageHostname)
+        : undefined;
     const hostnameDict: Record<string, HostnameDetails> = {};
     if ( pageHostname !== '' ) {
         hostnameDict[pageHostname] = zeroHostnameDetails(pageHostname);
+    }
+    if ( trackedState?.hostnameDict ) {
+        for ( const [ hostname, details ] of Object.entries(trackedState.hostnameDict) ) {
+            hostnameDict[hostname] = cloneHostnameDetails(details);
+        }
+    }
+    if ( liveState?.hostnameDict ) {
+        for ( const [ hostname, details ] of Object.entries(liveState.hostnameDict) ) {
+            if ( hostnameDict[hostname] === undefined ) {
+                hostnameDict[hostname] = cloneHostnameDetails(details);
+                continue;
+            }
+            mergeCounts(hostnameDict[hostname].counts, details.counts);
+        }
+    }
+    const pageCounts = createCounts();
+    if ( trackedState?.pageCounts ) {
+        mergeCounts(pageCounts, trackedState.pageCounts);
+    }
+    if ( liveState?.pageCounts ) {
+        mergeCounts(pageCounts, liveState.pageCounts);
     }
 
     return {
@@ -504,11 +772,12 @@ const getPopupData = async (request: PopupRequest) => {
         cosmeticFilteringSwitch: false,
         firewallPaneMinimized: popupState.userSettings.firewallPaneMinimized,
         firewallRules: getFirewallRulesForPopup(pageHostname, hostnameDict),
+        godMode: true,
         globalAllowedRequestCount: 0,
         globalBlockedRequestCount: 0,
         hasUnprocessedRequest: false,
         hostnameDict,
-        pageCounts: createCounts(),
+        pageCounts,
         pageDomain,
         pageHostname,
         pageURL,
@@ -560,8 +829,9 @@ const toggleFirewallRule = async (request: PopupRequest) => {
             popupState.permanentFirewall.unsetCell(srcHostname, desHostname, requestType);
         }
         await persistPermanentFirewall();
-        await syncFirewallDnrRules();
     }
+
+    await syncFirewallDnrRules();
 
     return getPopupData(request);
 };
@@ -575,6 +845,7 @@ const saveFirewallRules = async (request: PopupRequest) => {
     );
     await persistPermanentFirewall();
     await syncFirewallDnrRules();
+    return getPopupData(request);
 };
 
 const revertFirewallRules = async (request: PopupRequest) => {
@@ -584,7 +855,65 @@ const revertFirewallRules = async (request: PopupRequest) => {
         request.srcHostname || '',
         request.desHostnames || {},
     );
+    await syncFirewallDnrRules();
     return getPopupData(request);
+};
+
+const getDashboardRules = async () => {
+    await ensurePopupState();
+    return {
+        permanentRules: popupState.permanentFirewall.toArray(),
+        sessionRules: popupState.sessionFirewall.toArray(),
+    };
+};
+
+const applyRuleTextDelta = (
+    ruleset: DynamicFirewallRules,
+    text: string,
+    method: 'addFromRuleParts' | 'removeFromRuleParts',
+) => {
+    for ( const rawRule of text.split(/\s*[\n\r]+\s*/) ) {
+        const rule = rawRule.trim();
+        if ( rule === '' ) { continue; }
+        const parts = rule.split(/\s+/);
+        if ( method === 'addFromRuleParts' ) {
+            ruleset.addFromRuleParts(parts as [string, string, string, string]);
+        } else {
+            ruleset.removeFromRuleParts(parts as [string, string, string, string]);
+        }
+    }
+};
+
+const modifyDashboardRuleset = async (payload: {
+    permanent?: boolean;
+    toAdd?: string;
+    toRemove?: string;
+}) => {
+    await ensurePopupState();
+    const ruleset = payload.permanent ? popupState.permanentFirewall : popupState.sessionFirewall;
+    applyRuleTextDelta(ruleset, payload.toRemove || '', 'removeFromRuleParts');
+    applyRuleTextDelta(ruleset, payload.toAdd || '', 'addFromRuleParts');
+
+    if ( payload.permanent ) {
+        await persistPermanentFirewall();
+    }
+
+    await syncFirewallDnrRules();
+
+    return {
+        permanentRules: popupState.permanentFirewall.toArray(),
+        sessionRules: popupState.sessionFirewall.toArray(),
+    };
+};
+
+const resetDashboardRules = async () => {
+    await ensurePopupState();
+    popupState.sessionFirewall.assign(popupState.permanentFirewall);
+    await syncFirewallDnrRules();
+    return {
+        permanentRules: popupState.permanentFirewall.toArray(),
+        sessionRules: popupState.sessionFirewall.toArray(),
+    };
 };
 
 const setUserSetting = async (request: PopupRequest) => {
@@ -1058,6 +1387,30 @@ Messaging.on('setUserSettings', (payload, callback) => {
     });
 });
 
+Messaging.on('dashboardGetRules', async (_, callback) => {
+    const details = await getDashboardRules();
+    if ( callback ) {
+        callback(details);
+    }
+    return details;
+});
+
+Messaging.on('dashboardModifyRuleset', async (payload, callback) => {
+    const details = await modifyDashboardRuleset(payload || {});
+    if ( callback ) {
+        callback(details);
+    }
+    return details;
+});
+
+Messaging.on('dashboardResetRules', async (_, callback) => {
+    const details = await resetDashboardRules();
+    if ( callback ) {
+        callback(details);
+    }
+    return details;
+});
+
 chrome.commands.onCommand.addListener((command) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         const tabId = tabs[0]?.id;
@@ -1078,6 +1431,17 @@ chrome.commands.onCommand.addListener((command) => {
                 break;
         }
     });
+});
+
+chrome.webRequest.onBeforeRequest.addListener(
+    details => {
+        recordTabRequest(details as chrome.webRequest.WebRequestBodyDetails);
+    },
+    { urls: [ '<all_urls>' ] },
+);
+
+chrome.tabs.onRemoved.addListener(tabId => {
+    void clearTabRequestState(tabId);
 });
 
 chrome.runtime.onInstalled.addListener((details) => {

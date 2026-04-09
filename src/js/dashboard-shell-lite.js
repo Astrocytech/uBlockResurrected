@@ -9,8 +9,6 @@
         '1p-filters.html',
         'dyna-rules.html',
         'whitelist.html',
-        'support.html',
-        'about.html',
         'no-dashboard.html',
     ]);
 

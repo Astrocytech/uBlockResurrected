@@ -10,7 +10,7 @@ const extensionPath = path.resolve(
     'dist/build/uBlock0.chromium-mv3',
 );
 
-type ResourceHits = Map<string, { image: number; script: number }>;
+type ResourceHits = Map<string, { image: number; script: number; frame: number }>;
 
 type TestServers = {
     appServer: Server;
@@ -18,7 +18,9 @@ type TestServers = {
     appURL: string;
     blankURL: string;
     resourcePageURL: (uid: string) => string;
-    getHits: (uid: string) => { image: number; script: number };
+    multiHostResourcePageURL: (uid: string) => string;
+    framePageURL: (uid: string) => string;
+    getHits: (uid: string) => { image: number; script: number; frame: number };
 };
 
 const getExtensionId = async (context: BrowserContext): Promise<string> => {
@@ -71,35 +73,45 @@ const openPopupForTab = async (
     tabId: number,
 ): Promise<Page> => {
     const popupPage = await context.newPage();
-    await popupPage.goto(
-        `chrome-extension://${extensionId}/popup-fenix.html?tabId=${tabId}`,
-        { waitUntil: 'domcontentloaded' },
-    );
-    const hasAdvancedUser = await popupPage.locator('body').evaluate(body =>
-        body.classList.contains('advancedUser')
-    );
-    if ( hasAdvancedUser === false ) {
-        await popupPage.evaluate(async () => {
-            await (window as typeof window & { vAPI: any }).vAPI.messaging.send('popupPanel', {
-                what: 'userSettings',
-                name: 'advancedUserEnabled',
-                value: true,
+    const popupURL = `chrome-extension://${extensionId}/popup-fenix.html?tabId=${tabId}`;
+
+    for ( let attempt = 0; attempt < 3; attempt++ ) {
+        await popupPage.goto(popupURL, { waitUntil: 'domcontentloaded' });
+        const hasAdvancedUser = await popupPage.locator('body').evaluate(body =>
+            body.classList.contains('advancedUser')
+        );
+        if ( hasAdvancedUser === false ) {
+            await popupPage.evaluate(async () => {
+                await (window as typeof window & { vAPI: any }).vAPI.messaging.send('popupPanel', {
+                    what: 'userSettings',
+                    name: 'advancedUserEnabled',
+                    value: true,
+                });
+                await (window as typeof window & { vAPI: any }).vAPI.messaging.send('popupPanel', {
+                    what: 'userSettings',
+                    name: 'popupPanelSections',
+                    value: 31,
+                });
+                await (window as typeof window & { vAPI: any }).vAPI.messaging.send('popupPanel', {
+                    what: 'userSettings',
+                    name: 'firewallPaneMinimized',
+                    value: false,
+                });
             });
-            await (window as typeof window & { vAPI: any }).vAPI.messaging.send('popupPanel', {
-                what: 'userSettings',
-                name: 'popupPanelSections',
-                value: 31,
-            });
-            await (window as typeof window & { vAPI: any }).vAPI.messaging.send('popupPanel', {
-                what: 'userSettings',
-                name: 'firewallPaneMinimized',
-                value: false,
-            });
-        });
-        await popupPage.reload({ waitUntil: 'domcontentloaded' });
+            await popupPage.reload({ waitUntil: 'domcontentloaded' });
+        }
+
+        try {
+            await expect(popupPage.locator('body')).toHaveClass(/advancedUser/, { timeout: 3000 });
+            await expect(popupPage.locator('#firewall')).toBeVisible({ timeout: 3000 });
+            return popupPage;
+        } catch (error) {
+            if ( attempt === 2 ) {
+                throw error;
+            }
+        }
     }
-    await expect(popupPage.locator('body')).toHaveClass(/advancedUser/);
-    await expect(popupPage.locator('#firewall')).toBeVisible();
+
     return popupPage;
 };
 
@@ -109,6 +121,18 @@ const firewallCell = (popupPage: Page, rowType: string, scope: '/' | '.') => {
     );
 };
 
+const firewallHostCell = (
+    popupPage: Page,
+    desHostname: string,
+    rowType: string,
+    scope: '/' | '.',
+) => {
+    return popupPage.locator(
+        `#firewall > [data-des="${desHostname}"][data-type="${rowType}"] > span[data-src="${scope}"]`,
+    );
+};
+
+
 const setFirewallCellAction = async (
     popupPage: Page,
     rowType: string,
@@ -116,6 +140,7 @@ const setFirewallCellAction = async (
     action: 'block' | 'allow' | 'noop',
 ): Promise<void> => {
     const cell = firewallCell(popupPage, rowType, scope);
+    await cell.scrollIntoViewIfNeeded();
     await cell.hover();
     const hotspotId = action === 'allow'
         ? '#dynaAllow'
@@ -125,17 +150,42 @@ const setFirewallCellAction = async (
     await popupPage.locator(hotspotId).click();
 };
 
+const setFirewallHostCellAction = async (
+    popupPage: Page,
+    desHostname: string,
+    rowType: string,
+    scope: '/' | '.',
+    action: 'block' | 'allow' | 'noop',
+): Promise<void> => {
+    const cell = firewallHostCell(popupPage, desHostname, rowType, scope);
+    await cell.scrollIntoViewIfNeeded();
+    await cell.hover();
+    const hotspotId = action === 'allow'
+        ? '#dynaAllow'
+        : action === 'noop'
+            ? '#dynaNoop'
+            : '#dynaBlock';
+    await popupPage.locator(hotspotId).click();
+};
+
+
 const saveFirewallRules = async (popupPage: Page): Promise<void> => {
     await expect(popupPage.locator('body')).toHaveClass(/needSave/);
     await popupPage.locator('#saveRules').click();
     await expect(popupPage.locator('body')).not.toHaveClass(/needSave/);
 };
 
+const revertFirewallRules = async (popupPage: Page): Promise<void> => {
+    await expect(popupPage.locator('body')).toHaveClass(/needSave/);
+    await popupPage.locator('#revertRules').click();
+    await expect(popupPage.locator('body')).not.toHaveClass(/needSave/);
+};
+
 const startTestServers = async (): Promise<TestServers> => {
     const hits: ResourceHits = new Map();
 
-    const recordHit = (uid: string, type: 'image' | 'script') => {
-        const entry = hits.get(uid) || { image: 0, script: 0 };
+    const recordHit = (uid: string, type: 'image' | 'script' | 'frame') => {
+        const entry = hits.get(uid) || { image: 0, script: 0, frame: 0 };
         entry[type] += 1;
         hits.set(uid, entry);
     };
@@ -170,12 +220,22 @@ const startTestServers = async (): Promise<TestServers> => {
             return;
         }
 
+        if ( url.pathname === '/frame' ) {
+            recordHit(uid, 'frame');
+            res.writeHead(200, {
+                'content-type': 'text/html; charset=utf-8',
+                'cache-control': 'no-store',
+            });
+            res.end('<!doctype html><html><body><main id="frame-content">frame</main></body></html>');
+            return;
+        }
+
         res.writeHead(404);
         res.end('not found');
     });
 
     await new Promise<void>((resolve, reject) => {
-        resourceServer.listen(0, '127.0.0.1', () => resolve());
+        resourceServer.listen(0, '0.0.0.0', () => resolve());
         resourceServer.once('error', reject);
     });
 
@@ -212,6 +272,39 @@ const startTestServers = async (): Promise<TestServers> => {
             return;
         }
 
+        if ( url.pathname === '/multi-host-resource-page' ) {
+            const uid = url.searchParams.get('uid') || 'default';
+            res.writeHead(200, {
+                'content-type': 'text/html; charset=utf-8',
+                'cache-control': 'no-store',
+            });
+            res.end(`<!doctype html>
+<html>
+<body>
+    <img id="host1-image" src="http://127.0.0.1:${resourcePort}/pixel.png?uid=${uid}-host1" alt="pixel-1">
+    <script src="http://127.0.0.1:${resourcePort}/third-party.js?uid=${uid}-host1"></script>
+    <img id="host2-image" src="http://127.0.0.2:${resourcePort}/pixel.png?uid=${uid}-host2" alt="pixel-2">
+    <script src="http://127.0.0.2:${resourcePort}/third-party.js?uid=${uid}-host2"></script>
+</body>
+</html>`);
+            return;
+        }
+
+        if ( url.pathname === '/frame-page' ) {
+            const uid = url.searchParams.get('uid') || 'default';
+            res.writeHead(200, {
+                'content-type': 'text/html; charset=utf-8',
+                'cache-control': 'no-store',
+            });
+            res.end(`<!doctype html>
+<html>
+<body>
+    <iframe id="third-party-frame" src="http://127.0.0.1:${resourcePort}/frame?uid=${uid}"></iframe>
+</body>
+</html>`);
+            return;
+        }
+
         res.writeHead(404);
         res.end('not found');
     });
@@ -234,7 +327,9 @@ const startTestServers = async (): Promise<TestServers> => {
         appURL: `http://localhost:${appPort}/`,
         blankURL: `http://localhost:${appPort}/blank`,
         resourcePageURL: (uid: string) => `http://localhost:${appPort}/resource-page?uid=${uid}`,
-        getHits: (uid: string) => hits.get(uid) || { image: 0, script: 0 },
+        multiHostResourcePageURL: (uid: string) => `http://localhost:${appPort}/multi-host-resource-page?uid=${uid}`,
+        framePageURL: (uid: string) => `http://localhost:${appPort}/frame-page?uid=${uid}`,
+        getHits: (uid: string) => hits.get(uid) || { image: 0, script: 0, frame: 0 },
     };
 };
 
@@ -319,7 +414,7 @@ test.describe('Popup Firewall Extension', () => {
             await resourcePage.goto(servers.resourcePageURL(uid), { waitUntil: 'domcontentloaded' });
             await resourcePage.waitForTimeout(1000);
 
-            await expect.poll(() => servers.getHits(uid)).toEqual({ image: 0, script: 0 });
+            await expect.poll(() => servers.getHits(uid)).toEqual({ image: 0, script: 0, frame: 0 });
             await expect.poll(async () => {
                 return resourcePage.evaluate(() => ({
                     scriptLoaded: Boolean((window as Window & { __thirdPartyScriptLoaded?: number }).__thirdPartyScriptLoaded),
@@ -365,7 +460,7 @@ test.describe('Popup Firewall Extension', () => {
             await resourcePage.goto(servers.resourcePageURL(uid), { waitUntil: 'domcontentloaded' });
             await resourcePage.waitForTimeout(1000);
 
-            await expect.poll(() => servers.getHits(uid)).toEqual({ image: 1, script: 1 });
+            await expect.poll(() => servers.getHits(uid)).toEqual({ image: 1, script: 1, frame: 0 });
             await expect.poll(async () => {
                 return resourcePage.evaluate(() => ({
                     scriptLoaded: Boolean((window as Window & { __thirdPartyScriptLoaded?: number }).__thirdPartyScriptLoaded),
@@ -379,4 +474,299 @@ test.describe('Popup Firewall Extension', () => {
             await rm(userDataDir, { recursive: true, force: true });
         }
     });
+
+    test('image rule blocks only third-party images while allowing third-party scripts', async () => {
+        test.setTimeout(60000);
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-firewall-image-'));
+        const servers = await startTestServers();
+
+        let context: BrowserContext | undefined;
+        try {
+            context = await launchExtensionContext(userDataDir);
+            const serviceWorker = await getServiceWorker(context);
+            const extensionId = await getExtensionId(context);
+
+            const blankPage = await context.newPage();
+            await blankPage.goto(servers.blankURL, { waitUntil: 'domcontentloaded' });
+            const blankTabId = await getTabIdForURL(serviceWorker, servers.blankURL);
+            const popupPage = await openPopupForTab(context, extensionId, blankTabId);
+
+            await setFirewallCellAction(popupPage, 'image', '/', 'block');
+            await saveFirewallRules(popupPage);
+
+            await context.close();
+            context = undefined;
+
+            context = await launchExtensionContext(userDataDir);
+
+            const resourcePage = await context.newPage();
+            const uid = `image-only-${Date.now()}`;
+            await resourcePage.goto(servers.resourcePageURL(uid), { waitUntil: 'domcontentloaded' });
+            await resourcePage.waitForTimeout(1000);
+
+            await expect.poll(() => servers.getHits(uid)).toEqual({ image: 0, script: 1, frame: 0 });
+            await expect.poll(async () => {
+                return resourcePage.evaluate(() => ({
+                    scriptLoaded: Boolean((window as Window & { __thirdPartyScriptLoaded?: number }).__thirdPartyScriptLoaded),
+                    imageWidth: (document.getElementById('third-party-image') as HTMLImageElement | null)?.naturalWidth || 0,
+                }));
+            }).toEqual({ scriptLoaded: true, imageWidth: 0 });
+        } finally {
+            await context?.close();
+            await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
+            await new Promise<void>(resolve => servers.resourceServer.close(() => resolve()));
+            await rm(userDataDir, { recursive: true, force: true });
+        }
+    });
+
+    test('3p-script rule blocks only third-party scripts while allowing third-party images', async () => {
+        test.setTimeout(60000);
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-firewall-3pscript-'));
+        const servers = await startTestServers();
+
+        let context: BrowserContext | undefined;
+        try {
+            context = await launchExtensionContext(userDataDir);
+            const serviceWorker = await getServiceWorker(context);
+            const extensionId = await getExtensionId(context);
+
+            const blankPage = await context.newPage();
+            await blankPage.goto(servers.blankURL, { waitUntil: 'domcontentloaded' });
+            const blankTabId = await getTabIdForURL(serviceWorker, servers.blankURL);
+            const popupPage = await openPopupForTab(context, extensionId, blankTabId);
+
+            await setFirewallCellAction(popupPage, '3p-script', '/', 'block');
+            await saveFirewallRules(popupPage);
+
+            await context.close();
+            context = undefined;
+
+            context = await launchExtensionContext(userDataDir);
+
+            const resourcePage = await context.newPage();
+            const uid = `script-only-${Date.now()}`;
+            await resourcePage.goto(servers.resourcePageURL(uid), { waitUntil: 'domcontentloaded' });
+            await resourcePage.waitForTimeout(1000);
+
+            await expect.poll(() => servers.getHits(uid)).toEqual({ image: 1, script: 0, frame: 0 });
+            await expect.poll(async () => {
+                return resourcePage.evaluate(() => ({
+                    scriptLoaded: Boolean((window as Window & { __thirdPartyScriptLoaded?: number }).__thirdPartyScriptLoaded),
+                    imageWidth: (document.getElementById('third-party-image') as HTMLImageElement | null)?.naturalWidth || 0,
+                }));
+            }).toEqual({ scriptLoaded: false, imageWidth: 1 });
+        } finally {
+            await context?.close();
+            await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
+            await new Promise<void>(resolve => servers.resourceServer.close(() => resolve()));
+            await rm(userDataDir, { recursive: true, force: true });
+        }
+    });
+
+    test('3p-frame rule blocks only third-party frames', async () => {
+        test.setTimeout(60000);
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-firewall-3pframe-'));
+        const servers = await startTestServers();
+
+        let context: BrowserContext | undefined;
+        try {
+            context = await launchExtensionContext(userDataDir);
+            const serviceWorker = await getServiceWorker(context);
+            const extensionId = await getExtensionId(context);
+
+            const blankPage = await context.newPage();
+            await blankPage.goto(servers.blankURL, { waitUntil: 'domcontentloaded' });
+            const blankTabId = await getTabIdForURL(serviceWorker, servers.blankURL);
+            const popupPage = await openPopupForTab(context, extensionId, blankTabId);
+
+            await setFirewallCellAction(popupPage, '3p-frame', '/', 'block');
+            await saveFirewallRules(popupPage);
+
+            await context.close();
+            context = undefined;
+
+            context = await launchExtensionContext(userDataDir);
+
+            const framePage = await context.newPage();
+            const uid = `frame-only-${Date.now()}`;
+            await framePage.goto(servers.framePageURL(uid), { waitUntil: 'domcontentloaded' });
+            await framePage.waitForTimeout(1000);
+
+            await expect.poll(() => servers.getHits(uid)).toEqual({ image: 0, script: 0, frame: 0 });
+        } finally {
+            await context?.close();
+            await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
+            await new Promise<void>(resolve => servers.resourceServer.close(() => resolve()));
+            await rm(userDataDir, { recursive: true, force: true });
+        }
+    });
+
+    test('site-specific noop overrides the broader global 3p block for the active page hostname', async () => {
+        test.setTimeout(60000);
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-firewall-noop-'));
+        const servers = await startTestServers();
+
+        let context: BrowserContext | undefined;
+        try {
+            context = await launchExtensionContext(userDataDir);
+            const serviceWorker = await getServiceWorker(context);
+            const extensionId = await getExtensionId(context);
+
+            const page = await context.newPage();
+            await page.goto(servers.blankURL, { waitUntil: 'domcontentloaded' });
+            const tabId = await getTabIdForURL(serviceWorker, servers.blankURL);
+            const popupPage = await openPopupForTab(context, extensionId, tabId);
+
+            await setFirewallCellAction(popupPage, '3p', '/', 'block');
+            await setFirewallCellAction(popupPage, '3p', '.', 'noop');
+            await saveFirewallRules(popupPage);
+
+            await context.close();
+            context = undefined;
+
+            context = await launchExtensionContext(userDataDir);
+
+            const resourcePage = await context.newPage();
+            const uid = `noop-${Date.now()}`;
+            await resourcePage.goto(servers.resourcePageURL(uid), { waitUntil: 'domcontentloaded' });
+            await resourcePage.waitForTimeout(1000);
+
+            await expect.poll(() => servers.getHits(uid)).toEqual({ image: 1, script: 1, frame: 0 });
+            await expect.poll(async () => {
+                return resourcePage.evaluate(() => ({
+                    scriptLoaded: Boolean((window as Window & { __thirdPartyScriptLoaded?: number }).__thirdPartyScriptLoaded),
+                    imageWidth: (document.getElementById('third-party-image') as HTMLImageElement | null)?.naturalWidth || 0,
+                }));
+            }).toEqual({ scriptLoaded: true, imageWidth: 1 });
+        } finally {
+            await context?.close();
+            await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
+            await new Promise<void>(resolve => servers.resourceServer.close(() => resolve()));
+            await rm(userDataDir, { recursive: true, force: true });
+        }
+    });
+
+    test('revert discards unsaved firewall changes and restores the persisted matrix', async () => {
+        test.setTimeout(60000);
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-firewall-revert-'));
+        const servers = await startTestServers();
+
+        let context: BrowserContext | undefined;
+        try {
+            context = await launchExtensionContext(userDataDir);
+            const serviceWorker = await getServiceWorker(context);
+            const extensionId = await getExtensionId(context);
+
+            const page = await context.newPage();
+            await page.goto(servers.blankURL, { waitUntil: 'domcontentloaded' });
+            const tabId = await getTabIdForURL(serviceWorker, servers.blankURL);
+            const popupPage = await openPopupForTab(context, extensionId, tabId);
+
+            await setFirewallCellAction(popupPage, '3p', '/', 'block');
+            await saveFirewallRules(popupPage);
+
+            await setFirewallCellAction(popupPage, 'image', '/', 'block');
+            await expect(firewallCell(popupPage, 'image', '/')).toHaveClass(/blockRule/);
+
+            await revertFirewallRules(popupPage);
+
+            await expect(firewallCell(popupPage, '3p', '/')).toHaveClass(/blockRule/);
+            await expect(firewallCell(popupPage, 'image', '/')).not.toHaveClass(/blockRule/);
+            await expect.poll(async () => {
+                return serviceWorker.evaluate(() => self.µBlock.sessionFirewall.toString());
+            }).toContain('* * 3p block');
+            await expect.poll(async () => {
+                return serviceWorker.evaluate(() => self.µBlock.sessionFirewall.toString());
+            }).not.toContain('* * image block');
+        } finally {
+            await context?.close();
+            await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
+            await new Promise<void>(resolve => servers.resourceServer.close(() => resolve()));
+            await rm(userDataDir, { recursive: true, force: true });
+        }
+    });
+
+    test('popup shows destination-host rows after third-party requests are observed on the page', async () => {
+        test.setTimeout(60000);
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-firewall-hostrows-'));
+        const servers = await startTestServers();
+
+        let context: BrowserContext | undefined;
+        try {
+            context = await launchExtensionContext(userDataDir);
+            const serviceWorker = await getServiceWorker(context);
+            const extensionId = await getExtensionId(context);
+
+            const resourcePage = await context.newPage();
+            const uid = `hostrows-${Date.now()}`;
+            await resourcePage.goto(servers.multiHostResourcePageURL(uid), { waitUntil: 'domcontentloaded' });
+            await expect.poll(() => servers.getHits(`${uid}-host1`)).toEqual({ image: 1, script: 1, frame: 0 });
+
+            const tabId = await getTabIdForURL(serviceWorker, servers.multiHostResourcePageURL(uid));
+            const popupPage = await openPopupForTab(context, extensionId, tabId);
+
+            await expect(firewallHostCell(popupPage, '127.0.0.1', '*', '/')).toBeVisible();
+            await expect(firewallHostCell(popupPage, '127.0.0.2', '*', '/')).toBeVisible();
+        } finally {
+            await context?.close();
+            await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
+            await new Promise<void>(resolve => servers.resourceServer.close(() => resolve()));
+            await rm(userDataDir, { recursive: true, force: true });
+        }
+    });
+
+    test('host-specific block rule blocks only the targeted destination host', async () => {
+        test.setTimeout(60000);
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-firewall-hostblock-'));
+        const servers = await startTestServers();
+
+        let context: BrowserContext | undefined;
+        try {
+            context = await launchExtensionContext(userDataDir);
+            const serviceWorker = await getServiceWorker(context);
+            const extensionId = await getExtensionId(context);
+
+            const resourcePage = await context.newPage();
+            const setupUid = `hostblock-setup-${Date.now()}`;
+            await resourcePage.goto(servers.multiHostResourcePageURL(setupUid), { waitUntil: 'domcontentloaded' });
+            await expect.poll(() => servers.getHits(`${setupUid}-host1`)).toEqual({ image: 1, script: 1, frame: 0 });
+
+            const tabId = await getTabIdForURL(serviceWorker, servers.multiHostResourcePageURL(setupUid));
+            const popupPage = await openPopupForTab(context, extensionId, tabId);
+
+            await expect(firewallHostCell(popupPage, '127.0.0.1', '*', '/')).toBeVisible();
+            await setFirewallHostCellAction(popupPage, '127.0.0.1', '*', '/', 'block');
+            await saveFirewallRules(popupPage);
+
+            await expect.poll(async () => {
+                return serviceWorker.evaluate(() => self.µBlock.permanentFirewall.toString());
+            }).toContain('* 127.0.0.1 * block');
+
+            await context.close();
+            context = undefined;
+
+            context = await launchExtensionContext(userDataDir);
+
+            const uid = `hostblock-${Date.now()}`;
+            const verifyPage = await context.newPage();
+            await verifyPage.goto(servers.multiHostResourcePageURL(uid), { waitUntil: 'domcontentloaded' });
+            await verifyPage.waitForTimeout(1000);
+
+            await expect.poll(() => servers.getHits(`${uid}-host1`)).toEqual({ image: 0, script: 0, frame: 0 });
+            await expect.poll(() => servers.getHits(`${uid}-host2`)).toEqual({ image: 1, script: 1, frame: 0 });
+            await expect.poll(async () => {
+                return verifyPage.evaluate(() => ({
+                    host1Width: (document.getElementById('host1-image') as HTMLImageElement | null)?.naturalWidth || 0,
+                    host2Width: (document.getElementById('host2-image') as HTMLImageElement | null)?.naturalWidth || 0,
+                    scriptLoaded: Boolean((window as Window & { __thirdPartyScriptLoaded?: number }).__thirdPartyScriptLoaded),
+                }));
+            }).toEqual({ host1Width: 0, host2Width: 1, scriptLoaded: true });
+        } finally {
+            await context?.close();
+            await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
+            await new Promise<void>(resolve => servers.resourceServer.close(() => resolve()));
+            await rm(userDataDir, { recursive: true, force: true });
+        }
+    });
+
 });

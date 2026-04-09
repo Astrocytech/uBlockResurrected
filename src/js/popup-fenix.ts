@@ -1342,11 +1342,17 @@ dom.on('#firewall', 'click', '.isDomain[data-type="*"] > span:first-of-type', ev
 /******************************************************************************/
 
 const saveFirewallRules = async function() {
-    await messaging.send('popupPanel', {
+    const response = await messaging.send('popupPanel', {
         what: 'saveFirewallRules',
+        tabId: popupData.tabId,
         srcHostname: popupData.pageHostname,
         desHostnames: popupData.hostnameDict,
     });
+    if ( response instanceof Object ) {
+        cachePopupData(response);
+        updateAllFirewallCells(true, false);
+        hashFromPopupData(true);
+    }
     dom.cl.remove(dom.body, 'needSave');
 };
 
