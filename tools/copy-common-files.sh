@@ -12,6 +12,7 @@ cp -R src/css                      $DES/
 cp -R src/img                      $DES/
 mkdir $DES/js
 cp src/js/*.ts                    $DES/js/
+cp src/js/*.js                    $DES/js/ 2>/dev/null || true
 cp -R src/js/blocker-core          $DES/js/
 cp -R src/js/resources             $DES/js/
 cp -R src/js/codemirror            $DES/js/
