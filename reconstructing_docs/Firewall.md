@@ -191,8 +191,27 @@ class DynamicHostRuleFiltering {
     
     // Get log data for debugging
     toLogData() { }
+    
+    // Serialize/deserialize for fast startup (selfie)
+    toSelfie() { }     // Returns { magicId, rules: Array }
+    fromSelfie(s) { }  // Restores from selfie object
 }
 ```
+
+#### Selfie (Fast Serialization)
+
+For faster extension startup, the firewall supports serialization to a "selfie" object:
+
+```javascript
+// Save state for fast reload
+const selfie = firewall.toSelfie();
+// Returns: { magicId: 1, rules: [['example.com ads.example.com', 0x0501], ...] }
+
+// Restore state
+firewall.fromSelfie(selfie);  // Returns true if successful
+```
+
+The `magicId` (set to 1) is used to validate the selfie format. If the magicId doesn't match, restoration fails.
 
 #### Dependencies
 
@@ -209,6 +228,47 @@ Two instances are maintained:
 - **`sessionFirewall`**: Runtime rules (copied from permanent on startup)
 
 Changes are made to `sessionFirewall`, then synced to DNR and saved to `permanentFirewall`.
+
+### Related Filtering Engines
+
+The firewall works alongside other dynamic filtering systems defined in `filtering-engines.js`:
+
+```javascript
+import {
+    permanentFirewall,
+    sessionFirewall,
+    permanentURLFiltering,
+    sessionURLFiltering,
+    permanentSwitches,
+    sessionSwitches,
+} from './filtering-engines.js';
+```
+
+#### DynamicURLRuleFiltering (URL-based firewall)
+
+This is a **URL-level** version of the hostname firewall. While the hostname firewall works on domain/hostname level, this works on full URLs:
+
+```
+# URL-based rules format
+example.com/path block
+example.com/path allow
+```
+
+- Uses `urlFilter` in DNR directly (more precise)
+- Works with specific URL patterns
+- Stored separately from hostname firewall
+
+#### DynamicSwitchRuleFiltering (Site switches)
+
+Site-level toggles for:
+- `no-popups` - Block popups
+- `no-modern-strict-block` - Disable strict blocking
+- `no-cosmetic-filtering` - Disable cosmetic filters
+- `no-scripting` - Disable all scripts
+- `no-webrtc` - Disable WebRTC
+- `no-large-media` - Block large media elements
+
+These are separate from the main firewall but use similar session/permanent pattern.
 
 ---
 
@@ -451,6 +511,20 @@ import { dnr } from './ext-compat.js';
 // dnr.updateSessionRules({ addRules, removeRuleIds })
 ```
 
+#### Result Checking Methods
+
+After calling `evaluateCellZY()`, the result can be checked using convenience methods:
+
+```javascript
+// After evaluateCellZY() is called, check the result:
+mustAllowCellZY(src, des, type)  // Returns true if result === 2 (allow)
+mustBlockOrAllow()               // Returns true if result === 1 or 2
+mustBlock()                      // Returns true if result === 1
+mustAbort()                      // Returns true if result === 3 (noop)
+```
+
+These methods use the internal `this.r` register set by `evaluateCellZY()`.
+
 ### Coordination with Static Filters
 
 Firewall rules need **highest priority** to override static filter rules. This is achieved by:
@@ -501,10 +575,6 @@ The firewall maps browser request types to firewall types:
 
 ---
 
-## UI Implementation
-
----
-
 ## Request Type Handling
 
 ### 3rd-Party Detection
@@ -543,6 +613,36 @@ When evaluating a request, rules are checked in this order (most specific first)
 6. **Any destination, specific type** - `example.com * image block`
 7. **Any destination, any party, any type** - `example.com * * block`
 8. **Global rules** - `* * * block`
+
+### Evaluation Methods Detail
+
+The firewall provides three evaluation methods with different specificity:
+
+```javascript
+// Direct lookup - exact source/destination/type
+evaluateCell(src, des, type) { }
+
+// Z-variant: Check source hostname hierarchy (subdomains)
+evaluateCellZ(src, des, type) {
+    // Decompose source hostname into parent domains
+    // Check each parent level for matching rules
+    // e.g., for "ads.example.com", checks:
+    // 1. ads.example.com
+    // 2. example.com
+    // 3. com (if valid)
+}
+
+// ZY-variant: Full evaluation with destination and type fallback
+evaluateCellZY(src, des, type) {
+    // 1. Check destination hierarchy (like Z)
+    // 2. Detect if 3rd-party request
+    // 3. Apply type-specific rules based on 3rd-party status
+    // 4. Fall back to generic type rules
+    // 5. Fall back to wildcard (*) rules
+}
+```
+
+This hierarchical evaluation allows rules to apply to all subdomains automatically - a rule for `example.com` will also apply to `www.example.com`, `ads.example.com`, etc.
 
 ---
 
@@ -617,6 +717,62 @@ example.com         |  ●  |   ○   |   ●    |   ○   | ●  |     ○     
 ```
 
 Legend: ○ = no rule, ● = blocked, ✓ = allowed, ⊘ = noop
+
+### UI Interaction (Clicking Cells)
+
+The UI provides two ways to set rules:
+
+#### 1. Click on Cell (Direct)
+
+Clicking a cell directly cycles through: Block → Allow → Noop → None
+
+```javascript
+// In popup-fenix.js - setFirewallRuleHandler
+const setFirewallRuleHandler = function(ev) {
+    const hotspot = ev.target;  // The cell itself
+    
+    // Determine action based on click
+    let action = 1;  // Default to block
+    if (hotspot.id === 'dynaAllow') {
+        action = 2;  // Allow
+    } else if (hotspot.id === 'dynaNoop') {
+        action = 3;  // Noop
+    }
+    
+    // Send to service worker
+    messaging.send('popupPanel', {
+        what: 'toggleFirewallRule',
+        srcHostname: src,
+        desHostname: des,
+        requestType: type,
+        action: action,
+        persist: ev.ctrlKey || ev.metaKey  // Ctrl/Cmd = permanent
+    });
+};
+```
+
+#### 2. Click on Action Widget (Hotspot)
+
+A small widget appears on hover offering:
+- **Block** - Set to block
+- **Allow** - Set to allow  
+- **Noop** - Set to noop (pass through without blocking)
+
+```javascript
+// Action widget HTML (dfHotspots)
+<div id="dfHotspots" class="hide">
+    <span id="dynaBlock" data-i18n-title="dynamicFilteringBlock"></span>
+    <span id="dynaAllow" data-i18n-title="dynamicFilteringAllow"></span>
+    <span id="dynaNoop" data-i18n-title="dynamicFilteringNoop"></span>
+</div>
+```
+
+#### Persistence Flag
+
+- **Normal click**: Rule applies to session only (temporary)
+- **Ctrl/Cmd + click**: Rule is persisted to permanent storage
+
+This allows users to create temporary test rules before committing them.
 
 ### Click to Cycle
 
@@ -941,6 +1097,44 @@ chrome.runtime.sendMessage({ topic: 'firewallGetAll' }, console.log);
 4. **IDN domains**: Converted to punycode for storage/DNR
 5. **IP addresses**: Not supported (hostnames only)
 6. **Port in hostname**: Stripped before processing
+7. **Duplicate rules**: Later rules override earlier ones
+8. **Conflicting rules**: More specific rules take precedence
+
+---
+
+## Firewall Statistics & Logging
+
+### Logging
+
+When a firewall rule blocks or allows a request, the filter information is logged:
+
+```javascript
+// In filterRequest() after evaluateCellZY
+if (result !== 0 && result !== 3 && loggerEnabled) {
+    fctxt.filter = sessionFirewall.toLogData();
+    // Returns: {
+    //     source: 'dynamicHost',
+    //     result: 1,  // 1=block, 2=allow
+    //     raw: 'example.com ads.example.com 3p-script block'
+    // }
+}
+```
+
+### Statistics
+
+The popup displays statistics for blocked/allowed requests:
+
+```javascript
+// In popupDataFromTabId
+const r = {
+    // ...
+    globalAllowedRequestCount: µb.requestStats.allowedCount,
+    globalBlockedRequestCount: µb.requestStats.blockedCount,
+    // ...
+};
+```
+
+These statistics are accumulated during the session and displayed in the popup.
 
 ---
 
@@ -1043,6 +1237,12 @@ Note: The `declarativeNetRequest` permission allows the extension to add blockin
 11. Added testing checklist and edge cases
 12. Added manifest permissions required
 13. Added HTML elements structure
+14. Added selfie (fast serialization) support
+15. Added related filtering engines (URL, switches)
+16. Added evaluation methods detail (Z, ZY variants)
+17. Added result checking methods (mustBlock, etc.)
+18. Added UI interaction details (hotspots, persistence)
+19. Added firewall statistics & logging documentation
 
 ---
 

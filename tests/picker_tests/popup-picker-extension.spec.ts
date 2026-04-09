@@ -134,6 +134,69 @@ const launchExtensionContext = async (userDataDir: string): Promise<BrowserConte
 };
 
 test.describe('Popup Picker Extension', () => {
+    test('clicking inside a picked element keeps that element selected in the picker window', async () => {
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-picker-exact-element-'));
+        const { server, url } = await startTestServer();
+
+        let context: BrowserContext | undefined;
+        try {
+            context = await launchExtensionContext(userDataDir);
+
+            const extensionId = await getExtensionId(context);
+            const serviceWorker = context.serviceWorkers()[0]
+                ?? await context.waitForEvent('serviceworker');
+            const page = await context.newPage();
+            await page.goto(url, { waitUntil: 'domcontentloaded' });
+            await page.bringToFront();
+
+            const [activeTab] = await serviceWorker.evaluate(async targetURL => {
+                const tabs = await chrome.tabs.query({ url: targetURL });
+                return tabs.map(tab => ({ id: tab.id, url: tab.url }));
+            }, url);
+            if ( typeof activeTab?.id !== 'number' ) {
+                throw new Error(`Unable to resolve active tab for ${url}`);
+            }
+
+            const popupPage = await context.newPage();
+            await popupPage.goto(
+                `chrome-extension://${extensionId}/popup-fenix.html?tabId=${activeTab.id}`,
+                { waitUntil: 'domcontentloaded' },
+            );
+            await expect(popupPage.locator('#gotoPick')).toBeVisible();
+            await popupPage.locator('#gotoPick').click({ noWaitAfter: true });
+
+            const pickerFrameHost = page.locator('iframe[src*="/picker-ui.html"]');
+            await expect(pickerFrameHost).toBeVisible();
+            const pickerFrameHandle = await pickerFrameHost.elementHandle();
+            if ( pickerFrameHandle === null ) {
+                throw new Error('Picker iframe did not appear');
+            }
+            const pickerFrame = await pickerFrameHandle.contentFrame();
+            if ( pickerFrame === null ) {
+                throw new Error('Picker iframe content frame was unavailable');
+            }
+
+            const box = await page.locator('a.listingsignupbar.infobar h2').boundingBox();
+            if ( box === null ) {
+                throw new Error('Nested heading inside target element was not found');
+            }
+
+            await pickerFrame.locator('#overlay').click({
+                position: {
+                    x: Math.round(box.x + Math.min(box.width / 2, 120)),
+                    y: Math.round(box.y + Math.min(box.height / 2, 20)),
+                },
+            });
+
+            await expect(pickerFrame.locator('#filterText')).toHaveValue('##.listingsignupbar.infobar');
+            await expect(pickerFrame.locator('#cosmeticFilters li').first()).toHaveText('##.listingsignupbar.infobar');
+        } finally {
+            await context?.close();
+            await new Promise<void>(resolve => server.close(() => resolve()));
+            await rm(userDataDir, { recursive: true, force: true });
+        }
+    });
+
     test('Confirm appends the selected filter to My filters permanently and removes the element from the page', async () => {
         const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-picker-confirm-'));
         const { server, url } = await startTestServer();

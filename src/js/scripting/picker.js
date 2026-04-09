@@ -233,37 +233,10 @@
 
         if ( groups.length === 0 ) { return; }
 
-        var bestIndex = 0;
-        for ( var i = 1; i < groups.length; i++ ) {
-            var currentFilter = groups[i].label;
-            var bestFilter = groups[bestIndex].label;
-            var currentCount = selectorCount(currentFilter.slice(2));
-            var bestCount = selectorCount(bestFilter.slice(2));
-            if ( currentCount < bestCount ) {
-                bestIndex = i;
-                continue;
-            }
-            if ( currentCount > bestCount ) {
-                continue;
-            }
-            var currentRank = filterRank(currentFilter);
-            var bestRank = filterRank(bestFilter);
-            if ( currentRank < bestRank ) {
-                bestIndex = i;
-                continue;
-            }
-            if ( currentRank > bestRank ) {
-                continue;
-            }
-            if ( i < bestIndex ) {
-                bestIndex = i;
-            }
-        }
-
         return {
             cosmeticFilters: groups,
             filter: {
-                slot: bestIndex,
+                slot: 0,
                 specificity: 0,
             }
         };
