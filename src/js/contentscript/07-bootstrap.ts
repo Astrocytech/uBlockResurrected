@@ -82,6 +82,112 @@ interface BootstrapResponse {
     noGenericCosmeticFiltering?: boolean;
 }
 
+type StorageBin = {
+    'user-filters'?: string;
+    selectedFilterLists?: string[];
+};
+
+const userFilterStyleId = 'ublock-resurrected-user-filters';
+
+const storageGet = (keys: string[]): Promise<StorageBin> => {
+    const browserAPI = globalThis.browser;
+    if ( browserAPI?.storage?.local?.get instanceof Function ) {
+        return browserAPI.storage.local.get(keys);
+    }
+    const chromeAPI = globalThis.chrome;
+    if ( chromeAPI?.storage?.local?.get instanceof Function ) {
+        return new Promise(resolve => {
+            chromeAPI.storage.local.get(keys, (bin: StorageBin) => resolve(bin || {}));
+        });
+    }
+    return Promise.resolve({});
+};
+
+const matchesFilterHostname = (filterHostname: string, pageHostname: string): boolean => {
+    if ( filterHostname === '' ) { return true; }
+    return (
+        pageHostname === filterHostname ||
+        pageHostname.endsWith(`.${filterHostname}`)
+    );
+};
+
+const shouldApplyCosmeticLine = (line: string, pageHostname: string): string | undefined => {
+    if ( line === '' || line.startsWith('!') ) { return; }
+    const exceptionIndex = line.indexOf('#@#');
+    if ( exceptionIndex !== -1 ) { return; }
+    const separatorIndex = line.indexOf('##');
+    if ( separatorIndex === -1 ) { return; }
+
+    const scope = line.slice(0, separatorIndex).trim();
+    const selector = line.slice(separatorIndex + 2).trim();
+    if ( selector === '' ) { return; }
+
+    if ( scope === '' ) { return selector; }
+
+    const includes = [];
+    const excludes = [];
+    for ( const token of scope.split(',').map(part => part.trim()).filter(Boolean) ) {
+        if ( token.startsWith('~') ) {
+            excludes.push(token.slice(1));
+        } else {
+            includes.push(token);
+        }
+    }
+
+    if ( excludes.some(token => matchesFilterHostname(token, pageHostname)) ) {
+        return;
+    }
+    if ( includes.length === 0 ) { return selector; }
+    if ( includes.some(token => matchesFilterHostname(token, pageHostname)) ) {
+        return selector;
+    }
+};
+
+const collectStoredCosmeticSelectors = (rawFilters: string, pageHostname: string): string[] => {
+    const selectors: string[] = [];
+    const seen = new Set<string>();
+
+    for ( const rawLine of rawFilters.split(/\r?\n/) ) {
+        const line = rawLine.trim();
+        const selector = shouldApplyCosmeticLine(line, pageHostname);
+        if ( selector === undefined || seen.has(selector) ) { continue; }
+        try {
+            document.querySelector(selector);
+        } catch {
+            continue;
+        }
+        seen.add(selector);
+        selectors.push(selector);
+    }
+
+    return selectors;
+};
+
+const applyStoredUserFilters = async (): Promise<void> => {
+    const pageHostname = self.location.hostname;
+    if ( pageHostname === '' ) { return; }
+
+    const bin = await storageGet([ 'user-filters', 'selectedFilterLists' ]);
+    if ( Array.isArray(bin.selectedFilterLists) === false ) { return; }
+    if ( bin.selectedFilterLists.includes('user-filters') === false ) { return; }
+    if ( typeof bin['user-filters'] !== 'string' || bin['user-filters'].trim() === '' ) {
+        return;
+    }
+
+    const selectors = collectStoredCosmeticSelectors(bin['user-filters'], pageHostname);
+    if ( selectors.length === 0 ) { return; }
+
+    let style = document.getElementById(userFilterStyleId) as HTMLStyleElement | null;
+    if ( style === null ) {
+        style = document.createElement('style');
+        style.id = userFilterStyleId;
+        (document.head || document.documentElement).append(style);
+    }
+    style.textContent = selectors
+        .map(selector => `${selector}\n{display:none!important;}`)
+        .join('\n');
+};
+
 export function initBootstrap(): void {
     const onDomReady = (): void => {
         if ( window.location === null ) { return; }
@@ -194,19 +300,23 @@ export function initBootstrap(): void {
         console.log('[MV3-CS] Page URL:', vAPI.effectiveSelf.location.href);
         console.log('[MV3-CS] About to call vAPI.messaging.send');
 
-        vAPI.messaging.send('contentscript', {
-            what: 'retrieveContentScriptParameters',
-            url: vAPI.effectiveSelf.location.href,
-            needScriptlets: (self as Record<string, unknown>).uBR_scriptletsInjected === undefined,
-        }).then(response => {
-            if (response && (response as BootstrapResponse).specificCosmeticFilters) {
-                const scf = (response as BootstrapResponse).specificCosmeticFilters!;
-                if (scf.injectedCSS && scf.injectedCSS.length > 0) {
+        applyStoredUserFilters().catch(err => {
+            console.error('[MV3-CS] Stored user filters error:', err);
+        }).finally(() => {
+            vAPI.messaging.send('contentscript', {
+                what: 'retrieveContentScriptParameters',
+                url: vAPI.effectiveSelf.location.href,
+                needScriptlets: (self as Record<string, unknown>).uBR_scriptletsInjected === undefined,
+            }).then(response => {
+                if (response && (response as BootstrapResponse).specificCosmeticFilters) {
+                    const scf = (response as BootstrapResponse).specificCosmeticFilters!;
+                    if (scf.injectedCSS && scf.injectedCSS.length > 0) {
+                    }
                 }
-            }
-            onResponseReady(response);
-        }).catch(err => {
-            console.error('[MV3-CS] Promise error:', err);
+                onResponseReady(response);
+            }).catch(err => {
+                console.error('[MV3-CS] Promise error:', err);
+            });
         });
     };
 }

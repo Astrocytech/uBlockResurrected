@@ -328,17 +328,19 @@ function exportUserFiltersToFile(): void {
 
 async function applyChanges(): Promise<void> {
     const state = getCurrentState();
+    const nextEnabled = state.filters.trim() !== '' ? true : state.enabled;
     const bin = await storageGet('selectedFilterLists') as StoredUserFiltersBin | undefined;
     const selected = new Set(
         Array.isArray(bin?.selectedFilterLists)
             ? bin.selectedFilterLists
             : []
     );
-    if ( state.enabled ) {
+    if ( nextEnabled ) {
         selected.add('user-filters');
     } else {
         selected.delete('user-filters');
     }
+    qs$('#enableMyFilters input').checked = nextEnabled;
     await storageSet({
         'user-filters': state.filters.trim(),
         selectedFilterLists: Array.from(selected),

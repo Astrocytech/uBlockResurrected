@@ -114,16 +114,14 @@
                 selectedFilterLists: selected,
             });
         }).then(function() {
-            return Promise.allSettled([
-                runtimeSendMessage({
-                    what: 'applyFilterListSelection',
-                    toSelect: [ 'user-filters' ],
-                    merge: true,
-                }),
-                runtimeSendMessage({
-                    what: 'reloadAllFilters',
-                }),
-            ]);
+            void runtimeSendMessage({
+                what: 'applyFilterListSelection',
+                toSelect: [ 'user-filters' ],
+                merge: true,
+            });
+            void runtimeSendMessage({
+                what: 'reloadAllFilters',
+            });
         });
     }
 
