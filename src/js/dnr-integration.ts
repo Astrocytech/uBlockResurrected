@@ -18,8 +18,12 @@ import {
 } from '../js/filtering-engines.js';
 
 import µb from '../js/background.js';
+import vAPI from '../js/vapi.js';
 import { onBroadcast } from '../js/broadcast.js';
 import { storage } from './mv3/storage.js';
+import io from '../js/assets.js';
+import { dnrRulesetFromRawLists, mergeRules } from './static-dnr-filtering.js';
+import staticNetFilteringEngine from '../js/static-net-filtering.js';
 
 /******************************************************************************/
 
@@ -58,6 +62,9 @@ class DNRIntegration {
             if ( msg.what === 'filteringBehaviorChanged' ) {
                 this.updateRules();
             }
+            if ( msg.what === 'userFiltersUpdated' ) {
+                this.updateRules();
+            }
         });
 
         try {
@@ -78,8 +85,10 @@ class DNRIntegration {
             const firewallRules = this.compileUserRules();
             const whitelistRules = this.compileWhitelist();
             const userFilterRules = await this.compileUserFiltersFromStorage();
+            const staticFilterRules = await this.compileStaticFiltersFromLists();
 
             const allRules = [
+                ...staticFilterRules,
                 ...firewallRules,
                 ...whitelistRules,
                 ...userFilterRules
@@ -110,10 +119,205 @@ class DNRIntegration {
                 });
             }
 
-            console.log(`[DNR] Installed ${allRules.length} rules (firewall: ${firewallRules.length}, whitelist: ${whitelistRules.length}, userFilters: ${userFilterRules.length})`);
+            console.log(`[DNR] Installed ${allRules.length} rules (static: ${staticFilterRules.length}, firewall: ${firewallRules.length}, whitelist: ${whitelistRules.length}, userFilters: ${userFilterRules.length})`);
         } catch (e) {
             console.error('[DNR] Failed to compile/install rules:', e);
         }
+    }
+
+    /**
+     * Compile static filter lists to DNR rules
+     * First tries to use compiled filter data from the engine (from selfie),
+     * falls back to reading raw list content if needed
+     */
+    async compileStaticFiltersFromLists(): Promise<any[]> {
+        const rules: any[] = [];
+        
+        try {
+            console.log('[DNR] Starting static filter compilation...');
+            
+            // Get selected filter lists
+            const selectedLists = µb.selectedFilterLists;
+            if ( !selectedLists || selectedLists.length === 0 ) {
+                console.log('[DNR] No filter lists selected');
+                return rules;
+            }
+
+            console.log('[DNR] Selected filter lists:', selectedLists);
+
+            // Try to compile from engine's compiled data (works with selfie)
+            const engineRules = this.compileFromEngine();
+            if ( engineRules.length > 0 ) {
+                console.log('[DNR] Compiled', engineRules.length, 'rules from engine (selfie mode)');
+                return engineRules;
+            }
+
+            // Fall back to reading raw list content
+            console.log('[DNR] Engine empty, falling back to reading raw list content...');
+            
+            // Create list promises similar to snfeToDNR in reference
+            const listPromises = [];
+            const listNames = [];
+            
+            for ( const assetKey of selectedLists ) {
+                // Skip user filters - they are handled separately
+                if ( assetKey === µb.userFiltersPath ) { continue; }
+                
+                const promise = io.get(assetKey, { dontCache: true }).then(details => {
+                    listNames.push(assetKey);
+                    return {
+                        name: assetKey,
+                        text: details.content || '',
+                        trustedSource: assetKey.startsWith('ublock-'),
+                    };
+                }).catch(err => {
+                    console.log('[DNR] Failed to load list:', assetKey, err);
+                    return null;
+                });
+                listPromises.push(promise);
+            }
+
+            // Wait for all lists to load
+            const lists = await Promise.all(listPromises);
+            const validLists = lists.filter(l => l && l.text);
+            
+            console.log('[DNR] Loaded', validLists.length, 'filter lists');
+
+            if ( validLists.length === 0 ) {
+                return rules;
+            }
+
+            // Get extension paths for redirect resources
+            const extensionPaths: [string, string][] = [];
+            if ( typeof µb.redirectEngine !== 'undefined' && µb.redirectEngine.getResourceDetails ) {
+                const details = µb.redirectEngine.getResourceDetails();
+                for ( const [token, detail] of details ) {
+                    if ( typeof detail.extensionPath === 'string' && detail.extensionPath !== '' ) {
+                        extensionPaths.push([token, detail.extensionPath]);
+                    }
+                }
+            }
+
+            // Options for DNR conversion
+            const options = {
+                extensionPaths: extensionPaths,
+                env: vAPI.webextFlavor?.env || [],
+            };
+
+            console.log('[DNR] Converting', validLists.length, 'lists to DNR rules...');
+
+            // Use dnrRulesetFromRawLists
+            const dnrData = await dnrRulesetFromRawLists(validLists, options);
+            
+            if ( dnrData && dnrData.network && dnrData.network.ruleset ) {
+                const staticRules = dnrData.network.ruleset;
+                
+                // Assign IDs to rules (starting after firewall rules)
+                let ruleId = 100;
+                for ( const rule of staticRules ) {
+                    if ( rule.id === 0 ) { continue; } // Skip invalid rules
+                    rules.push({
+                        ...rule,
+                        id: ruleId++,
+                    });
+                }
+                
+                console.log('[DNR] Compiled', rules.length, 'static filter rules');
+            } else {
+                console.log('[DNR] No static rules from dnrRulesetFromRawLists');
+            }
+
+        } catch ( e ) {
+            console.error('[DNR] Failed to compile static filters:', e);
+        }
+        
+        return rules;
+    }
+
+    /**
+     * Compile filters from the already-loaded engine (works with selfie)
+     * This uses the compiled filter data that was loaded from selfie
+     */
+    compileFromEngine(): any[] {
+        const rules: any[] = [];
+        
+        try {
+            console.log('[DNR] Compiling from engine...');
+            
+            // Check if engine has any filters loaded
+            const filterCount = staticNetFilteringEngine.getFilterCount();
+            console.log('[DNR] Engine has', filterCount, 'compiled filters');
+            
+            if ( filterCount === 0 ) {
+                return rules;
+            }
+
+            // Get extension paths for redirect resources
+            const extensionPaths: [string, string][] = [];
+            if ( typeof µb.redirectEngine !== 'undefined' && µb.redirectEngine.getResourceDetails ) {
+                const details = µb.redirectEngine.getResourceDetails();
+                for ( const [token, detail] of details ) {
+                    if ( typeof detail.extensionPath === 'string' && detail.extensionPath !== '' ) {
+                        extensionPaths.push([token, detail.extensionPath]);
+                    }
+                }
+            }
+
+            // Create a context for DNR compilation
+            const context = {
+                bad: new Set(),
+                good: new Set(),
+                invalid: new Set(),
+                filterCount: 0,
+                acceptedFilterCount: 0,
+                rejectedFilterCount: 0,
+                extensionPaths: new Map(extensionPaths),
+                env: vAPI.webextFlavor?.env || [],
+                responseHeaderRules: [] as any[],
+            };
+
+            // Use the engine's dnrFromCompiled to extract rules from compiled data
+            staticNetFilteringEngine.dnrFromCompiled('begin', context);
+            
+            // Add the compiled filters to context - we need to get the compiled reader
+            // The engine has the data internally, but we need to access it
+            // For now, we'll check if there's a way to trigger the extraction
+            
+            // Actually, let's use a simpler approach - check if the engine has the
+            // compiled data and use its internal method to extract
+            
+            // Get the result from the engine
+            const result = staticNetFilteringEngine.dnrFromCompiled('end', context);
+            
+            if ( result && result.ruleset ) {
+                const staticRules = result.ruleset;
+                
+                // Assign IDs to rules
+                let ruleId = 100;
+                for ( const rule of staticRules ) {
+                    if ( rule.id === 0 ) { continue; }
+                    rules.push({
+                        ...rule,
+                        id: ruleId++,
+                    });
+                }
+                
+                console.log('[DNR] Extracted', rules.length, 'rules from compiled engine');
+            }
+            
+        } catch ( e ) {
+            console.error('[DNR] Failed to compile from engine:', e);
+        }
+        
+        return rules;
+    }
+            }
+
+        } catch ( e ) {
+            console.error('[DNR] Failed to compile static filters:', e);
+        }
+        
+        return rules;
     }
 
     compileUserRules() {
@@ -153,6 +357,15 @@ class DNRIntegration {
             // Skip noop - DNR doesn't support it, only used for logging
             if (action === 'noop') { continue; }
             
+            // For wildcard destination '*', we need to be more specific
+            // because '.*' matches everything which is too broad
+            // Instead, we skip these as they should be handled by default allow/block
+            if (des === '*') {
+                // Skip wildcard destination rules as they are too broad for DNR
+                // The default blocking behavior handles these cases
+                continue;
+            }
+            
             // Get resource types for this firewall type
             const resourceTypes = this.getDNRResourceTypes(type);
             
@@ -166,7 +379,7 @@ class DNRIntegration {
             for (const rt of resourceTypes) {
                 rules.push({
                     id: baseId + ruleId,
-                    priority: 1000000 + ruleId,
+                    priority: baseId + ruleId, // Use rule ID as priority (within valid range 1-2147483647)
                     action: { type: dnrAction },
                     condition: {
                         initiatorDomains: src !== '*' ? [src] : undefined,

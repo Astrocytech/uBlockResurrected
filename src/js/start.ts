@@ -460,13 +460,13 @@ try {
 } catch (ex) {
     console.trace(ex);
 }
-if ( selfieIsValid !== true ) {
-    try {
-        await µb.loadFilterLists();
-        ubolog(`Filter lists ready ${Date.now()-vAPI.T0} ms after launch`);
-    } catch (ex) {
-        console.trace(ex);
-    }
+// Always load filter lists to ensure content is available for DNR
+// This is needed even when using selfie, to populate the cache
+try {
+    await µb.loadFilterLists();
+    ubolog(`Filter lists ready ${Date.now()-vAPI.T0} ms after launch`);
+} catch (ex) {
+    console.trace(ex);
 }
 
 // Flush memory cache -- unsure whether the browser does this internally

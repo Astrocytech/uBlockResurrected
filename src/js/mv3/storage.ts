@@ -1,15 +1,9 @@
 export const storage = {
     async readUserFilters(): Promise<{ content: string }> {
-        const data = await browser.storage.local.get('userFilters');
-        const value = data.userFilters;
+        const data = await browser.storage.local.get('user-filters');
+        const value = data['user-filters'];
         if ( typeof value === 'string' ) {
             return { content: value };
-        }
-        if (
-            value instanceof Object &&
-            typeof (value as { content?: unknown }).content === 'string'
-        ) {
-            return { content: (value as { content: string }).content };
         }
         return { content: '' };
     },
