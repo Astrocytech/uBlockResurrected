@@ -125,22 +125,27 @@ if ( isBackgroundProcess !== true ) {
     const safeTextToDOM = function(text: string, parent: Node): void {
         if ( text === '' ) { return; }
 
-        if ( text.indexOf('<') === -1 ) {
+        const hasTemplate = text.indexOf('{{') !== -1;
+
+        if ( text.indexOf('<') === -1 && !hasTemplate ) {
             const toInsert = safeTextToTextNode(text);
-            let toReplace = (parent as Element).childElementCount !== 0
-                ? (parent as Element).firstChild
-                : null;
-            while ( toReplace !== null ) {
-                if ( toReplace.nodeType === 3 && toReplace.nodeValue === '_' ) {
-                    break;
+            
+            if ( (parent as Element).childNodes.length !== 0 ) {
+                const toRemove: ChildNode[] = [];
+                let child = (parent as Element).firstChild;
+                while ( child !== null ) {
+                    const next = child.nextSibling;
+                    if ( child.nodeType === 3 && child.nodeValue !== null ) {
+                        toRemove.push(child);
+                    }
+                    child = next;
                 }
-                toReplace = toReplace.nextSibling;
+                for ( const node of toRemove ) {
+                    node.remove();
+                }
             }
-            if ( toReplace !== null ) {
-                parent.replaceChild(toInsert, toReplace);
-            } else {
-                parent.appendChild(toInsert);
-            }
+            
+            parent.appendChild(toInsert);
             return;
         }
 
@@ -148,6 +153,22 @@ if ( isBackgroundProcess !== true ) {
                    .replace(/<p>/g, '\n\n');
         const domParser = new DOMParser();
         const parsedDoc = domParser.parseFromString(text, 'text/html');
+        
+        if ( (parent as Element).childNodes.length !== 0 ) {
+            const toRemove: ChildNode[] = [];
+            let child = (parent as Element).firstChild;
+            while ( child !== null ) {
+                const next = child.nextSibling;
+                if ( child.nodeType === 3 && child.nodeValue !== null ) {
+                    toRemove.push(child);
+                }
+                child = next;
+            }
+            for ( const node of toRemove ) {
+                node.remove();
+            }
+        }
+        
         let node: Node | null = parsedDoc.body.firstChild;
         while ( node !== null ) {
             const next = node.nextSibling;

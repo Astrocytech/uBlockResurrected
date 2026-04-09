@@ -344,6 +344,14 @@ const onFirstFetchReady = (fetched, adminExtra) => {
     permanentSwitches.fromString(fetched.hostnameSwitchesString);
     sessionSwitches.assign(permanentSwitches);
 
+    // Sync firewall rules to DNR after loading
+    // Use setTimeout to ensure dnrIntegration is fully initialized
+    setTimeout(() => {
+        if (typeof dnrIntegration !== 'undefined') {
+            dnrIntegration.compileAndInstallRules();
+        }
+    }, 0);
+
     onNetWhitelistReady(fetched.netWhitelist, adminExtra);
 };
 

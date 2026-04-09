@@ -117,31 +117,95 @@ class DNRIntegration {
     }
 
     compileUserRules() {
-        const rules = [];
-        const compileFirewall = ( firewall, type ) => {
-            if ( typeof firewall !== 'object' || firewall === null ) return;
-            for ( const [domain, entries] of Object.entries(firewall) ) {
-                if ( typeof entries !== 'object' ) continue;
-                for ( const [subType, action] of Object.entries(entries) ) {
-                    if ( action === 1 ) {
-                        rules.push({
-                            id: this.ruleIdCounter++,
-                            priority: 1,
-                            action: { type: 'block' },
-                            condition: {
-                                urlFilter: '.*',
-                                initiatorDomains: domain === '*' ? undefined : [ domain ],
-                            }
-                        });
-                    }
-                }
-            }
-        };
-
-        try { compileFirewall(permanentFirewall, 'permanent'); } catch ( e ) { }
-        try { compileFirewall(sessionFirewall, 'session'); } catch ( e ) { }
-
+        const rules: any[] = [];
+        
+        // Compile firewall rules using the proper method
+        const permRules = this.compileFirewallRules(permanentFirewall, 9000000);
+        const sessRules = this.compileFirewallRules(sessionFirewall, 9001000);
+        
+        rules.push(...permRules, ...sessRules);
+        
+        console.log(`[DNR] Compiled ${rules.length} firewall rules`);
         return rules;
+    }
+
+    /**
+     * Compile a DynamicHostRuleFiltering instance to DNR rules
+     * Uses firewall.toArray() to get rules as strings
+     */
+    compileFirewallRules(firewall: any, baseId: number): any[] {
+        const rules: any[] = [];
+        
+        if (typeof firewall?.toArray !== 'function') {
+            return rules;
+        }
+        
+        const ruleStrings = firewall.toArray();
+        let ruleId = 0;
+        
+        for (const ruleStr of ruleStrings) {
+            // Format: "src des type action" e.g., "example.com ads.example.com 3p-script block"
+            const parts = ruleStr.split(' ');
+            if (parts.length < 4) { continue; }
+            
+            const [src, des, type, action] = parts;
+            
+            // Skip noop - DNR doesn't support it, only used for logging
+            if (action === 'noop') { continue; }
+            
+            // Get resource types for this firewall type
+            const resourceTypes = this.getDNRResourceTypes(type);
+            
+            // Build URL filter from destination
+            const urlFilter = this.buildURLFilter(des);
+            
+            // Determine action type
+            const dnrAction = action === 'allow' ? 'allow' : 'block';
+            
+            // Create one DNR rule per resource type
+            for (const rt of resourceTypes) {
+                rules.push({
+                    id: baseId + ruleId,
+                    priority: 1000000 + ruleId,
+                    action: { type: dnrAction },
+                    condition: {
+                        initiatorDomains: src !== '*' ? [src] : undefined,
+                        urlFilter: urlFilter,
+                        resourceTypes: [rt]
+                    }
+                });
+                ruleId++;
+            }
+        }
+        
+        return rules;
+    }
+
+    /**
+     * Map firewall types to DNR resource types
+     * Note: Some firewall types require multiple DNR rules
+     */
+    getDNRResourceTypes(firewallType: string): string[] {
+        const map: Record<string, string[]> = {
+            '*': ['main_frame', 'sub_frame', 'script', 'image', 'other'],
+            'image': ['image'],
+            '3p-script': ['script'],
+            '3p-frame': ['sub_frame'],
+            '1p-script': ['script'],
+            'inline-script': ['script'],
+            '3p': ['script', 'image', 'sub_frame']
+        };
+        return map[firewallType] || ['script'];
+    }
+
+    /**
+     * Convert firewall destination to URL filter
+     */
+    buildURLFilter(destination: string): string {
+        if (destination === '*') {
+            return '.*';
+        }
+        return destination.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
     }
 
     async compileUserFiltersFromStorage() {

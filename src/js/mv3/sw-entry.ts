@@ -9,6 +9,610 @@
 
 *******************************************************************************/
 
+type LegacyMessage = {
+    channel?: string;
+    msgId?: number;
+    msg?: any;
+};
+
+type PopupRequest = {
+    what: string;
+    tabId?: number | null;
+    name?: string;
+    value?: any;
+    srcHostname?: string;
+    desHostname?: string;
+    desHostnames?: Record<string, unknown>;
+    requestType?: string;
+    action?: number;
+    persist?: boolean;
+};
+
+type FirewallCounts = {
+    allowed: { any: number; frame: number; script: number };
+    blocked: { any: number; frame: number; script: number };
+};
+
+type HostnameDetails = {
+    domain: string;
+    counts: FirewallCounts;
+    hasSubdomains?: boolean;
+    hasScript?: boolean;
+    hasFrame?: boolean;
+    totals?: FirewallCounts;
+};
+
+const userSettingsDefault = {
+    advancedUserEnabled: false,
+    colorBlindFriendly: false,
+    firewallPaneMinimized: true,
+    popupPanelSections: 0b111,
+    tooltipsDisabled: false,
+};
+
+const firewallRuleTypes = [
+    '*',
+    'image',
+    '3p',
+    'inline-script',
+    '1p-script',
+    '3p-script',
+    '3p-frame',
+];
+
+const firewallTypeBitOffsets: Record<string, number> = {
+    '*': 0,
+    'inline-script': 2,
+    '1p-script': 4,
+    '3p-script': 6,
+    '3p-frame': 8,
+    image: 10,
+    '3p': 12,
+};
+
+const firewallActionNames: Record<number, string> = {
+    1: 'block',
+    2: 'allow',
+    3: 'noop',
+};
+
+const firewallActionValues: Record<string, number> = {
+    block: 1,
+    allow: 2,
+    noop: 3,
+};
+
+const FIREWALL_RULE_ID_MIN = 9_000_000;
+const FIREWALL_RULE_ID_MAX = 9_099_999;
+
+const createCounts = (): FirewallCounts => ({
+    allowed: { any: 0, frame: 0, script: 0 },
+    blocked: { any: 0, frame: 0, script: 0 },
+});
+
+const isIPAddress = (hostname: string): boolean => {
+    return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
+};
+
+const domainFromHostname = (hostname: string): string => {
+    if ( hostname === '' || hostname === '*' ) { return hostname; }
+    if ( hostname === 'localhost' || isIPAddress(hostname) ) { return hostname; }
+    const parts = hostname.split('.').filter(Boolean);
+    if ( parts.length <= 2 ) { return hostname; }
+    return parts.slice(-2).join('.');
+};
+
+const decomposeHostname = (hostname: string): string[] => {
+    if ( hostname === '' || hostname === '*' ) {
+        return [ '*' ];
+    }
+    const parts = hostname.split('.');
+    const out: string[] = [];
+    for ( let i = 0; i < parts.length; i++ ) {
+        out.push(parts.slice(i).join('.'));
+    }
+    out.push('*');
+    return out;
+};
+
+const isThirdParty = (srcHostname: string, desHostname: string): boolean => {
+    if ( desHostname === '*' || srcHostname === '*' || srcHostname === '' ) {
+        return false;
+    }
+    const srcDomain = domainFromHostname(srcHostname) || srcHostname;
+    if ( desHostname.endsWith(srcDomain) === false ) {
+        return true;
+    }
+    return desHostname.length !== srcDomain.length &&
+        desHostname.charAt(desHostname.length - srcDomain.length - 1) !== '.';
+};
+
+class DynamicFirewallRules {
+    private rules = new Map<string, number>();
+    private r = 0;
+    private type = '';
+    private y = '';
+    private z = '';
+
+    reset() {
+        this.rules.clear();
+        this.clearRegisters();
+    }
+
+    clearRegisters() {
+        this.r = 0;
+        this.type = '';
+        this.y = '';
+        this.z = '';
+    }
+
+    assign(other: DynamicFirewallRules) {
+        this.rules = new Map(other.rules);
+        this.clearRegisters();
+    }
+
+    setCell(srcHostname: string, desHostname: string, type: string, state: number) {
+        const bitOffset = firewallTypeBitOffsets[type];
+        const key = `${srcHostname} ${desHostname}`;
+        const oldBitmap = this.rules.get(key) || 0;
+        const newBitmap = (oldBitmap & ~(3 << bitOffset)) | (state << bitOffset);
+        if ( newBitmap === 0 ) {
+            this.rules.delete(key);
+        } else {
+            this.rules.set(key, newBitmap);
+        }
+    }
+
+    unsetCell(srcHostname: string, desHostname: string, type: string) {
+        this.evaluateCellZY(srcHostname, desHostname, type);
+        if ( this.r === 0 ) { return false; }
+        this.setCell(srcHostname, desHostname, type, 0);
+        return true;
+    }
+
+    evaluateCell(srcHostname: string, desHostname: string, type: string) {
+        const bitmap = this.rules.get(`${srcHostname} ${desHostname}`);
+        if ( bitmap === undefined ) { return 0; }
+        return (bitmap >> firewallTypeBitOffsets[type]) & 3;
+    }
+
+    private evaluateCellZ(srcHostname: string, desHostname: string, type: string) {
+        const bitOffset = firewallTypeBitOffsets[type];
+        for ( const sourceHostname of decomposeHostname(srcHostname) ) {
+            this.z = sourceHostname;
+            const bitmap = this.rules.get(`${sourceHostname} ${desHostname}`);
+            if ( bitmap === undefined ) { continue; }
+            const value = (bitmap >>> bitOffset) & 3;
+            if ( value === 0 ) { continue; }
+            this.type = type;
+            this.r = value;
+            return value;
+        }
+        return 0;
+    }
+
+    evaluateCellZY(srcHostname: string, desHostname: string, type: string) {
+        if ( desHostname === '' ) {
+            this.clearRegisters();
+            return 0;
+        }
+
+        for ( const destinationHostname of decomposeHostname(desHostname) ) {
+            if ( destinationHostname === '*' ) { break; }
+            this.y = destinationHostname;
+            if ( this.evaluateCellZ(srcHostname, destinationHostname, '*') !== 0 ) {
+                return this.r;
+            }
+        }
+
+        const thirdParty = isThirdParty(srcHostname, desHostname);
+        this.y = '*';
+
+        if ( thirdParty ) {
+            if ( type === 'script' ) {
+                if ( this.evaluateCellZ(srcHostname, '*', '3p-script') !== 0 ) {
+                    return this.r;
+                }
+            } else if ( type === 'sub_frame' || type === 'object' ) {
+                if ( this.evaluateCellZ(srcHostname, '*', '3p-frame') !== 0 ) {
+                    return this.r;
+                }
+            }
+            if ( this.evaluateCellZ(srcHostname, '*', '3p') !== 0 ) {
+                return this.r;
+            }
+        } else if ( type === 'script' ) {
+            if ( this.evaluateCellZ(srcHostname, '*', '1p-script') !== 0 ) {
+                return this.r;
+            }
+        }
+
+        if ( firewallTypeBitOffsets[type] !== undefined ) {
+            if ( this.evaluateCellZ(srcHostname, '*', type) !== 0 ) {
+                return this.r;
+            }
+            if ( type.startsWith('3p-') ) {
+                if ( this.evaluateCellZ(srcHostname, '*', '3p') !== 0 ) {
+                    return this.r;
+                }
+            }
+        }
+
+        if ( this.evaluateCellZ(srcHostname, '*', '*') !== 0 ) {
+            return this.r;
+        }
+
+        this.type = '';
+        this.r = 0;
+        return 0;
+    }
+
+    lookupRuleData(srcHostname: string, desHostname: string, type: string) {
+        const result = this.evaluateCellZY(srcHostname, desHostname, type);
+        if ( result === 0 ) { return undefined; }
+        return `${this.z} ${this.y} ${this.type} ${result}`;
+    }
+
+    copyRules(from: DynamicFirewallRules, srcHostname: string, desHostnames: Record<string, unknown>) {
+        let changed = false;
+        const syncKey = (key: string) => {
+            const current = this.rules.get(key);
+            const next = from.rules.get(key);
+            if ( current === next ) { return; }
+            changed = true;
+            if ( next === undefined ) {
+                this.rules.delete(key);
+            } else {
+                this.rules.set(key, next);
+            }
+        };
+
+        syncKey('* *');
+        syncKey(`${srcHostname} *`);
+
+        for ( const desHostname in desHostnames ) {
+            syncKey(`* ${desHostname}`);
+            syncKey(`${srcHostname} ${desHostname}`);
+        }
+
+        return changed;
+    }
+
+    hasSameRules(other: DynamicFirewallRules, srcHostname: string, desHostnames: Record<string, unknown>) {
+        const sameKey = (key: string) => this.rules.get(key) === other.rules.get(key);
+        if ( sameKey('* *') === false ) { return false; }
+        if ( sameKey(`${srcHostname} *`) === false ) { return false; }
+        for ( const desHostname in desHostnames ) {
+            if ( sameKey(`* ${desHostname}`) === false ) { return false; }
+            if ( sameKey(`${srcHostname} ${desHostname}`) === false ) { return false; }
+        }
+        return true;
+    }
+
+    toArray() {
+        const out: string[] = [];
+        for ( const [ key ] of this.rules ) {
+            const spaceIndex = key.indexOf(' ');
+            const srcHostname = key.slice(0, spaceIndex);
+            const desHostname = key.slice(spaceIndex + 1);
+            for ( const type of Object.keys(firewallTypeBitOffsets) ) {
+                const value = this.evaluateCell(srcHostname, desHostname, type);
+                if ( value === 0 ) { continue; }
+                out.push(`${srcHostname} ${desHostname} ${type} ${firewallActionNames[value]}`);
+            }
+        }
+        return out;
+    }
+
+    toString() {
+        return this.toArray().join('\n');
+    }
+
+    fromString(text: string) {
+        this.reset();
+        for ( const line of text.split('\n') ) {
+            const trimmed = line.trim();
+            if ( trimmed === '' ) { continue; }
+            const parts = trimmed.split(/\s+/);
+            if ( parts.length < 4 ) { continue; }
+            const [ srcHostname, desHostname, type, actionName ] = parts;
+            const action = firewallActionValues[actionName];
+            if ( action === undefined || firewallTypeBitOffsets[type] === undefined ) { continue; }
+            this.setCell(srcHostname, desHostname, type, action);
+        }
+    }
+}
+
+const popupState = {
+    initialized: false,
+    initPromise: Promise.resolve(),
+    userSettings: { ...userSettingsDefault },
+    permanentFirewall: new DynamicFirewallRules(),
+    sessionFirewall: new DynamicFirewallRules(),
+};
+
+const getActiveTab = async () => {
+    const [ tab ] = await chrome.tabs.query({ active: true, currentWindow: true });
+    return tab;
+};
+
+const getTabForRequest = async (tabId?: number | null) => {
+    if ( typeof tabId === 'number' ) {
+        return chrome.tabs.get(tabId);
+    }
+    return getActiveTab();
+};
+
+const loadPopupState = async () => {
+    const items = await chrome.storage.local.get([ 'userSettings', 'dynamicFilteringString' ]);
+    Object.assign(
+        popupState.userSettings,
+        userSettingsDefault,
+        items.userSettings || {},
+    );
+    popupState.permanentFirewall.fromString(items.dynamicFilteringString || '');
+    popupState.sessionFirewall.assign(popupState.permanentFirewall);
+    popupState.initialized = true;
+};
+
+const ensurePopupState = async () => {
+    if ( popupState.initialized ) { return; }
+    popupState.initPromise = popupState.initPromise.then(async () => {
+        if ( popupState.initialized ) { return; }
+        await loadPopupState();
+    });
+    await popupState.initPromise;
+};
+
+const persistUserSettings = async () => {
+    await chrome.storage.local.set({ userSettings: popupState.userSettings });
+};
+
+const persistPermanentFirewall = async () => {
+    await chrome.storage.local.set({
+        dynamicFilteringString: popupState.permanentFirewall.toString(),
+    });
+};
+
+const firewallRuleResourceTypes = (type: string) => {
+    switch ( type ) {
+    case 'image':
+        return [ 'image' ];
+    case '3p-script':
+    case '1p-script':
+    case 'inline-script':
+        return [ 'script' ];
+    case '3p-frame':
+        return [ 'sub_frame' ];
+    case '3p':
+        return [ 'image', 'script', 'sub_frame' ];
+    case '*':
+        return [ 'image', 'script', 'sub_frame', 'xmlhttprequest', 'media', 'font', 'object', 'other' ];
+    default:
+        return [];
+    }
+};
+
+const compileFirewallRulesToDnr = (firewall: DynamicFirewallRules) => {
+    const addRules: chrome.declarativeNetRequest.Rule[] = [];
+    let nextRuleId = FIREWALL_RULE_ID_MIN;
+
+    for ( const rule of firewall.toArray() ) {
+        const [ srcHostname, desHostname, type, actionName ] = rule.split(' ');
+        if ( actionName === 'noop' ) { continue; }
+        const resourceTypes = firewallRuleResourceTypes(type);
+        for ( const resourceType of resourceTypes ) {
+            if ( nextRuleId > FIREWALL_RULE_ID_MAX ) { break; }
+            const condition: chrome.declarativeNetRequest.RuleCondition = {
+                resourceTypes: [ resourceType as chrome.declarativeNetRequest.ResourceType ],
+            };
+            if ( srcHostname !== '*' ) {
+                condition.initiatorDomains = [ srcHostname ];
+            }
+            if ( desHostname !== '*' ) {
+                condition.requestDomains = [ desHostname ];
+            }
+            if ( type === '3p' || type === '3p-script' || type === '3p-frame' ) {
+                condition.domainType = 'thirdParty';
+            } else if ( type === '1p-script' ) {
+                condition.domainType = 'firstParty';
+            }
+
+            addRules.push({
+                id: nextRuleId++,
+                priority: 2_000_000 +
+                    (actionName === 'allow' ? 10_000 : 0) +
+                    (srcHostname !== '*' ? 1_000 : 0),
+                action: {
+                    type: actionName === 'allow' ? 'allow' : 'block',
+                },
+                condition,
+            });
+        }
+    }
+
+    return addRules;
+};
+
+const syncFirewallDnrRules = async () => {
+    if ( chrome.declarativeNetRequest === undefined ) { return; }
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeRuleIds = existingRules
+        .map(rule => rule.id)
+        .filter(id => id >= FIREWALL_RULE_ID_MIN && id <= FIREWALL_RULE_ID_MAX);
+    const addRules = compileFirewallRulesToDnr(popupState.permanentFirewall);
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+};
+
+const zeroHostnameDetails = (hostname: string): HostnameDetails => ({
+    domain: domainFromHostname(hostname),
+    counts: createCounts(),
+});
+
+const getFirewallRulesForPopup = (srcHostname: string, hostnameDict: Record<string, HostnameDetails>) => {
+    const firewallRules: Record<string, string> = {};
+
+    for ( const type of firewallRuleTypes ) {
+        const globalRule = popupState.sessionFirewall.lookupRuleData('*', '*', type);
+        if ( globalRule !== undefined ) {
+            firewallRules[`/ * ${type}`] = globalRule;
+        }
+        const localRule = popupState.sessionFirewall.lookupRuleData(srcHostname, '*', type);
+        if ( localRule !== undefined ) {
+            firewallRules[`. * ${type}`] = localRule;
+        }
+    }
+
+    for ( const desHostname of Object.keys(hostnameDict) ) {
+        const globalRule = popupState.sessionFirewall.lookupRuleData('*', desHostname, '*');
+        if ( globalRule !== undefined ) {
+            firewallRules[`/ ${desHostname} *`] = globalRule;
+        }
+        const localRule = popupState.sessionFirewall.lookupRuleData(srcHostname, desHostname, '*');
+        if ( localRule !== undefined ) {
+            firewallRules[`. ${desHostname} *`] = localRule;
+        }
+    }
+
+    return firewallRules;
+};
+
+const getPopupData = async (request: PopupRequest) => {
+    await ensurePopupState();
+    const tab = await getTabForRequest(request.tabId);
+    const tabId = tab?.id ?? 0;
+    const pageURL = tab?.url || '';
+    const pageTitle = tab?.title || '';
+    const pageHostname = (() => {
+        try {
+            return pageURL ? new URL(pageURL).hostname : '';
+        } catch {
+            return '';
+        }
+    })();
+    const pageDomain = domainFromHostname(pageHostname);
+    const hostnameDict: Record<string, HostnameDetails> = {};
+    if ( pageHostname !== '' ) {
+        hostnameDict[pageHostname] = zeroHostnameDetails(pageHostname);
+    }
+
+    return {
+        advancedUserEnabled: popupState.userSettings.advancedUserEnabled,
+        appName: chrome.runtime.getManifest().name,
+        appVersion: chrome.runtime.getManifest().version,
+        colorBlindFriendly: popupState.userSettings.colorBlindFriendly,
+        cosmeticFilteringSwitch: false,
+        firewallPaneMinimized: popupState.userSettings.firewallPaneMinimized,
+        firewallRules: getFirewallRulesForPopup(pageHostname, hostnameDict),
+        globalAllowedRequestCount: 0,
+        globalBlockedRequestCount: 0,
+        hasUnprocessedRequest: false,
+        hostnameDict,
+        pageCounts: createCounts(),
+        pageDomain,
+        pageHostname,
+        pageURL,
+        popupBlockedCount: 0,
+        popupPanelDisabledSections: 0,
+        popupPanelHeightMode: 0,
+        popupPanelLockedSections: 0,
+        popupPanelOrientation: '',
+        popupPanelSections: popupState.userSettings.popupPanelSections,
+        rawURL: pageURL,
+        tabId,
+        tabTitle: pageTitle,
+        tooltipsDisabled: popupState.userSettings.tooltipsDisabled,
+        userFiltersAreEnabled: true,
+        netFilteringSwitch: true,
+        canElementPicker: /^https?:/.test(pageURL),
+        noPopups: false,
+        noCosmeticFiltering: false,
+        noLargeMedia: false,
+        largeMediaCount: 0,
+        noRemoteFonts: false,
+        remoteFontCount: 0,
+        noScripting: false,
+        matrixIsDirty: popupState.sessionFirewall.hasSameRules(
+            popupState.permanentFirewall,
+            pageHostname,
+            hostnameDict,
+        ) === false,
+    };
+};
+
+const toggleFirewallRule = async (request: PopupRequest) => {
+    await ensurePopupState();
+    const srcHostname = request.srcHostname || '*';
+    const desHostname = request.desHostname || '*';
+    const requestType = request.requestType || '*';
+    const action = Number(request.action) || 0;
+
+    if ( action !== 0 ) {
+        popupState.sessionFirewall.setCell(srcHostname, desHostname, requestType, action);
+    } else {
+        popupState.sessionFirewall.unsetCell(srcHostname, desHostname, requestType);
+    }
+
+    if ( request.persist ) {
+        if ( action !== 0 ) {
+            popupState.permanentFirewall.setCell(srcHostname, desHostname, requestType, action);
+        } else {
+            popupState.permanentFirewall.unsetCell(srcHostname, desHostname, requestType);
+        }
+        await persistPermanentFirewall();
+        await syncFirewallDnrRules();
+    }
+
+    return getPopupData(request);
+};
+
+const saveFirewallRules = async (request: PopupRequest) => {
+    await ensurePopupState();
+    popupState.permanentFirewall.copyRules(
+        popupState.sessionFirewall,
+        request.srcHostname || '',
+        request.desHostnames || {},
+    );
+    await persistPermanentFirewall();
+    await syncFirewallDnrRules();
+};
+
+const revertFirewallRules = async (request: PopupRequest) => {
+    await ensurePopupState();
+    popupState.sessionFirewall.copyRules(
+        popupState.permanentFirewall,
+        request.srcHostname || '',
+        request.desHostnames || {},
+    );
+    return getPopupData(request);
+};
+
+const setUserSetting = async (request: PopupRequest) => {
+    await ensurePopupState();
+    if ( typeof request.name === 'string' ) {
+        (popupState.userSettings as Record<string, any>)[request.name] = request.value;
+        await persistUserSettings();
+    }
+    return { ...popupState.userSettings };
+};
+
+const handlePopupPanelMessage = async (request: PopupRequest) => {
+    switch ( request.what ) {
+    case 'getPopupData':
+        return getPopupData(request);
+    case 'toggleFirewallRule':
+        return toggleFirewallRule(request);
+    case 'saveFirewallRules':
+        return saveFirewallRules(request);
+    case 'revertFirewallRules':
+        return revertFirewallRules(request);
+    case 'userSettings':
+        return setUserSetting(request);
+    default:
+        return undefined;
+    }
+};
+
 const Messaging = (() => {
     const portMap = new Map<string, chrome.runtime.Port>();
     const handlers = new Map<string, (payload: any, sendResponse?: (response: any) => void) => any>();
@@ -27,6 +631,10 @@ const Messaging = (() => {
     }
 
     function handlePortMessage(port: chrome.runtime.Port, message: any) {
+        if ( message && typeof message.channel === 'string' ) {
+            handleLegacyPortMessage(port, message as LegacyMessage);
+            return;
+        }
         if (!message || !message.topic) return;
 
         const { topic, payload, seq } = message;
@@ -60,6 +668,30 @@ const Messaging = (() => {
         } else {
             broadcastToTabs(topic, payload);
         }
+    }
+
+    function handleLegacyPortMessage(port: chrome.runtime.Port, message: LegacyMessage) {
+        const { channel, msgId, msg } = message;
+        const respond = (response: any) => {
+            if ( msgId === undefined ) { return; }
+            port.postMessage({ msgId, msg: response });
+        };
+
+        if ( channel === 'popupPanel' ) {
+            handlePopupPanelMessage(msg || {}).then(respond).catch(error => {
+                respond({ error: error instanceof Error ? error.message : String(error) });
+            });
+            return;
+        }
+
+        if ( channel === 'default' && msg?.what === 'userSettings' ) {
+            setUserSetting(msg).then(respond).catch(error => {
+                respond({ error: error instanceof Error ? error.message : String(error) });
+            });
+            return;
+        }
+
+        respond(undefined);
     }
 
     function handleRuntimeMessage(
@@ -457,6 +1089,18 @@ chrome.runtime.onInstalled.addListener((details) => {
 });
 
 console.log('uBlock Origin MV3 Service Worker started');
+
+ensurePopupState()
+    .then(() => syncFirewallDnrRules())
+    .catch(error => {
+        console.error('Failed to initialize popup/firewall state', error);
+    });
+
+(self as any).µBlock = {
+    userSettings: popupState.userSettings,
+    permanentFirewall: popupState.permanentFirewall,
+    sessionFirewall: popupState.sessionFirewall,
+};
 
 (self as any).Messaging = Messaging;
 (self as any).Zapper = Zapper;

@@ -1341,8 +1341,8 @@ dom.on('#firewall', 'click', '.isDomain[data-type="*"] > span:first-of-type', ev
 
 /******************************************************************************/
 
-const saveFirewallRules = function() {
-    messaging.send('popupPanel', {
+const saveFirewallRules = async function() {
+    await messaging.send('popupPanel', {
         what: 'saveFirewallRules',
         srcHostname: popupData.pageHostname,
         desHostnames: popupData.hostnameDict,
