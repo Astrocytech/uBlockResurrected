@@ -25,7 +25,7 @@ export const resolvePopupTabId = async (
 
     const tabs = await chromeApi.tabs.query({
         active: true,
-        currentWindow: true,
+        lastFocusedWindow: true,
     });
 
     const tabId = tabs[0]?.id;

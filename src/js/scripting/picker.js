@@ -16,58 +16,119 @@
 
     var previewedSelector = '';
     var previewedCSS = '';
-
-    var excludedAttributeExpansion = [
-        'sizes',
-        'srcset'
-    ];
-
-    var excludedSelectors = [
-        'div',
-        'span'
-    ];
-
-    function attributeNameFromPart(part) {
-        var pos = part.search(/\^?=/);
-        return part.slice(1, pos);
-    }
-
-    function selectorFromAddresses(partsDB, addresses) {
-        var selector = [];
-        var majorLast = -1;
-        for (var i = 0; i < addresses.length; i++) {
-            var address = addresses[i];
-            var major = address >>> 12;
-            if (majorLast !== -1) {
-                var delta = majorLast - major;
-                if (delta > 1) {
-                    selector.push(' ');
-                } else if (delta === 1) {
-                    selector.push(' > ');
-                }
-            }
-            majorLast = major;
-            var part = partsDB.get(address);
-            if ((address & 0xF) === 3) {
-                selector.push('[' + attributeNameFromPart(part) + ']');
-            } else {
-                selector.push(part);
-            }
-        }
-        return selector.join('');
-    }
+    var ignoredClassNames = new Set([
+        'login-required',
+    ]);
 
     function qsa(node, selector) {
-        if (node === null) { return []; }
-        if (selector.startsWith('{')) {
-            return [];
+        if ( ubolOverlay.qsa ) {
+            return ubolOverlay.qsa(node, selector);
         }
+        if (node === null) { return []; }
         selector = selector.replace(/::[^:]+$/, '');
         try {
             return Array.from(node.querySelectorAll(selector));
         } catch (e) {
             return [];
         }
+    }
+
+    function escapeClassNames(classList) {
+        return classList.map(function(name) {
+            return '.' + CSS.escape(name);
+        }).join('');
+    }
+
+    function filterClasses(elem) {
+        var classAttr = typeof elem.getAttribute === 'function'
+            ? elem.getAttribute('class') || ''
+            : '';
+        var seen = new Set();
+        var classes = classAttr.split(/\s+/).filter(function(name) {
+            if ( name === '' ) { return false; }
+            if ( seen.has(name) ) { return false; }
+            seen.add(name);
+            if ( ignoredClassNames.has(name) ) { return false; }
+            if ( name.indexOf('__') !== -1 ) { return false; }
+            return true;
+        });
+        classes.sort(function(a, b) {
+            var countDelta = selectorCount('.' + CSS.escape(a)) - selectorCount('.' + CSS.escape(b));
+            if ( countDelta !== 0 ) { return countDelta; }
+            return b.length - a.length;
+        });
+        return classes;
+    }
+
+    function selectorCount(selector) {
+        var elems = qsa(document, selector);
+        return Array.isArray(elems) ? elems.length : 0;
+    }
+
+    function filterRank(filter) {
+        var selector = filter.slice(2);
+        var score = 0;
+        if ( selector.startsWith('.') ) {
+            score -= 100;
+        } else if ( selector.startsWith('#') ) {
+            score -= 80;
+        }
+        if ( selector.indexOf('[') !== -1 ) {
+            score += 20;
+        }
+        if ( /^[a-z]/i.test(selector) ) {
+            score += 10;
+        }
+        score += selector.length / 1000;
+        return score;
+    }
+
+    function buildGroupCandidates(elem) {
+        var tagName = CSS.escape(elem.localName);
+        var classes = filterClasses(elem);
+        var filters = [];
+
+        if ( classes.length >= 2 ) {
+            filters.push('##' + escapeClassNames(classes));
+            filters.push('##' + tagName + escapeClassNames(classes));
+        } else if ( classes.length === 1 ) {
+            filters.push('##' + escapeClassNames(classes));
+            filters.push('##' + tagName + escapeClassNames(classes));
+        }
+
+        if ( typeof elem.id === 'string' && elem.id !== '' ) {
+            filters.push('###' + CSS.escape(elem.id));
+            filters.push('##' + tagName + '#' + CSS.escape(elem.id));
+        }
+
+        if ( filters.length === 0 ) {
+            return null;
+        }
+
+        filters = filters.filter(function(filter, index, array) {
+            return array.indexOf(filter) === index;
+        }).filter(function(filter) {
+            return selectorCount(filter.slice(2)) !== 0;
+        });
+
+        if ( filters.length === 0 ) {
+            return null;
+        }
+
+        filters.sort(function(a, b) {
+            var countDelta = selectorCount(a.slice(2)) - selectorCount(b.slice(2));
+            if ( countDelta !== 0 ) { return countDelta; }
+
+            var rankDelta = filterRank(a) - filterRank(b);
+            if ( rankDelta !== 0 ) { return rankDelta; }
+
+            return 0;
+        });
+
+        return {
+            label: filters[0],
+            filters: filters,
+        };
     }
 
     function candidatesAtPoint(x, y) {
@@ -80,185 +141,29 @@
 
         if (!elem) { return; }
 
-        var partsDB = new Map();
-        var listParts = [];
-
-        while (elem && elem !== document.body) {
-            var tagName = elem.localName;
-            var addressMajor = listParts.length << 12;
-            partsDB.set(addressMajor, tagName);
-            var parts = [addressMajor];
-
-            if (typeof elem.id === 'string' && elem.id !== '') {
-                var address = addressMajor | (parts.length << 4) | 1;
-                partsDB.set(address, '#' + CSS.escape(elem.id));
-                parts.push(address);
+        var groups = [];
+        while (elem && elem !== document.body && elem !== document.documentElement) {
+            var group = buildGroupCandidates(elem);
+            if ( group !== null ) {
+                groups.push(group);
             }
-
-            if (elem.classList) {
-                var classList = Array.from(elem.classList.values());
-                for (var i = 0; i < classList.length; i++) {
-                    var name = classList[i];
-                    if (name === '') { continue; }
-                    address = addressMajor | (parts.length << 4) | 2;
-                    partsDB.set(address, '.' + CSS.escape(name));
-                    parts.push(address);
-                }
-            }
-
-            var attrNames = elem.getAttributeNames();
-            for (var j = 0; j < attrNames.length; j++) {
-                var attrName = attrNames[j];
-                if (attrName === 'id' || attrName === 'class') { continue; }
-
-                var address2 = addressMajor | (parts.length << 4) | 3;
-
-                if (excludedAttributeExpansion.indexOf(attrName) !== -1) {
-                    partsDB.set(address2, '[' + CSS.escape(attrName) + ']');
-                    parts.push(address2);
-                    continue;
-                }
-
-                var value = elem.getAttribute(attrName) || '';
-                var pos = value.search(/[\n\r]/);
-                if (pos !== -1) {
-                    value = value.slice(0, pos);
-                }
-                partsDB.set(address2, '[' + CSS.escape(attrName) + '="' + value + '"]');
-                parts.push(address2);
-            }
-
-            var parentNode = elem.parentNode;
-            if (parentNode) {
-                var testSelector = ':scope > ' + selectorFromAddresses(partsDB, parts);
-                var siblings = qsa(parentNode, testSelector);
-                if (siblings.length > 1) {
-                    var i2 = 1;
-                    var sibling = elem.previousSibling;
-                    while (sibling !== null) {
-                        if (typeof sibling.localName === 'string' && sibling.localName === tagName) {
-                            i2++;
-                        }
-                        sibling = sibling.previousSibling;
-                    }
-                    address = addressMajor | (parts.length << 4) | 4;
-                    partsDB.set(address, ':nth-of-type(' + i2 + ')');
-                    parts.push(address);
-                }
-            }
-
-            listParts.push(parts);
             elem = elem.parentElement;
         }
 
-        if (listParts.length === 0) { return; }
-
-        var sliderCandidates = [];
-        for (var k = 0; k < listParts.length; k++) {
-            sliderCandidates.push(listParts[k]);
-            for (var l = k + 1; l < listParts.length; l++) {
-                var combined = listParts[l].concat(sliderCandidates[sliderCandidates.length - 1]);
-                sliderCandidates.push(combined);
-            }
-        }
-
-        var sliderMap = new Map();
-        for (var m = 0; m < sliderCandidates.length; m++) {
-            var candidates = sliderCandidates[m];
-
-            if (candidates.some(function(a) { return (a & 0xF) === 1; })) {
-                var idPath = candidates.filter(function(a) { return (a & 0xF) === 1; });
-                sliderMap.set(JSON.stringify(idPath), 0);
-            } else if (candidates.some(function(a) { return (a & 0xF) === 4; })) {
-                var nthPath = candidates.filter(function(a) {
-                    return (a & 0xF) === 0 || (a & 0xF) === 4;
-                });
-                sliderMap.set(JSON.stringify(nthPath), 0);
-            }
-
-            if (candidates.some(function(a) { return (a & 0xF) === 2; })) {
-                var classPath = candidates.filter(function(a) {
-                    return (a & 0xF) === 0 || (a & 0xF) === 2;
-                });
-                sliderMap.set(JSON.stringify(classPath), 0);
-            }
-
-            var attrPath = candidates.filter(function(a) {
-                return (a & 0xF) === 0 || (a & 0xF) === 3;
-            });
-            sliderMap.set(JSON.stringify(attrPath), 0);
-        }
-        sliderMap.delete('[]');
-
-        var elemToIdMap = new Map();
-        var resultSetMap = new Map();
-        var elemId = 1;
-
-        sliderMap.forEach(function(_, json) {
-            var addresses = JSON.parse(json);
-            var selector = selectorFromAddresses(partsDB, addresses);
-            if (excludedSelectors.indexOf(selector) !== -1) { return; }
-
-            var elems = qsa(document, selector);
-            if (elems.length === 0) { return; }
-
-            var resultSet = [];
-            for (var n = 0; n < elems.length; n++) {
-                var e = elems[n];
-                if (!elemToIdMap.has(e)) {
-                    elemToIdMap.set(e, elemId++);
-                }
-                resultSet.push(elemToIdMap.get(e));
-            }
-            resultSet.sort(function(a, b) { return a - b; });
-            var resultSetKey = JSON.stringify(resultSet);
-
-            var current = resultSetMap.get(resultSetKey);
-            if (current) {
-                if (current.length < addresses.length) { return; }
-                if (current.length === addresses.length) {
-                    if (!addresses.some(function(a) { return (a & 0xF) === 2; })) {
-                        if (current.some(function(a) { return (a & 0xF) === 2; })) { return; }
-                    }
-                }
-            }
-            resultSetMap.set(resultSetKey, addresses);
-        });
-
-        var sliderParts = [];
-        resultSetMap.forEach(function(addresses) {
-            sliderParts.push(addresses);
-        });
-
-        sliderParts.sort(function(a, b) {
-            var amajor = a[a.length - 1] >>> 12;
-            var bmajor = b[b.length - 1] >>> 12;
-            if (amajor !== bmajor) { return bmajor - amajor; }
-            amajor = a[0] >>> 12;
-            bmajor = b[0] >>> 12;
-            if (amajor !== bmajor) { return bmajor - amajor; }
-            if (a.length !== b.length) { return b.length - a.length; }
-            return b.length - a.length;
-        });
-
-        var partsDBArray = [];
-        partsDB.forEach(function(value, key) {
-            partsDBArray.push([key, value]);
-        });
+        if ( groups.length === 0 ) { return; }
 
         return {
-            partsDB: partsDBArray,
-            listParts: listParts,
-            sliderParts: sliderParts
+            cosmeticFilters: groups,
+            filter: {
+                slot: 0,
+                specificity: 0,
+            }
         };
     }
 
     function previewSelector(selector) {
         if (selector === previewedSelector) { return; }
         if (previewedSelector !== '') {
-            if (previewedSelector.startsWith('{')) {
-                // Procedural filter preview not implemented
-            }
             if (previewedCSS !== '') {
                 var style = document.getElementById('picker-preview-style');
                 if (style) { style.remove(); }
@@ -286,9 +191,12 @@
             return result;
         }
 
-        var elems = qsa(document, selector);
+        var fromSelector = typeof ubolOverlay.elementsFromSelector === 'function'
+            ? ubolOverlay.elementsFromSelector(selector)
+            : { elems: qsa(document, selector), error: undefined };
+        var elems = fromSelector.elems;
         if (elems.length === 0) {
-            result.error = 'No elements found';
+            result.error = fromSelector.error || 'No elements found';
         } else {
             result.count = elems.length;
         }
@@ -305,6 +213,10 @@
             previewSelector('');
             ubolOverlay.stop();
             break;
+        case 'startCustomFilters':
+            return ubolOverlay.sendMessage({ what: 'startCustomFilters' });
+        case 'terminateCustomFilters':
+            return ubolOverlay.sendMessage({ what: 'terminateCustomFilters' });
         case 'candidatesAtPoint':
             return candidatesAtPoint(msg.mx, msg.my);
         case 'highlightFromSelector':

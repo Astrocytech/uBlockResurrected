@@ -22,7 +22,7 @@
 import { dom, qs$, qsa$ } from './dom.js';
 import { i18n$ } from './i18n.js';
 import { injectZapperScripts } from './popup-zapper.js';
-import { injectPickerScripts } from './popup-picker.js';
+import { launchElementPicker } from './popup-picker.js';
 import punycode from '../lib/punycode.js';
 
 /******************************************************************************/
@@ -73,14 +73,21 @@ const gotoZap = async function() {
 const gotoPick = async function() {
     if ( typeof chrome !== 'undefined' ) {
         try {
-            const injected = await injectPickerScripts(popupData, chrome);
-            if ( injected === false ) {
+            const fallbackTabId = popupData.tabId ?? (
+                parseInt(new URL(self.location.href).searchParams.get('tabId'), 10)
+                || undefined
+            );
+            const launched = await launchElementPicker(
+                { ...popupData, tabId: fallbackTabId },
+                chrome,
+            );
+            if ( launched === false ) {
                 console.log('[Picker] No tab ID available');
             } else {
-                console.log('[Picker] Picker scripts injected successfully');
+                console.log('[Picker] Element picker launched successfully');
             }
         } catch (err) {
-            console.error('[Picker] Failed to inject scripts:', err);
+            console.error('[Picker] Failed to launch element picker:', err);
         }
     }
 
@@ -979,6 +986,12 @@ const gotoReport = function() {
 
 /******************************************************************************/
 
+const gotoDashboard = function() {
+    chrome.tabs.create({ url: 'dashboard.html' });
+};
+
+/******************************************************************************/
+
 const gotoURL = function(ev) {
     if ( this.hasAttribute('href') === false ) { return; }
 
@@ -1568,6 +1581,7 @@ dom.on('#switch', 'click', toggleNetFilteringSwitch);
 dom.on('#gotoZap', 'click', gotoZap);
 dom.on('#gotoPick', 'click', gotoPick);
 dom.on('#gotoReport', 'click', gotoReport);
+dom.on('#gotoDashboard', 'click', gotoDashboard);
 dom.on('.hnSwitch', 'click', ev => { toggleHostnameSwitch(ev); });
 dom.on('#saveRules', 'click', saveFirewallRules);
 dom.on('#revertRules', 'click', ( ) => { revertFirewallRules(); });

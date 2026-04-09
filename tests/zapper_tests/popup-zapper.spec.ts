@@ -31,8 +31,8 @@ test.describe('Popup Zapper Launch', () => {
         const injected = await injectZapperScripts({}, chromeApi);
         expect(injected).toBe(true);
         expect(queryCalls).toEqual([
-            { active: true, currentWindow: true },
-            { active: true, currentWindow: true },
+            { active: true, lastFocusedWindow: true },
+            { active: true, lastFocusedWindow: true },
         ]);
         expect(executeCalls).toEqual([
             {

@@ -1,14 +1,14 @@
 import { test, expect } from '@playwright/test';
 
 import {
-    injectPickerScripts,
+    launchElementPicker,
     resolvePopupTabId,
 } from '../../src/js/popup-picker';
 
 test.describe('Popup Picker Launch', () => {
-    test('falls back to the active tab and injects the picker dependencies in order', async () => {
+    test('falls back to the active tab and launches the original element picker', async () => {
         const queryCalls: Array<chrome.tabs.QueryInfo> = [];
-        const executeCalls: Array<chrome.scripting.ScriptInjection<unknown[], unknown>> = [];
+        const executeScriptCalls: Array<chrome.scripting.ScriptInjection<unknown[], unknown>> = [];
 
         const chromeApi = {
             tabs: {
@@ -18,9 +18,11 @@ test.describe('Popup Picker Launch', () => {
                 },
             },
             scripting: {
-                async executeScript(details: chrome.scripting.ScriptInjection<unknown[], unknown>) {
-                    executeCalls.push(details);
-                    return [];
+                async executeScript(
+                    details: chrome.scripting.ScriptInjection<unknown[], unknown>,
+                ) {
+                    executeScriptCalls.push(details);
+                    return undefined;
                 },
             },
         };
@@ -28,13 +30,13 @@ test.describe('Popup Picker Launch', () => {
         const resolvedTabId = await resolvePopupTabId({}, chromeApi);
         expect(resolvedTabId).toBe(456);
 
-        const injected = await injectPickerScripts({}, chromeApi);
-        expect(injected).toBe(true);
+        const launched = await launchElementPicker({}, chromeApi);
+        expect(launched).toBe(true);
         expect(queryCalls).toEqual([
-            { active: true, currentWindow: true },
-            { active: true, currentWindow: true },
+            { active: true, lastFocusedWindow: true },
+            { active: true, lastFocusedWindow: true },
         ]);
-        expect(executeCalls).toEqual([
+        expect(executeScriptCalls).toEqual([
             {
                 target: { tabId: 456 },
                 files: [
@@ -46,7 +48,7 @@ test.describe('Popup Picker Launch', () => {
     });
 
     test('prefers popupData.tabId when it is already available', async () => {
-        const executeCalls: Array<chrome.scripting.ScriptInjection<unknown[], unknown>> = [];
+        const executeScriptCalls: Array<chrome.scripting.ScriptInjection<unknown[], unknown>> = [];
 
         const chromeApi = {
             tabs: {
@@ -55,21 +57,25 @@ test.describe('Popup Picker Launch', () => {
                 },
             },
             scripting: {
-                async executeScript(details: chrome.scripting.ScriptInjection<unknown[], unknown>) {
-                    executeCalls.push(details);
-                    return [];
+                async executeScript(
+                    details: chrome.scripting.ScriptInjection<unknown[], unknown>,
+                ) {
+                    executeScriptCalls.push(details);
+                    return undefined;
                 },
             },
         };
 
-        const injected = await injectPickerScripts({ tabId: 123 }, chromeApi);
-        expect(injected).toBe(true);
-        expect(executeCalls[0]).toEqual({
-            target: { tabId: 123 },
-            files: [
-                '/js/scripting/tool-overlay.js',
-                '/js/scripting/picker.js',
-            ],
-        });
+        const launched = await launchElementPicker({ tabId: 123 }, chromeApi);
+        expect(launched).toBe(true);
+        expect(executeScriptCalls).toEqual([
+            {
+                target: { tabId: 123 },
+                files: [
+                    '/js/scripting/tool-overlay.js',
+                    '/js/scripting/picker.js',
+                ],
+            },
+        ]);
     });
 });

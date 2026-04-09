@@ -1,331 +1,269 @@
-/*******************************************************************************
-
-    uBlock Resurrected - Picker UI Styles
-
-*******************************************************************************/
+:root#ubol-picker {
+    --ubol-overlay-fill: rgba(255, 64, 64, 0.10);
+    --ubol-overlay-border: #f00;
+    --ubol-overlay-canvas: rgba(128, 128, 128, 0.3);
+}
 
 :root#ubol-picker,
-:root#ubol-picker body {
+:root#ubol-picker > body {
     background: transparent;
-    height: 100%;
-    margin: 0;
-    overflow: hidden;
-    width: 100%;
-}
-
-:root#ubol-picker {
-    --picker-bg: rgba(255, 255, 255, 0.95);
-    --picker-surface: rgba(255, 255, 255, 0.85);
-    --picker-surface-hover: rgba(245, 245, 245, 0.95);
-    --picker-ink: #333;
-    --picker-border: rgba(0, 0, 0, 0.15);
-    --picker-accent: #007bff;
-    --picker-success: #28a745;
-    --picker-danger: #dc3545;
-    --ubol-overlay-fill: rgba(0, 123, 255, 0.15);
-    --ubol-overlay-border: #007bff;
-    --button-size: 2.5em;
-    --aside-width: 280px;
-}
-
-svg#overlay {
-    cursor: crosshair;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
     height: 100vh;
-    pointer-events: auto;
-    z-index: 1;
-}
-
-svg#overlay path:first-child {
-    fill: rgba(0, 0, 0, 0.5);
-    fill-rule: evenodd;
-}
-
-svg#overlay path + path {
-    stroke: var(--ubol-overlay-border);
-    stroke-width: 2px;
-    fill: var(--ubol-overlay-fill);
-}
-
-:root#ubol-picker aside {
-    position: fixed;
-    right: 4px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 2147483647;
-    display: flex;
-    flex-direction: column;
-    background: var(--picker-bg);
-    border: 1px solid var(--picker-border);
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    overflow: hidden;
-    width: var(--aside-width);
-    max-height: 80vh;
-}
-
-:root#ubol-picker body[dir="rtl"] aside {
-    left: 4px;
-    right: auto;
-}
-
-:root#ubol-picker aside > #windowbar {
-    display: flex;
-    align-items: center;
-    background: transparent;
-    border: none;
-    padding: 4px;
-    cursor: grab;
-}
-
-:root#ubol-picker aside > #windowbar > #minimize {
-    width: 24px;
-    height: 24px;
-    background: transparent;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 4px;
-}
-
-:root#ubol-picker aside > #windowbar > #minimize:hover {
-    background: rgba(0, 0, 0, 0.05);
-}
-
-:root#ubol-picker aside > #windowbar > #minimize svg {
-    width: 16px;
-    height: 16px;
-    fill: var(--picker-ink);
-}
-
-:root#ubol-picker aside > #windowbar > #move {
-    flex: 1;
-    height: 24px;
-}
-
-:root#ubol-picker aside > #windowbar > #quit {
-    width: 28px;
-    height: 28px;
-    background: transparent;
-    border: none;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-}
-
-:root#ubol-picker aside > #windowbar > #quit:hover {
-    background: rgba(220, 53, 69, 0.1);
-}
-
-:root#ubol-picker aside > #windowbar > #quit .fa-icon {
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-:root#ubol-picker aside > #windowbar > #quit .fa-icon svg {
-    width: 16px;
-    height: 16px;
-    fill: var(--picker-danger);
-}
-
-:root#ubol-picker #dialog {
-    padding: 8px;
-    border-top: 1px solid var(--picker-border);
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-:root#ubol-picker #dialog[data-view="0"] #candidateFilters,
-:root#ubol-picker #dialog[data-view="0"] #resultsetWidgets {
-    display: none;
-}
-
-:root#ubol-picker #dialog[data-view="1"] #filterArea,
-:root#ubol-picker #dialog[data-view="1"] #resultsetWidgets {
-    display: none;
-}
-
-:root#ubol-picker #dialog[data-view="2"] #filterArea,
-:root#ubol-picker #dialog[data-view="2"] #candidateFilters {
-    display: none;
-}
-
-:root#ubol-picker #filterArea {
-    margin-bottom: 8px;
-}
-
-:root#ubol-picker #filterText {
-    width: 100%;
-    min-height: 60px;
-    padding: 8px;
-    border: 1px solid var(--picker-border);
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 12px;
-    resize: vertical;
-    box-sizing: border-box;
-}
-
-:root#ubol-picker #filterText:focus {
-    outline: none;
-    border-color: var(--picker-accent);
-}
-
-:root#ubol-picker #resultsetWidgets {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px 0;
-}
-
-:root#ubol-picker #resultsetWidgets label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    color: var(--picker-ink);
-}
-
-:root#ubol-picker #resultsetCount {
-    font-weight: bold;
-    font-size: 16px;
-}
-
-:root#ubol-picker #slider {
-    width: 100%;
-    cursor: pointer;
-}
-
-:root#ubol-picker #candidateFilters {
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-:root#ubol-picker #candidateFilters ul {
-    list-style: none;
     margin: 0;
-    padding: 0;
+    overflow: hidden;
+    width: 100vw;
 }
 
-:root#ubol-picker #candidateFilters li {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 4px;
-    margin-bottom: 4px;
-    background: var(--picker-surface);
-    border-radius: 4px;
-    cursor: pointer;
+:root#ubol-picker > body.loading {
+    visibility: hidden;
 }
 
-:root#ubol-picker #candidateFilters li:hover {
-    background: var(--picker-surface-hover);
+:root#ubol-picker :focus {
+    outline: none;
 }
 
-:root#ubol-picker #candidateFilters span {
-    display: inline-block;
-    padding: 2px 6px;
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 3px;
-    font-family: monospace;
-    font-size: 11px;
-}
-
-:root#ubol-picker #candidateFilters span.on {
-    background: var(--picker-accent);
-    color: white;
-}
-
-:root#ubol-picker aside > #toolbar {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px;
-    border-top: 1px solid var(--picker-border);
-}
-
-:root#ubol-picker aside > #toolbar > div {
-    display: flex;
-    gap: 8px;
-}
-
-:root#ubol-picker aside > #toolbar button {
-    flex: 1;
-    height: var(--button-size);
-    background: var(--picker-surface);
-    border: 1px solid var(--picker-border);
-    border-radius: 4px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background-color 0.15s;
-}
-
-:root#ubol-picker aside > #toolbar button:hover {
-    background: var(--picker-surface-hover);
-}
-
-:root#ubol-picker aside > #toolbar button:disabled {
-    opacity: 0.5;
+#ubol-picker.paused svg#overlay {
     cursor: not-allowed;
 }
 
-:root#ubol-picker aside > #toolbar button .fa-icon {
-    width: 20px;
-    height: 20px;
+svg#overlay {
+    box-sizing: border-box;
+    cursor: crosshair;
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+}
+
+svg#overlay > path:first-child {
+    fill: var(--ubol-overlay-canvas);
+    fill-rule: evenodd;
+}
+
+svg#overlay > path + path {
+    fill: var(--ubol-overlay-fill);
+    stroke: var(--ubol-overlay-border);
+    stroke-width: 1.5px;
+}
+
+:root#ubol-picker aside {
+    background-color: var(--surface-1);
+    border: 1px solid var(--border-2);
+    box-sizing: border-box;
+    cursor: default;
     display: flex;
+    flex-direction: column;
+    max-width: min(32rem, 100vw - 4px);
+    min-width: min(24rem, 100vw - 4px);
+    position: fixed;
+    width: min(32rem, 100vw - 4px);
+    z-index: 100;
+}
+
+:root#ubol-picker:not(.paused) aside > *:not(#windowbar) {
+    display: none;
+}
+
+:root#ubol-picker.minimized aside {
+    min-width: min(12em, 100vw - 4px);
+    width: min(12em, 100vw - 4px);
+}
+
+:root#ubol-picker.minimized aside > *:not(#windowbar) {
+    display: none !important;
+}
+
+:root#ubol-picker aside #windowbar {
+    border-bottom: 1px solid var(--border-1);
+    display: flex;
+}
+
+:root#ubol-picker aside #windowbar > div {
+    fill: none;
+    height: 2em;
+    stroke: var(--ink-1);
+    stroke-width: 2px;
+    width: 2em;
+}
+
+:root#ubol-picker.minimized aside #windowbar > div {
+    height: 3em;
+    width: 3em;
+}
+
+:root#ubol-picker.minimized aside #windowbar > #minimize svg > path,
+#windowbar #minimize svg > rect {
+    display: none;
+}
+
+:root#ubol-picker.minimized aside #windowbar > #minimize svg > rect {
+    display: initial;
+}
+
+:root#ubol-picker #windowbar > #move {
     align-items: center;
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAYAAACtBE5DAAAAFElEQVQI12NgwAfKy8v/M5ANYLoBshgEyQo6H9UAAAAASUVORK5CYII=');
+    cursor: grab;
+    display: flex;
+    flex-grow: 1;
     justify-content: center;
 }
 
-:root#ubol-picker aside > #toolbar button .fa-icon svg {
+:root#ubol-picker #windowbar > div:hover,
+#ubol-picker #toolbar button:hover {
+    background-color: var(--surface-2);
+}
+
+#ubol-picker #pickerPanel {
+    padding: 0 4px 4px;
+}
+
+#ubol-picker textarea {
+    border: 0;
+    box-sizing: border-box;
+    font-family: var(--monospace-font, monospace);
+    font-size: var(--monospace-size);
+    min-height: 5em;
+    resize: none;
     width: 100%;
+}
+
+#ubol-picker .resultsetWidgets {
+    display: flex;
+    font-size: var(--font-size-smaller);
+}
+
+#resultsetModifiers {
+    align-items: flex-end;
+    display: inline-flex;
+    flex-grow: 1;
+    justify-content: space-evenly;
+}
+
+#resultsetModifiers.hide > * {
+    visibility: hidden;
+}
+
+.resultsetModifier {
+    border: 0;
+    pointer-events: auto;
+    position: relative;
+    width: 40%;
+}
+
+.resultsetModifier > span {
+    align-items: flex-end;
+    display: flex;
     height: 100%;
-    fill: var(--picker-ink);
-}
-
-:root#ubol-picker aside > #toolbar button.preferred {
-    background: var(--picker-success);
-    color: white;
-    border-color: var(--picker-success);
-}
-
-:root#ubol-picker aside > #toolbar button.preferred .fa-icon svg {
-    fill: white;
-}
-
-:root#ubol-picker aside > #toolbar button.preferred span:not(.fa-icon) {
-    margin-left: 4px;
-}
-
-#tooltip {
-    position: fixed;
-    background: rgba(0, 0, 0, 0.85);
-    border-radius: 4px;
-    color: #fff;
-    font-family: monospace;
-    font-size: 11px;
-    padding: 4px 8px;
     pointer-events: none;
-    white-space: pre;
-    z-index: 2147483648;
-    display: none;
-    max-width: 300px;
+    width: 100%;
 }
 
-@media (prefers-color-scheme: dark) {
-    :root#ubol-picker:not(.light) {
-        color-scheme: dark;
-    }
+.resultsetModifier > span > span {
+    margin: 2px 0;
+}
+
+.resultsetModifier > span > span:nth-of-type(1) {
+    background-color: var(--ink-1);
+    border-inline-end: 1px solid var(--surface-3);
+    display: inline-block;
+    flex-shrink: 0;
+    height: 6px;
+}
+
+.resultsetModifier > span > span:nth-of-type(2) {
+    background-color: var(--ink-1);
+    clip-path: polygon(
+        calc(50% - 2px) 0%,
+        0% calc(100% - 6px),
+        0% 100%,
+        100% 100%,
+        100% calc(100% - 6px),
+        calc(50% + 2px) 0%
+    );
+    display: inline-block;
+    flex-shrink: 0;
+    height: 20px;
+    width: 20px;
+}
+
+.resultsetModifier > span > span:nth-of-type(3) {
+    background-color: var(--surface-3);
+    border-inline-start: 1px solid var(--surface-3);
+    display: inline-block;
+    flex-grow: 1;
+    height: 6px;
+}
+
+.resultsetModifier input {
+    border: 0;
+    height: 100%;
+    left: 0;
+    margin: 0;
+    opacity: 0;
+    padding: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+}
+
+#resultsetCount {
+    align-items: center;
+    background-color: var(--surface-3);
+    color: var(--ink-1);
+    display: inline-flex;
+    justify-content: center;
+    min-width: 2.2em;
+}
+
+#ubol-picker #toolbar {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2px;
+}
+
+#ubol-picker #toolbar button {
+    min-width: 5em;
+}
+
+#ubol-picker #candidateFilters {
+    list-style: none;
+    margin: 0;
+    max-height: min(18em, 24vh);
+    overflow-y: auto;
+    padding: 0 4px 4px;
+}
+
+#ubol-picker #candidateFilters > li {
+    list-style: none;
+    margin: 0;
+}
+
+#ubol-picker #candidateFilters > li > span {
+    display: block;
+    font-size: 90%;
+    margin-bottom: 2px;
+}
+
+#ubol-picker #candidateFilters .changeFilter {
+    list-style: none;
+    margin: 0 0 0 1em;
+    padding: 0;
+}
+
+#ubol-picker #candidateFilters .changeFilter li {
+    border: 1px solid transparent;
+    cursor: pointer;
+    direction: ltr;
+    font: 12px monospace;
+    list-style: none;
+    white-space: nowrap;
+}
+
+#ubol-picker #candidateFilters .changeFilter li.active {
+    border: 1px dotted var(--accent-ink-1);
+}
+
+#ubol-picker #candidateFilters .changeFilter li:hover {
+    background-color: var(--surface-2);
 }

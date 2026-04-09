@@ -1,61 +1,73 @@
 <!DOCTYPE html>
-<html id="ubol-picker">
+<html id="ubol-picker" class="minimized">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="color-scheme" content="light dark">
     <title>Picker</title>
+    <link rel="stylesheet" href="/css/themes/default.css">
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/fa-icons.css">
+    <link rel="stylesheet" href="/css/tool-overlay-ui.css">
     <link rel="stylesheet" href="/css/picker-ui.css">
 </head>
 <body class="loading">
-    <aside>
-        <div id="windowbar">
-            <div id="minimize"></div>
+    <aside style="right: 2px; bottom: 2px;">
+        <section id="windowbar">
+            <div id="minimize">
+                <svg viewBox="0 0 64 64">
+                    <path d="M 16,48 H 48" />
+                    <rect x="16" y="16" height="32" width="32" />
+                </svg>
+            </div>
             <div id="move"></div>
-            <div id="quit" title="Close (ESC)">
-                <span class="fa-icon">times</span>
+            <div id="quit" data-i18n-title="pickerQuit">
+                <svg viewBox="0 0 64 64">
+                    <path d="M16 16L48 48M16 48L48 16" />
+                </svg>
             </div>
-        </div>
-        
-        <section id="dialog" data-view="0">
-            <section id="filterArea">
-                <textarea id="filterText" spellcheck="false" placeholder="CSS selector..."></textarea>
-            </section>
-            <section id="resultsetWidgets">
-                <label for="slider">
-                    <span id="resultsetCount">0</span>
-                    <span id="resultsetLabel">element(s)</span>
-                </label>
-                <input id="slider" type="range" min="0" max="10" step="any" value="10">
-            </section>
-            <section id="candidateFilters">
-                <ul></ul>
-            </section>
         </section>
-        
-        <section id="toolbar">
+        <section id="pickerPanel">
             <div>
-                <button id="pick" type="button" title="Pick element">
-                    <span class="fa-icon">hand-pointer</span>
-                </button>
-                <button id="preview" type="button" title="Preview">
-                    <span class="fa-icon">eye</span>
-                </button>
+                <textarea id="filterText" spellcheck="false"></textarea>
+                <div class="resultsetWidgets">
+                    <span id="resultsetModifiers">
+                        <span id="resultsetDepth" class="resultsetModifier">
+                            <span><span></span><span></span><span></span></span>
+                            <input type="range" min="0" max="0" value="0">
+                        </span>
+                        <span id="resultsetSpecificity" class="resultsetModifier">
+                            <span><span></span><span></span><span></span></span>
+                            <input type="range" min="0" max="0" value="0">
+                        </span>
+                    </span>
+                    <span id="resultsetCount"></span>
+                </div>
             </div>
-            <button id="create" type="button" class="preferred" disabled title="Create filter">
-                <span class="fa-icon">plus</span>
-                <span>Create</span>
-            </button>
+            <div id="toolbar">
+                <div>
+                    <button id="pick" type="button" data-i18n="pickerPick">_<span class="hover"></span></button>
+                    <button id="preview" type="button" data-i18n="pickerPreview">_<span class="hover"></span></button>
+                </div>
+                <button id="create" type="button" class="preferred" disabled data-i18n="pickerCreate">_<span class="hover"></span></button>
+            </div>
         </section>
+        <ul id="candidateFilters">
+            <li id="cosmeticFilters">
+                <span data-i18n="pickerCosmeticFilters">_</span>
+                <ul lang="en" class="changeFilter"></ul>
+            </li>
+        </ul>
     </aside>
 
     <svg id="overlay">
-        <path/>
-        <path/>
+        <path d></path>
+        <path d="M0 0"></path>
     </svg>
 
     <div id="tooltip"></div>
 
     <script src="/js/fa-icons-bundle.js"></script>
+    <script src="/js/i18n-bundle.js"></script>
     <script src="/js/scripting/tool-overlay-ui.js"></script>
     <script src="/js/scripting/picker-ui.js"></script>
 </body>

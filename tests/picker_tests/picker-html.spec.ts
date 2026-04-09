@@ -14,4 +14,17 @@ test.describe('Picker HTML', () => {
         expect(html.indexOf('/js/scripting/tool-overlay-ui.js'))
             .toBeLessThan(html.indexOf('/js/scripting/picker-ui.js'));
     });
+
+    test('uses reference-style shared UI assets and translatable labels', async () => {
+        const html = await readFile(pickerHtmlPath, 'utf8');
+
+        expect(html).toContain('/css/tool-overlay-ui.css');
+        expect(html).toContain('/js/i18n-bundle.js');
+        expect(html).toContain('data-i18n="pickerPick"');
+        expect(html).toContain('data-i18n="pickerPreview"');
+        expect(html).toContain('data-i18n="pickerCreate"');
+        expect(html).toContain('data-i18n="popupMoreButton_v2"');
+        expect(html).toContain('data-i18n="popupLessButton_v2"');
+        expect(html).not.toContain('/js/theme-bundle.js');
+    });
 });

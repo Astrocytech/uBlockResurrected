@@ -11,15 +11,25 @@
     'use strict';
 
     var toolOverlay = {
+        url: new URL('about:blank'),
         svgRoot: null,
         svgOcean: null,
         svgIslands: null,
+        emptyPath: 'M0 0',
         port: null,
         onmessage: null,
+        moveable: null,
         mstrackerOn: false,
         mstrackerX: 0,
         mstrackerY: 0,
         mstrackerTimer: null,
+        moverX0: 0,
+        moverY0: 0,
+        moverX1: 0,
+        moverY1: 0,
+        moverCX0: 0,
+        moverCY0: 0,
+        moverTimer: null,
         messageId: 1,
         pendingMessages: new Map(),
 
@@ -50,6 +60,11 @@
                     this.svgOcean = paths[0];
                     this.svgIslands = paths[1];
                 }
+                this.moveable = document.querySelector('aside');
+                if (this.moveable && this.moveable.querySelector('#move')) {
+                    this.moveable.querySelector('#move').addEventListener('pointerdown', this.mover.bind(this));
+                    this.moveable.querySelector('#move').addEventListener('touchstart', this.eatTouchEvent);
+                }
 
                 this.onMessage({
                     what: 'startTool',
@@ -77,11 +92,12 @@
 
             switch (msg.what) {
             case 'startTool':
+                this.url.href = msg.url || this.url.href;
                 this.svgOcean.setAttribute('d', 'M0 0h' + msg.width + 'v' + msg.height + 'h-' + msg.width + 'z');
                 break;
             case 'svgPaths':
                 this.svgOcean.setAttribute('d', msg.ocean + msg.islands);
-                this.svgIslands.setAttribute('d', msg.islands || 'M0 0');
+                this.svgIslands.setAttribute('d', msg.islands || this.emptyPath);
                 break;
             }
 
@@ -126,7 +142,20 @@
             });
         },
 
+        sendMessage: function(msg) {
+            if (
+                typeof chrome === 'undefined' ||
+                chrome.runtime === undefined ||
+                chrome.runtime.sendMessage === undefined
+            ) {
+                return Promise.resolve();
+            }
+            return chrome.runtime.sendMessage(msg).catch(function() {
+            });
+        },
+
         highlightElementUnderMouse: function(state) {
+            if (document.documentElement.classList.contains('mobile')) { return; }
             if (state === this.mstrackerOn) { return; }
             this.mstrackerOn = state;
             if (this.mstrackerOn) {
@@ -155,6 +184,85 @@
             toolOverlay.mstrackerY = ev.clientY;
             if (toolOverlay.mstrackerTimer !== null) { return; }
             toolOverlay.mstrackerTimer = requestAnimationFrame(toolOverlay.onTimer);
+        },
+
+        mover: function(ev) {
+            var target = ev.target;
+            if (target.matches('#move') === false) { return; }
+            if (this.moveable && this.moveable.classList.contains('moving')) { return; }
+
+            target.setPointerCapture(ev.pointerId);
+            this.moverX0 = ev.pageX;
+            this.moverY0 = ev.pageY;
+            var rect = this.moveable.getBoundingClientRect();
+            this.moverCX0 = rect.x + rect.width / 2;
+            this.moverCY0 = rect.y + rect.height / 2;
+            this.moveable.classList.add('moving');
+
+            self.addEventListener('pointermove', this.moverMoveAsync, {
+                passive: true,
+                capture: true,
+            });
+            self.addEventListener('pointerup', this.moverStop, {
+                capture: true,
+                once: true,
+            });
+
+            ev.stopPropagation();
+            ev.preventDefault();
+        },
+
+        moverMove: function() {
+            this.moverTimer = null;
+            var cx1 = this.moverCX0 + this.moverX1 - this.moverX0;
+            var cy1 = this.moverCY0 + this.moverY1 - this.moverY0;
+            var rootW = document.documentElement.clientWidth;
+            var rootH = document.documentElement.clientHeight;
+            var moveableW = this.moveable.clientWidth;
+            var moveableH = this.moveable.clientHeight;
+
+            if (cx1 < rootW / 2) {
+                this.moveable.style.setProperty('left', Math.max(cx1 - moveableW / 2, 2) + 'px');
+                this.moveable.style.removeProperty('right');
+            } else {
+                this.moveable.style.removeProperty('left');
+                this.moveable.style.setProperty('right', Math.max(rootW - cx1 - moveableW / 2, 2) + 'px');
+            }
+
+            if (cy1 < rootH / 2) {
+                this.moveable.style.setProperty('top', Math.max(cy1 - moveableH / 2, 2) + 'px');
+                this.moveable.style.removeProperty('bottom');
+            } else {
+                this.moveable.style.removeProperty('top');
+                this.moveable.style.setProperty('bottom', Math.max(rootH - cy1 - moveableH / 2, 2) + 'px');
+            }
+        },
+
+        moverMoveAsync: function(ev) {
+            toolOverlay.moverX1 = ev.pageX;
+            toolOverlay.moverY1 = ev.pageY;
+            if (toolOverlay.moverTimer !== null) { return; }
+            toolOverlay.moverTimer = self.requestAnimationFrame(function() {
+                toolOverlay.moverMove();
+            });
+        },
+
+        moverStop: function(ev) {
+            if (toolOverlay.moveable && toolOverlay.moveable.classList.contains('moving') === false) { return; }
+            toolOverlay.moveable.classList.remove('moving');
+            self.removeEventListener('pointermove', toolOverlay.moverMoveAsync, {
+                passive: true,
+                capture: true,
+            });
+            ev.target.releasePointerCapture(ev.pointerId);
+            ev.stopPropagation();
+            ev.preventDefault();
+        },
+
+        eatTouchEvent: function(ev) {
+            if (ev.target.matches('#move') === false) { return; }
+            ev.stopPropagation();
+            ev.preventDefault();
         }
     };
 
