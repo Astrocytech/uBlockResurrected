@@ -24,7 +24,22 @@
 
 /******************************************************************************/
 
-import { ubolog } from './console.js';
+const vAPI = globalThis.vAPI || (globalThis.vAPI = {});
+if ( typeof vAPI.webextFlavor !== 'object' || vAPI.webextFlavor === null ) {
+    vAPI.webextFlavor = {
+        major: 120,
+        env: [],
+        soup: new Set([ 'chromium', 'mv3', 'ublock' ]),
+    };
+} else {
+    vAPI.webextFlavor.major ??= 120;
+    vAPI.webextFlavor.env ??= [];
+    if ( typeof vAPI.webextFlavor.soup?.has !== 'function' ) {
+        vAPI.webextFlavor.soup = new Set([ 'chromium', 'mv3', 'ublock' ]);
+    }
+}
+
+import { ubolog } from '../../src/js/console.js';
 import webext from './webext.js';
 
 /******************************************************************************/

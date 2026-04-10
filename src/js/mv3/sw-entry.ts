@@ -53,6 +53,223 @@ type CollectedHostnameData = {
     hostnameDict: Record<string, HostnameDetails>;
 };
 
+type LegacyMessagingAPI = {
+    ports: Map<string, any>;
+    listeners: Map<string, { fn: (request: any, sender: any, callback: (response?: any) => void) => any; privileged?: boolean }>;
+    defaultHandler: null | ((request: any, sender: any, callback: (response?: any) => void) => any);
+    PRIVILEGED_ORIGIN: string;
+    UNHANDLED: string;
+    onFrameworkMessage?: (request: any, port: chrome.runtime.Port, callback: (response?: any) => void) => void;
+    onPortDisconnect?: (port: chrome.runtime.Port) => void;
+};
+
+type LegacyPortDetails = {
+    port: chrome.runtime.Port;
+    frameId?: number;
+    frameURL?: string;
+    privileged: boolean;
+    tabId?: number;
+    tabURL?: string;
+};
+
+const legacyBackendState = {
+    initializing: null as Promise<void> | null,
+    initialized: false,
+};
+
+const getLegacyMessaging = (): LegacyMessagingAPI | undefined => {
+    return (globalThis as any).vAPI?.messaging;
+};
+
+const withDisabledRuntimeOnConnect = async <T>(callback: () => Promise<T>): Promise<T> => {
+    const runtime = (globalThis as any).browser?.runtime || (globalThis as any).chrome?.runtime;
+    const onConnect = runtime?.onConnect;
+    if ( typeof onConnect?.addListener !== 'function' ) {
+        return callback();
+    }
+    const originalAddListener = onConnect.addListener.bind(onConnect);
+    onConnect.addListener = () => {};
+    try {
+        return await callback();
+    } finally {
+        onConnect.addListener = originalAddListener;
+    }
+};
+
+const ensureLegacyBackend = async (): Promise<void> => {
+    if ( legacyBackendState.initialized ) { return; }
+    if ( legacyBackendState.initializing ) { return legacyBackendState.initializing; }
+
+    legacyBackendState.initializing = withDisabledRuntimeOnConnect(async () => {
+        if ( typeof (globalThis as any).window === 'undefined' ) {
+            (globalThis as any).window = globalThis;
+        }
+        const vAPI = ((globalThis as any).vAPI ||= {});
+        if ( typeof (globalThis as any).window.vAPI === 'undefined' ) {
+            (globalThis as any).window.vAPI = vAPI;
+        }
+        if ( typeof vAPI.T0 !== 'number' ) {
+            vAPI.T0 = Date.now();
+        }
+        if ( typeof vAPI.sessionId !== 'string' ) {
+            vAPI.sessionId = 'mv3-sw';
+        }
+        if ( typeof vAPI.getURL !== 'function' ) {
+            vAPI.getURL = (path = '') => chrome.runtime.getURL(path);
+        }
+        if ( typeof vAPI.setTimeout !== 'function' ) {
+            vAPI.setTimeout = globalThis.setTimeout.bind(globalThis);
+        }
+        if ( typeof vAPI.clearTimeout !== 'function' ) {
+            vAPI.clearTimeout = globalThis.clearTimeout.bind(globalThis);
+        }
+        if ( typeof vAPI.localStorage !== 'object' || vAPI.localStorage === null ) {
+            const storageMap = new Map<string, string>();
+            vAPI.localStorage = {
+                getItem(key: string) {
+                    return Promise.resolve(storageMap.has(key) ? storageMap.get(key) : null);
+                },
+                setItem(key: string, value: string) {
+                    storageMap.set(key, `${value}`);
+                    return Promise.resolve();
+                },
+                removeItem(key: string) {
+                    storageMap.delete(key);
+                    return Promise.resolve();
+                },
+                clear() {
+                    storageMap.clear();
+                    return Promise.resolve();
+                },
+            };
+        }
+        if (
+            typeof vAPI.webextFlavor !== 'object' ||
+            vAPI.webextFlavor === null ||
+            typeof vAPI.webextFlavor.soup?.has !== 'function'
+        ) {
+            vAPI.webextFlavor = {
+                major: 120,
+                env: [],
+                soup: new Set([ 'chromium', 'mv3', 'ublock' ]),
+            };
+        } else {
+            vAPI.webextFlavor.major ??= 120;
+            vAPI.webextFlavor.env ??= [];
+            if ( typeof vAPI.webextFlavor.soup?.add === 'function' ) {
+                vAPI.webextFlavor.soup.add('chromium');
+                vAPI.webextFlavor.soup.add('mv3');
+                vAPI.webextFlavor.soup.add('ublock');
+            }
+        }
+        if ( typeof (globalThis as any).screen === 'undefined' ) {
+            (globalThis as any).screen = { width: 1280, height: 720 };
+        }
+        if ( typeof (globalThis as any).window.screen === 'undefined' ) {
+            (globalThis as any).window.screen = (globalThis as any).screen;
+        }
+        if ( typeof (globalThis as any).document === 'undefined' ) {
+            const noop = () => {};
+            const nullFn = () => null;
+            (globalThis as any).document = {
+                body: null,
+                head: null,
+                documentElement: null,
+                hidden: true,
+                visibilityState: 'hidden',
+                readyState: 'complete',
+                addEventListener: noop,
+                removeEventListener: noop,
+                dispatchEvent: noop,
+                createElement: () => ({
+                    style: {},
+                    setAttribute: noop,
+                    removeAttribute: noop,
+                    addEventListener: noop,
+                    removeEventListener: noop,
+                    appendChild: noop,
+                    remove: noop,
+                    classList: {
+                        add: noop,
+                        remove: noop,
+                        contains: () => false,
+                    },
+                }),
+                querySelector: nullFn,
+                querySelectorAll: () => [],
+                getElementById: nullFn,
+            };
+        }
+        if ( typeof (globalThis as any).window.document === 'undefined' ) {
+            (globalThis as any).window.document = (globalThis as any).document;
+        }
+        if ( typeof (globalThis as any).Image === 'undefined' ) {
+            (globalThis as any).Image = class {
+                onload: null | (() => void) = null;
+                onerror: null | (() => void) = null;
+                width = 0;
+                height = 0;
+                complete = false;
+                private listeners = new Map<string, Set<() => void>>();
+                addEventListener(type: string, listener: () => void) {
+                    const bucket = this.listeners.get(type) || new Set<() => void>();
+                    bucket.add(listener);
+                    this.listeners.set(type, bucket);
+                }
+                removeEventListener(type: string, listener: () => void) {
+                    this.listeners.get(type)?.delete(listener);
+                }
+                set src(_value: string) {
+                    this.complete = true;
+                    queueMicrotask(() => {
+                        if ( typeof this.onload === 'function' ) {
+                            this.onload();
+                        }
+                        for ( const listener of this.listeners.get('load') || [] ) {
+                            listener();
+                        }
+                    });
+                }
+            };
+        }
+        await import('../start.ts');
+        const backgroundModule = await import('../background.js');
+        const legacyBackground = backgroundModule.default as { isReadyPromise?: Promise<unknown> };
+        if ( legacyBackground?.isReadyPromise instanceof Promise ) {
+            await legacyBackground.isReadyPromise.catch(() => {});
+        }
+        legacyBackendState.initialized = true;
+    });
+
+    try {
+        await legacyBackendState.initializing;
+    } finally {
+        legacyBackendState.initializing = null;
+    }
+};
+
+const registerLegacyPort = (port: chrome.runtime.Port): LegacyPortDetails | undefined => {
+    const messaging = getLegacyMessaging();
+    if ( messaging === undefined ) { return; }
+
+    const sender = port.sender || {};
+    const { origin, tab, url } = sender;
+    const details: LegacyPortDetails = {
+        port,
+        frameId: sender.frameId,
+        frameURL: url,
+        privileged: origin !== undefined
+            ? origin === messaging.PRIVILEGED_ORIGIN
+            : typeof url === 'string' && url.startsWith(messaging.PRIVILEGED_ORIGIN),
+    };
+    if ( tab ) {
+        details.tabId = tab.id;
+        details.tabURL = tab.url;
+    }
+    messaging.ports.set(port.name, details);
+    return details;
+};
+
 const userSettingsDefault = {
     advancedUserEnabled: false,
     autoUpdate: true,
@@ -701,12 +918,17 @@ const applyFilterListSelection = async (payload: {
         userSettings: nextUserSettings,
     });
 
+    // Sync filter list rules to DNR
+    await syncFilterListDnrRules();
+
     return getFilterListState();
 };
 
 const reloadAllFilterLists = async () => {
     filterListsUpdating = true;
     try {
+        // Sync filter list rules to DNR
+        await syncFilterListDnrRules();
         return await getFilterListState();
     } finally {
         filterListsUpdating = false;
@@ -717,9 +939,133 @@ const updateFilterListsNow = async (payload?: { assetKeys?: string[]; preferOrig
     void payload;
     filterListsUpdating = true;
     try {
+        // Sync filter list rules to DNR
+        await syncFilterListDnrRules();
         return await getFilterListState();
     } finally {
         filterListsUpdating = false;
+    }
+};
+
+// Sync filter list network rules to Chrome DNR
+const syncFilterListDnrRules = async () => {
+    if ( chrome.declarativeNetRequest === undefined ) { 
+        console.log('[DNR] DNR not available');
+        return; 
+    }
+    
+    try {
+        // Get selected filter lists
+        const stored = await chrome.storage.local.get('selectedFilterLists');
+        const selectedLists = normalizeSelectedFilterLists(stored.selectedFilterLists);
+        
+        console.log('[DNR] Selected lists:', selectedLists);
+        
+        if ( selectedLists.length === 0 ) {
+            console.log('[DNR] No filter lists selected');
+            return;
+        }
+
+        // Get catalog
+        const catalog = await fetchFilterListCatalog();
+        console.log('[DNR] Catalog keys:', Object.keys(catalog).slice(0, 5));
+        
+        // Load filter list content
+        const filterLists: { key: string; text: string }[] = [];
+        for ( const listKey of selectedLists ) {
+            if ( listKey === FILTER_LIST_USER_PATH ) {
+                // Get user filters from storage
+                const userFiltersStored = await chrome.storage.local.get('userFilters');
+                const userFilters = typeof userFiltersStored.userFilters === 'string' 
+                    ? userFiltersStored.userFilters 
+                    : '';
+                if ( userFilters ) {
+                    filterLists.push({ key: FILTER_LIST_USER_PATH, text: userFilters });
+                    console.log('[DNR] Loaded user filters:', userFilters.length, 'chars');
+                }
+                continue;
+            }
+            
+            const asset = catalog[listKey];
+            if ( !asset || !asset.asset ) { 
+                console.log('[DNR] Skipping list (no asset):', listKey);
+                continue; 
+            }
+            
+            // Load from bundled asset
+            const assetPath = `assets/${asset.asset}`;
+            console.log('[DNR] Loading:', assetPath);
+            try {
+                const response = await fetch(chrome.runtime.getURL(assetPath));
+                if ( response.ok ) {
+                    const text = await response.text();
+                    filterLists.push({ key: listKey, text });
+                    console.log('[DNR] Loaded:', listKey, text.length, 'chars');
+                } else {
+                    console.log('[DNR] Failed to load:', listKey, response.status);
+                }
+            } catch ( e ) {
+                console.warn('[DNR] Failed to load filter list:', listKey, e);
+            }
+        }
+
+        console.log('[DNR] Total lists loaded:', filterLists.length);
+        
+        if ( filterLists.length === 0 ) {
+            console.log('[DNR] No filter lists loaded');
+            return;
+        }
+
+        console.log('[DNR] Compiling', filterLists.length, 'filter lists to DNR rules...');
+
+        // Import the DNR conversion function (from built JS)
+        const { dnrRulesetFromRawLists } = await import('../static-dnr-filtering.js');
+        
+        // Compile to DNR rules
+        const dnrData = await dnrRulesetFromRawLists(
+            filterLists.map(f => ({ text: f.text })),
+            { env: [] }
+        );
+
+        console.log('[DNR] Result:', dnrData);
+        
+        if ( !dnrData?.network?.ruleset ) {
+            console.log('[DNR] No network rules from filter lists');
+            return;
+        }
+
+        console.log('[DNR] Generated rules:', dnrData.network.ruleset.length);
+
+        // Get existing rules and remove old filter list rules (ID range 100-9999)
+        const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+        const removeRuleIds = existingRules
+            .map(rule => rule.id)
+            .filter(id => id >= 100 && id < 10000);
+
+        // Assign IDs to new rules (start at 100 to avoid conflicts with firewall rules)
+        const addRules = dnrData.network.ruleset.map((rule: any, index: number) => ({
+            ...rule,
+            id: 100 + index,
+        })).slice(0, 3000); // Chrome DNR limit is 3000 dynamic rules
+
+        // Update DNR
+        await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+        console.log('[DNR] Installed', addRules.length, 'filter list rules');
+        
+        // Store cosmetic filters for content script access
+        const cosmeticFiltersData = {
+            genericCosmeticFilters: dnrData.genericCosmeticFilters || [],
+            genericCosmeticExceptions: dnrData.genericCosmeticExceptions || [],
+            specificCosmeticFilters: dnrData.specificCosmetic || [],
+            scriptletFilters: dnrData.scriptlet || new Map(),
+        };
+        await chrome.storage.local.set({ cosmeticFiltersData: JSON.stringify(cosmeticFiltersData) });
+        console.log('[DNR] Stored cosmetic filters:', 
+            cosmeticFiltersData.genericCosmeticFilters.length, 'generic,',
+            cosmeticFiltersData.specificCosmeticFilters.length, 'specific');
+        
+    } catch ( e ) {
+        console.error('[DNR] Failed to sync filter list rules:', e);
     }
 };
 
@@ -1308,19 +1654,21 @@ const Messaging = (() => {
 
     function onPortConnected(port: chrome.runtime.Port) {
         portMap.set(port.name || 'unknown', port);
-        
+
         port.onMessage.addListener((message) => {
-            handlePortMessage(port, message);
+            void handlePortMessage(port, message);
         });
 
         port.onDisconnect.addListener(() => {
             portMap.delete(port.name || 'unknown');
+            const legacyMessaging = getLegacyMessaging();
+            legacyMessaging?.onPortDisconnect?.(port);
         });
     }
 
-    function handlePortMessage(port: chrome.runtime.Port, message: any) {
+    async function handlePortMessage(port: chrome.runtime.Port, message: any) {
         if ( message && typeof message.channel === 'string' ) {
-            handleLegacyPortMessage(port, message as LegacyMessage);
+            await handleLegacyPortMessage(port, message as LegacyMessage);
             return;
         }
         if (!message || !message.topic) return;
@@ -1358,35 +1706,67 @@ const Messaging = (() => {
         }
     }
 
-    function handleLegacyPortMessage(port: chrome.runtime.Port, message: LegacyMessage) {
+    async function handleLegacyPortMessage(port: chrome.runtime.Port, message: LegacyMessage) {
         const { channel, msgId, msg } = message;
         const respond = (response: any) => {
             if ( msgId === undefined ) { return; }
             port.postMessage({ msgId, msg: response });
         };
 
-        if ( channel === 'popupPanel' ) {
-            handlePopupPanelMessage(msg || {}).then(respond).catch(error => {
-                respond({ error: error instanceof Error ? error.message : String(error) });
-            });
+        // Handle dashboard and popupPanel natively without legacy backend
+        if ( channel === 'dashboard' || channel === 'popupPanel' ) {
+            try {
+                const response = await handleDashboardMessage(msg || {});
+                respond(response);
+            } catch (error) {
+                respond({ error: (error as Error).message });
+            }
             return;
         }
 
-        if ( channel === 'dashboard' ) {
-            handleDashboardMessage(msg || {}).then(respond).catch(error => {
-                respond({ error: error instanceof Error ? error.message : String(error) });
-            });
+        // Handle contentscript channel for MV3 content script communication
+        if ( channel === 'contentscript' ) {
+            try {
+                const response = await handleContentScriptRequest(msg || {});
+                respond(response);
+            } catch (error) {
+                console.error('[MV3] contentscript error:', error);
+                respond({ error: (error as Error).message });
+            }
             return;
         }
 
-        if ( channel === 'default' && msg?.what === 'userSettings' ) {
-            setUserSetting(msg).then(respond).catch(error => {
-                respond({ error: error instanceof Error ? error.message : String(error) });
-            });
+        // Handle scriptlets channel
+        if ( channel === 'scriptlets' ) {
+            respond({});
             return;
         }
 
-        respond(undefined);
+        console.log(`MV3: ${channel} channel - legacy not supported, returning empty response`);
+        respond(null);
+    }
+
+    // Handle content script requests from the contentscript messaging channel
+    async function handleContentScriptRequest(request: { what?: string; [key: string]: any }): Promise<any> {
+        const { what, ...payload } = request;
+        
+        switch (what) {
+            case 'retrieveContentScriptParameters':
+                // Handled by Messaging.on handler above, just return null here
+                return null;
+            case 'retrieveGenericCosmeticSelectors':
+                // Handled by Messaging.on handler above, just return null here
+                return null;
+            case 'getTabId':
+                return new Promise(resolve => {
+                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+                        resolve({ tabId: tabs[0]?.id ?? null });
+                    });
+                });
+            default:
+                console.log('[MV3] Unknown content script request:', what);
+                return null;
+        }
     }
 
     function handleRuntimeMessage(
@@ -1728,6 +2108,129 @@ Messaging.on('ping', (_, callback) => {
     if (callback) callback({ pong: true, timestamp: Date.now() });
 });
 
+// Content script handlers for MV3
+Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
+    console.log('[MV3] retrieveContentScriptParameters:', payload);
+    try {
+        const tabId = payload?._tabId;
+        const url = payload?.url || '';
+        const hostname = url ? new URL(url).hostname : '';
+        
+        // Get user settings from storage
+        const stored = await chrome.storage.local.get('userSettings');
+        const userSettings = stored.userSettings || popupState.userSettings;
+        
+        const response = {
+            advancedUserEnabled: userSettings.advancedUserEnabled === true,
+            autoReload: userSettings.autoReload,
+            beautify: userSettings.beautify,
+            cloudStorageEnabled: false,
+            consoleLogEnabled: userSettings.consoleLogEnabled,
+            contextMenuEnabled: userSettings.contextMenuEnabled,
+            debugScriptlet: userSettings.debugScriptlet,
+            extensionPopupEnabled: userSettings.extensionPopupEnabled,
+            externalRendererEnabled: false,
+            genericCosmeticFiltersHidden: true,
+            getSelection: () => window.getSelection()?.toString() || '',
+            hidePlaceholders: userSettings.hidePlaceholders === true,
+            hostname: hostname,
+            ignoreGenericCosmeticFilters: userSettings.ignoreGenericCosmeticFilters === true,
+            ioPush: () => {},
+            noCosmeticFiltering: false,
+            parseAllABPHideFilters: userSettings.parseAllABPHideFilters === true,
+            popupPanelType: 'legacy',
+            removeWLCollections: () => {},
+            showIconBadge: userSettings.showIconBadge,
+            storage: null,
+            tabId: tabId,
+            userSettings: userSettings,
+            webAllowWildcard: true,
+            webextFlavor: 'chromium',
+        };
+        
+        console.log('[MV3] retrieveContentScriptParameters response:', response);
+        if (callback) callback(response);
+    } catch (e) {
+        console.error('[MV3] retrieveContentScriptParameters error:', e);
+        if (callback) callback({ error: (e as Error).message });
+    }
+});
+
+Messaging.on('retrieveGenericCosmeticSelectors', async (payload, callback) => {
+    console.log('[MV3] retrieveGenericCosmeticSelectors:', payload);
+    try {
+        const tabId = payload?._tabId;
+        const hostname = payload?.hostname || '';
+        const hashes = payload?.hashes || [];
+        const exceptions = payload?.exceptions || [];
+        const safeOnly = payload?.safeOnly === true;
+        
+        // Load stored cosmetic filters
+        const stored = await chrome.storage.local.get('cosmeticFiltersData');
+        let cosmeticData = { genericCosmeticFilters: [], genericCosmeticExceptions: [] };
+        
+        if (stored.cosmeticFiltersData) {
+            try {
+                cosmeticData = JSON.parse(stored.cosmeticFiltersData);
+            } catch (e) {
+                console.warn('[MV3] Failed to parse cosmeticFiltersData:', e);
+            }
+        }
+        
+        // Filter by hashes - the content script sends hashes of element classes/ids
+        // We need to match these against our stored cosmetic filters
+        const selectors: string[] = [];
+        const genericFilters = cosmeticData.genericCosmeticFilters || [];
+        
+        // Simple matching - in a full implementation this would use proper hash lookup
+        for (const filter of genericFilters) {
+            if (filter.key && hashes.includes(filter.key)) {
+                selectors.push(filter.selector);
+            }
+        }
+        
+        // Remove exceptions
+        const excepted: string[] = [];
+        const filteredSelectors = selectors.filter(selector => {
+            if (exceptions.includes(selector)) {
+                excepted.push(selector);
+                return false;
+            }
+            return true;
+        });
+        
+        if (filteredSelectors.length === 0 && excepted.length === 0) {
+            if (callback) callback({ result: undefined });
+            return;
+        }
+        
+        const injectedCSS = filteredSelectors.join(',\n') + '\n{display:none!important;}';
+        
+        // Inject CSS into the tab
+        if (tabId && injectedCSS) {
+            try {
+                await chrome.scripting.insertCSS({
+                    target: { tabId },
+                    css: injectedCSS,
+                });
+            } catch (e) {
+                console.warn('[MV3] Failed to insert cosmetic CSS:', e);
+            }
+        }
+        
+        const result = {
+            injectedCSS,
+            excepted,
+        };
+        
+        console.log('[MV3] retrieveGenericCosmeticSelectors result:', result);
+        if (callback) callback({ result });
+    } catch (e) {
+        console.error('[MV3] retrieveGenericCosmeticSelectors error:', e);
+        if (callback) callback({ error: (e as Error).message });
+    }
+});
+
 Messaging.on('getTabId', (_, callback) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (callback) {
@@ -1810,6 +2313,139 @@ chrome.tabs.onRemoved.addListener(tabId => {
     void clearTabRequestState(tabId);
 });
 
+// Inject YouTube ad blocking script into page context immediately
+chrome.webNavigation?.onCommitted?.addListener(async (details) => {
+    if (details.frameId !== 0) { return; }
+    
+    const url = details.url;
+    if (!url || !url.includes('youtube.com')) { return; }
+    
+    if (chrome.scripting?.executeScript === undefined) {
+        console.log('[MV3] chrome.scripting not available');
+        return;
+    }
+    
+    console.log('[MV3] Injecting YouTube ad blocker early into tab', details.tabId);
+    
+    try {
+        await chrome.scripting.executeScript({
+            target: { tabId: details.tabId },
+            world: 'MAIN',
+            func: () => {
+                // This runs in the page context at document_start
+                console.log('[YT-MAIN] Early page context injection');
+                
+                // Patch fetch immediately
+                const originalFetch = window.fetch;
+                window.fetch = function(...args) {
+                    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
+                    if (url && url.includes('youtube.com/youtubei/v1/player')) {
+                        console.log('[YT-MAIN] Fetch to player API');
+                    }
+                    return originalFetch.apply(this, args).then((response: Response) => {
+                        if (url && url.includes('youtube.com/youtubei/v1/player') && response.ok) {
+                            return response.clone().text().then((text: string) => {
+                                if (text.includes('"adPlacements"') || text.includes('"playerAds"') || text.includes('"adSlots"')) {
+                                    console.log('[YT-MAIN] Stripping ad data from fetch');
+                                    try {
+                                        const json = JSON.parse(text);
+                                        const stripAdData = (obj: any): any => {
+                                            if (obj === null || obj === undefined) return obj;
+                                            if (typeof obj !== 'object') return obj;
+                                            const newObj: any = Array.isArray(obj) ? [] : {};
+                                            for (const key of Object.keys(obj)) {
+                                                if (['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams', 'adServerLogger', 'adBreakOverlays'].includes(key)) {
+                                                    console.log('[YT-MAIN] Stripping:', key);
+                                                    continue;
+                                                }
+                                                try { newObj[key] = stripAdData(obj[key]); } catch { newObj[key] = obj[key]; }
+                                            }
+                                            return newObj;
+                                        };
+                                        const stripped = stripAdData(json);
+                                        return new Response(JSON.stringify(stripped), {
+                                            status: response.status,
+                                            statusText: response.statusText,
+                                            headers: response.headers
+                                        });
+                                    } catch {}
+                                }
+                                return response;
+                            });
+                        }
+                        return response;
+                    });
+                };
+                
+                // Patch XHR immediately
+                const originalOpen = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function(method: string, url: string) {
+                    (this as any)._isYtPlayer = url && (url.includes('youtube.com/youtubei/v1/player') || url.includes('youtube.com/apiManifest'));
+                    return originalOpen.apply(this, arguments);
+                };
+                
+                const originalSend = XMLHttpRequest.prototype.send;
+                XMLHttpRequest.prototype.send = function(body?: any) {
+                    if ((this as any)._isYtPlayer) {
+                        console.log('[YT-MAIN] XHR to player API');
+                        this.addEventListener('load', function() {
+                            const text = this.responseText;
+                            if (text && (text.includes('"adPlacements"') || text.includes('"playerAds"') || text.includes('"adSlots"'))) {
+                                console.log('[YT-MAIN] Stripping ad data from XHR');
+                                try {
+                                    const json = JSON.parse(text);
+                                    const stripAdData = (obj: any): any => {
+                                        if (obj === null || obj === undefined) return obj;
+                                        if (typeof obj !== 'object') return obj;
+                                        const newObj: any = Array.isArray(obj) ? [] : {};
+                                        for (const key of Object.keys(obj)) {
+                                            if (['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams', 'adServerLogger', 'adBreakOverlays'].includes(key)) continue;
+                                            try { newObj[key] = stripAdData(obj[key]); } catch { newObj[key] = obj[key]; }
+                                        }
+                                        return newObj;
+                                    };
+                                    const stripped = JSON.stringify(stripAdData(json));
+                                    Object.defineProperty(this, 'responseText', { value: stripped, writable: false, configurable: true });
+                                    Object.defineProperty(this, 'response', { value: stripped, writable: false, configurable: true });
+                                } catch {}
+                            }
+                        });
+                    }
+                    return originalSend.apply(this, arguments);
+                };
+                
+                // Patch JSON.parse immediately  
+                const originalJSONParse = JSON.parse;
+                JSON.parse = function(text: string, reviver?: (key: string, value: any) => any) {
+                    const result = originalJSONParse.call(this, text, reviver);
+                    if (text && (text.includes('"adPlacements"') || text.includes('"playerAds"') || text.includes('"adSlots"'))) {
+                        console.log('[YT-MAIN] JSON.parse catching ad data');
+                        try {
+                            const stripAdData = (obj: any): any => {
+                                if (obj === null || obj === undefined) return obj;
+                                if (typeof obj !== 'object') return obj;
+                                const newObj: any = Array.isArray(obj) ? [] : {};
+                                for (const key of Object.keys(obj)) {
+                                    if (['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams', 'adServerLogger', 'adBreakOverlays'].includes(key)) continue;
+                                    try { newObj[key] = stripAdData(obj[key]); } catch { newObj[key] = obj[key]; }
+                                }
+                                return newObj;
+                            };
+                            return stripAdData(result);
+                        } catch {}
+                    }
+                    return result;
+                };
+                
+                console.log('[YT-MAIN] All patches applied');
+            },
+        });
+        console.log('[MV3] Early injection complete for tab', details.tabId);
+    } catch (e) {
+        console.error('[MV3] Failed to inject:', e);
+    }
+}, { url: [{ urlContains: 'youtube.com' }] });
+
 chrome.runtime.onInstalled.addListener((details) => {
     if (details.reason === 'install') {
         console.log('uBlock Origin installed');
@@ -1821,12 +2457,15 @@ chrome.runtime.onInstalled.addListener((details) => {
 console.log('uBlock Origin MV3 Service Worker started');
 
 ensurePopupState()
-    .then(() => syncFirewallDnrRules())
+    .then(() => {
+        syncFirewallDnrRules();
+        syncFilterListDnrRules();
+    })
     .catch(error => {
         console.error('Failed to initialize popup/firewall state', error);
     });
 
-(self as any).µBlock = {
+(self as any).µBlockMV3 = {
     userSettings: popupState.userSettings,
     permanentFirewall: popupState.permanentFirewall,
     sessionFirewall: popupState.sessionFirewall,

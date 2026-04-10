@@ -18,7 +18,6 @@ import {
 } from '../js/filtering-engines.js';
 
 import µb from '../js/background.js';
-import vAPI from '../js/vapi.js';
 import { onBroadcast } from '../js/broadcast.js';
 import { storage } from './mv3/storage.js';
 import io from '../js/assets.js';
@@ -32,6 +31,7 @@ const isMV3 = ( ) => {
            browser.runtime?.getManifest?.()?.manifest_version === 3;
 };
 
+const vAPI = (globalThis as any).vAPI || {};
 const isGecko = vAPI.webextFlavor?.isGecko === true;
 
 /******************************************************************************/
@@ -307,14 +307,6 @@ class DNRIntegration {
             
         } catch ( e ) {
             console.error('[DNR] Failed to compile from engine:', e);
-        }
-        
-        return rules;
-    }
-            }
-
-        } catch ( e ) {
-            console.error('[DNR] Failed to compile static filters:', e);
         }
         
         return rules;

@@ -82,6 +82,12 @@ npx esbuild 3p-filters.ts --bundle --format=iife --outfile=3p-filters-bundle.js 
 echo "*** Bundling dyna-rules.ts"
 npx esbuild dyna-rules.ts --bundle --format=iife --outfile=dyna-rules-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
+# Bundle static-dnr-filtering.ts (required for filter list DNR rules)
+echo "*** Bundling static-dnr-filtering.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/static-dnr-filtering.ts --bundle --format=iife --outfile=$DES/js/static-dnr-filtering.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
+
 cd - > /dev/null
 
 # Copy zapper files
@@ -212,6 +218,17 @@ npx esbuild contentscript/contentscript-entry.ts \
     --bundle \
     --format=iife \
     --outfile=../../$DES/js/contentscript.js \
+    --target=chrome120 \
+    --platform=browser \
+    --minify=false \
+    --allow-overwrite 2>&1
+
+# Bundle yt-inject.js for page-context injection
+echo "*** uBlock0.chromium-mv3: Bundling yt-inject.js"
+npx esbuild contentscript/yt-inject.ts \
+    --bundle \
+    --format=iife \
+    --outfile=../../$DES/js/yt-inject.js \
     --target=chrome120 \
     --platform=browser \
     --minify=false \
