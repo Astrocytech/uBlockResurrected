@@ -216,14 +216,14 @@ const onUserSettingsReady = fetched => {
     // Terminate suspended state?
     const tnow = Date.now() - vAPI.T0;
     if (
-        vAPI.Net.canSuspend() &&
+        vAPI.Net?.canSuspend?.() &&
         fetched.suspendUntilListsAreLoaded === false
     ) {
         vAPI.net.unsuspend({ all: true, discard: true });
         ubolog(`Unsuspend network activity listener at ${tnow} ms`);
         µb.supportStats.unsuspendAfter = `${tnow} ms`;
     } else if (
-        vAPI.Net.canSuspend() === false &&
+        vAPI.Net?.canSuspend?.() === false &&
         fetched.suspendUntilListsAreLoaded
     ) {
         vAPI.net.suspend();

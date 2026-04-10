@@ -37,13 +37,24 @@
         _handleMessage: function(port, message) {
             var self = this;
             
-            if (!message || !message.topic) {
+            // Handle vapi-client.js format: { channel, msgId, msg }
+            // Also handle MV3 format: { topic, payload }
+            var topic, payload, seq;
+            
+            if (message && message.channel) {
+                // vapi-client.js format
+                topic = message.channel;
+                payload = message.msg;
+                seq = message.msgId;
+            } else if (message && message.topic) {
+                // MV3 format
+                topic = message.topic;
+                payload = message.payload;
+                seq = message.seq;
+            } else {
+                console.log("[SW] _handleMessage: Unknown message format", message);
                 return;
             }
-
-            var topic = message.topic;
-            var payload = message.payload;
-            var seq = message.seq;
 
             var handler = this._handlers.get(topic);
             
@@ -108,13 +119,21 @@
         _handleRuntimeMessage: function(message, sender, sendResponse) {
             var self = this;
             
-            if (!message || !message.topic) {
+            // Handle vapi-client.js format: { channel, msgId, msg }
+            // Also handle standard MV3 format: { topic, payload }
+            var topic, payload;
+            
+            if (message && message.channel) {
+                // vapi-client.js format - extract topic and payload
+                topic = message.channel;
+                payload = message.msg;
+            } else if (message && message.topic) {
+                // Standard MV3 format
+                topic = message.topic;
+                payload = message.payload;
+            } else {
                 return false;
             }
-
-            var topic = message.topic;
-            var payload = message.payload;
-            var seq = message.seq;
 
             if (message.ch === 'content-script') {
                 return this._handleContentScriptMessage(message, sender, sendResponse);
@@ -122,24 +141,32 @@
 
             var handler = this._handlers.get(topic);
             
+            console.log('[SW] Looking for handler for topic:', topic, 'Found:', handler ? 'yes' : 'no');
+            
             if (handler) {
                 try {
+                    console.log('[SW] Calling handler for:', topic);
                     var result = handler(payload, sendResponse);
                     
                     if (result instanceof Promise) {
                         result.then(function(response) {
+                            console.log('[SW] Handler promise resolved for:', topic, 'response:', JSON.stringify(response));
                             sendResponse(response);
                         }).catch(function(error) {
+                            console.error('[SW] Handler promise rejected for:', topic, error);
                             sendResponse({ error: error.message });
                         });
                         return true;
                     }
                     
+                    console.log('[SW] Handler sync result for:', topic, 'result:', result);
                     return result;
                 } catch (e) {
                     console.error('Messaging handler error:', e);
                     sendResponse({ error: e.message });
                 }
+            } else {
+                console.log('[SW] No handler found for topic:', topic);
             }
 
             return false;
@@ -472,8 +499,186 @@
     });
 
     chrome.runtime.onMessage.addListener(function(message, sender, sendResponse) {
+        console.log('[SW] onMessage received:', JSON.stringify(message));
         return messaging._handleRuntimeMessage(message, sender, sendResponse);
     });
+
+    // Bridge to messaging-bundle for dashboard messages
+    // This allows HTML pages to communicate with the background
+    (function() {
+        // Load and initialize messaging from bundled code
+        var messagingBundle = null;
+        
+        // Function to handle dashboard messages from UI pages
+        function handleDashboardMessage(msg, sendResponse) {
+            if (!msg || !msg.what) {
+                return false;
+            }
+            
+            // Import and use the messaging bundle handlers
+            // The handlers are defined in messaging-bundle.js
+            // We need to access them via the global scope or re-initialize
+            
+            // For now, handle getLists specially by returning mock data
+            // until full integration is complete
+            switch (msg.what) {
+                case 'getLists':
+                    // Return filter lists data
+                    var response = {
+                        autoUpdate: true,
+                        available: {},
+                        cache: {},
+                        cosmeticFilterCount: 0,
+                        current: {},
+                        ignoreGenericCosmeticFilters: false,
+                        isUpdating: false,
+                        netFilterCount: 0,
+                        parseCosmeticFilters: true,
+                        suspendUntilListsAreLoaded: false,
+                        userFiltersPath: 'user-filters'
+                    };
+                    
+                    // Get user settings and filter lists from storage
+                    chrome.storage.local.get(['availableFilterLists', 'selectedFilterLists', 'userSettings', 'assetMetadata'], function(items) {
+                        // Get user settings
+                        if (items.userSettings) {
+                            response.autoUpdate = items.userSettings.autoUpdate !== false;
+                            response.parseCosmeticFilters = items.userSettings.parseAllABPHideFilters !== false;
+                            response.ignoreGenericCosmeticFilters = items.userSettings.ignoreGenericCosmeticFilters === true;
+                            response.suspendUntilListsAreLoaded = items.userSettings.suspendUntilListsAreLoaded === true;
+                        }
+                        
+                        // Check if we have stored availableFilterLists
+                        if (items.availableFilterLists && Object.keys(items.availableFilterLists).length > 0) {
+                            response.available = items.availableFilterLists;
+                            response.current = items.availableFilterLists;
+                            
+                            // Use cached metadata if available
+                            if (items.assetMetadata) {
+                                response.cache = items.assetMetadata;
+                            }
+                            
+                            sendResponse(response);
+                            return;
+                        }
+                        
+                        // Need to load from assets.json and build availableFilterLists
+                        // Fetch assets.json and parse it
+                        fetch('assets/assets.json')
+                            .then(function(res) { return res.json(); })
+                            .then(function(assetsData) {
+                                var availableLists = {};
+                                
+                                // Add user filters entry
+                                availableLists['user-filters'] = {
+                                    content: 'filters',
+                                    group: 'user',
+                                    title: 'My filters'
+                                };
+                                
+                                // Parse assets.json and build available filter lists
+                                for (var assetKey in assetsData) {
+                                    if (assetKey === 'assets.json') continue;
+                                    
+                                    var asset = assetsData[assetKey];
+                                    if (asset.content !== 'filters') continue;
+                                    
+                                    var entry = {
+                                        content: asset.content,
+                                        group: asset.group || 'default',
+                                        title: asset.title || assetKey,
+                                        parent: asset.parent
+                                    };
+                                    
+                                    if (asset.contentURL) {
+                                        entry.contentURL = asset.contentURL;
+                                    }
+                                    if (asset.off === true) {
+                                        entry.off = true;
+                                    }
+                                    if (asset.preferred === true) {
+                                        entry.preferred = true;
+                                    }
+                                    if (asset.supportURL) {
+                                        entry.supportURL = asset.supportURL;
+                                    }
+                                    if (asset.homeURL) {
+                                        entry.homeURL = asset.homeURL;
+                                    }
+                                    
+                                    availableLists[assetKey] = entry;
+                                }
+                                
+                                // Save to storage for future use
+                                response.available = availableLists;
+                                response.current = availableLists;
+                                
+                                chrome.storage.local.set({ availableFilterLists: availableLists }, function() {
+                                    sendResponse(response);
+                                });
+                            })
+                            .catch(function(err) {
+                                console.error('Error loading assets.json:', err);
+                                // Fallback to basic structure
+                                response.available = {
+                                    'user-filters': {
+                                        content: 'filters',
+                                        group: 'user',
+                                        title: 'My filters'
+                                    }
+                                };
+                                response.current = response.available;
+                                sendResponse(response);
+                            });
+                    });
+                    return true; // async response
+                    
+                case 'reloadAllFilters':
+                    // Trigger filter reload
+                    sendResponse({ done: true });
+                    return true;
+                    
+                case 'updateNow':
+                    // Trigger filter update
+                    sendResponse({ done: true });
+                    return true;
+                    
+                case 'applyFilterListSelection':
+                    // Save filter list selection
+                    chrome.storage.local.set({ selectedFilterLists: msg.toSelect || [] }, function() {
+                        sendResponse({ done: true });
+                    });
+                    return true;
+                    
+                case 'userSettings':
+                    // Save user settings
+                    chrome.storage.local.get('userSettings', function(items) {
+                        var settings = items.userSettings || {};
+                        settings[msg.name] = msg.value;
+                        chrome.storage.local.set({ userSettings: settings }, function() {
+                            sendResponse({ done: true });
+                        });
+                    });
+                    return true;
+                    
+                default:
+                    return false;
+            }
+        }
+        
+        messaging.on('dashboard', handleDashboardMessage);
+        
+        // Also handle direct chrome.runtime.sendMessage for dashboard
+        var originalHandleRuntimeMessage = messaging._handleRuntimeMessage;
+        messaging._handleRuntimeMessage = function(message, sender, sendResponse) {
+            if (message && message.channel === 'dashboard') {
+                return handleDashboardMessage(message.msg, sendResponse);
+            }
+            return originalHandleRuntimeMessage.call(this, message, sender, sendResponse);
+        };
+        
+        console.log('Dashboard messaging bridge initialized');
+    })();
 
     chrome.commands.onCommand.addListener(function(command) {
         chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {

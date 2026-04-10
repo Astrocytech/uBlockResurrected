@@ -74,6 +74,10 @@ npx esbuild dynamic-net-filtering.ts --bundle --format=iife --outfile=dynamic-ne
 echo "*** Bundling 1p-filters.ts"
 npx esbuild 1p-filters.ts --bundle --format=iife --outfile=1p-filters-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
+# Bundle 3p-filters.ts
+echo "*** Bundling 3p-filters.ts"
+npx esbuild 3p-filters.ts --bundle --format=iife --outfile=3p-filters-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
 # Bundle dyna-rules.ts
 echo "*** Bundling dyna-rules.ts"
 npx esbuild dyna-rules.ts --bundle --format=iife --outfile=dyna-rules-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true

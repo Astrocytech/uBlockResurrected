@@ -72,6 +72,22 @@ interface CloudData {
     selectedLists?: string[];
 }
 
+type CloudHooks = {
+    options?: Record<string, unknown>;
+    datakey?: string;
+    data?: unknown;
+    onPush: null | (() => CloudData);
+    onPull: null | ((data: CloudData, append: boolean) => void);
+};
+
+self.cloud = (self.cloud || {
+    options: {},
+    datakey: '',
+    data: undefined,
+    onPush: null,
+    onPull: null,
+}) as CloudHooks;
+
 interface MessageResponse {
     netFilterCount?: number;
     cosmeticFilterCount?: number;
@@ -300,6 +316,9 @@ const renderFilterLists = (): Promise<void> => {
 
     const onListsReceived = (response: MessageResponse): void => {
         listsetDetails = response as ListsetDetails;
+        if (!response || !response.available) {
+            return;
+        }
         hashFromListsetDetails();
 
         const listTree: Record<string, ListDetails> = {};
@@ -371,11 +390,11 @@ const renderFilterLists = (): Promise<void> => {
         );
         const parseCosmeticElem = qs$<HTMLInputElement>('#parseCosmeticFilters');
         if (parseCosmeticElem) {
-            parseCosmeticElem.checked = listsetDetails.parseCosmeticFilters === true;
+            parseCosmeticElem.checked = listsetDetails?.parseCosmeticFilters === true;
         }
         const ignoreGenericElem = qs$<HTMLInputElement>('#ignoreGenericCosmeticFilters');
         if (ignoreGenericElem) {
-            ignoreGenericElem.checked = listsetDetails.ignoreGenericCosmeticFilters === true;
+            ignoreGenericElem.checked = listsetDetails?.ignoreGenericCosmeticFilters === true;
         }
         const suspendElem = qs$<HTMLInputElement>('#suspendUntilListsAreLoaded');
         if (suspendElem) {
@@ -704,7 +723,7 @@ const selectFilterLists = async (): Promise<void> => {
         name: 'parseAllABPHideFilters',
         value: checked,
     });
-    listsetDetails.parseCosmeticFilters = checked;
+    listsetDetails && (listsetDetails.parseCosmeticFilters = checked);
 
     checked = qs$<HTMLInputElement>('#ignoreGenericCosmeticFilters')?.checked ?? false;
     vAPI.messaging.send('dashboard', {
@@ -712,7 +731,7 @@ const selectFilterLists = async (): Promise<void> => {
         name: 'ignoreGenericCosmeticFilters',
         value: checked,
     });
-    listsetDetails.ignoreGenericCosmeticFilters = checked;
+    listsetDetails && (listsetDetails.ignoreGenericCosmeticFilters = checked);
 
     const toSelect: string[] = [];
     const toRemove: string[] = [];
@@ -946,7 +965,7 @@ vAPI.localStorage.getItemAsync('expandedListSet').then(listkeys => {
 
 /******************************************************************************/
 
-self.cloud.onPush = function toCloudData(): CloudData {
+(self.cloud as CloudHooks).onPush = function toCloudData(): CloudData {
     const bin: CloudData = {
         parseCosmeticFilters: qs$<HTMLInputElement>('#parseCosmeticFilters')?.checked ?? false,
         ignoreGenericCosmeticFilters: qs$<HTMLInputElement>('#ignoreGenericCosmeticFilters')?.checked ?? false,
@@ -961,22 +980,24 @@ self.cloud.onPush = function toCloudData(): CloudData {
     return bin;
 };
 
-self.cloud.onPull = function fromCloudData(data: CloudData, append: boolean): void {
+(self.cloud as CloudHooks).onPull = function fromCloudData(data: CloudData, append: boolean): void {
     if ( typeof data !== 'object' || data === null ) { return; }
 
     let elem = qs$<HTMLInputElement>('#parseCosmeticFilters');
-    let checked = data.parseCosmeticFilters === true || (append && elem!.checked);
+    let checked = data?.parseCosmeticFilters === true || (append && elem?.checked === true);
     if (elem) {
-        elem.checked = listsetDetails.parseCosmeticFilters = checked;
+        elem.checked = checked;
+        listsetDetails && (listsetDetails.parseCosmeticFilters = checked);
     }
 
     elem = qs$<HTMLInputElement>('#ignoreGenericCosmeticFilters');
-    checked = data.ignoreGenericCosmeticFilters === true || (append && elem!.checked);
+    checked = data?.ignoreGenericCosmeticFilters === true || (append && elem?.checked === true);
     if (elem) {
-        elem.checked = listsetDetails.ignoreGenericCosmeticFilters = checked;
+        elem.checked = checked;
+        listsetDetails && (listsetDetails.ignoreGenericCosmeticFilters = checked);
     }
 
-    const selectedSet = new Set(data.selectedLists);
+    const selectedSet = new Set(Array.isArray(data?.selectedLists) ? data.selectedLists : []);
     for ( const listEntry of qsa$<HTMLElement>('#lists .listEntry[data-role="leaf"]') ) {
         const listkey = listEntry.dataset.key;
         if (!listkey) { continue; }

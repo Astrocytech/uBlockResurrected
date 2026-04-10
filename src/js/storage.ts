@@ -973,7 +973,7 @@ onBroadcast(msg => {
 
         µb.availableFilterLists = lists;
 
-        if ( vAPI.Net.canSuspend() ) {
+        if ( vAPI.Net?.canSuspend?.() ) {
             vAPI.net.suspend();
         }
         redirectEngine.reset();

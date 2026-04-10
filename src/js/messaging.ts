@@ -929,7 +929,7 @@ const onMessage = function(request, sender, callback) {
                 zap: µb.epickerArgs.zap,
                 eprom: µb.epickerArgs.eprom,
                 pickerURL: vAPI.getURL(
-                    `/web_accessible_resources/epicker-ui.html?secret=${vAPI.warSecret.short()}`
+                    `/web_accessible_resources/epicker-ui.html?secret=${vAPI.warSecret?.short ? vAPI.warSecret.short() : ''}`
                 ),
             });
             µb.epickerArgs.target = '';
@@ -1863,7 +1863,7 @@ const onMessage = (request, sender, callback) => {
         });
         response = {
             inspectorURL: vAPI.getURL(
-                `/web_accessible_resources/dom-inspector.html?secret=${vAPI.warSecret.short()}`
+                `/web_accessible_resources/dom-inspector.html?secret=${vAPI.warSecret?.short ? vAPI.warSecret.short() : ''}`
             ),
         };
         break;

@@ -1190,7 +1190,7 @@ const webRequest = {
 
     start: (() => {
         vAPI.net = new vAPI.Net();
-        if ( vAPI.Net.canSuspend() ) {
+        if ( vAPI.Net?.canSuspend?.() ) {
             vAPI.net.suspend();
         }
 

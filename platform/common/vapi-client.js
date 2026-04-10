@@ -115,7 +115,8 @@ vAPI.messaging = {
     //   revisited to isolate the picker dialog DOM from the page DOM.
     messageListener: function(details) {
         console.log("[VAPI-CLIENT] ★★★ messageListener CALLED, pending size:", this.pending.size);
-        console.log("[VAPI-CLIENT] details:", JSON.stringify(details).substring(0, 500));
+        const detailsStr = typeof details === 'object' && details !== null ? JSON.stringify(details).substring(0, 500) : String(details);
+        console.log("[VAPI-CLIENT] details:", detailsStr);
         if ( typeof details !== 'object' || details === null ) { 
             console.log("[VAPI-CLIENT] details not object or null, returning");
             return; 
@@ -131,7 +132,8 @@ vAPI.messaging = {
             return; 
         }
         console.log("[VAPI-CLIENT] messageListener - ★★★ RESOLVING msgId:", details.msgId);
-        console.log("[VAPI-CLIENT] details.msg (response):", JSON.stringify(details.msg).substring(0, 500));
+        const msgStr = details.msg !== undefined ? JSON.stringify(details.msg).substring(0, 500) : 'undefined';
+        console.log("[VAPI-CLIENT] details.msg (response):", msgStr);
         this.pending.delete(details.msgId);
         console.log("[VAPI-CLIENT] calling resolver with msg");
         resolver(details.msg);

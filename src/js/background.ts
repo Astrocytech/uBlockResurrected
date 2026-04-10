@@ -121,7 +121,7 @@ const userSettingsDefault = {
     prefetchingDisabled: true,
     requestLogMaxEntries: 1000,
     showIconBadge: true,
-    suspendUntilListsAreLoaded: vAPI.Net.canSuspend(),
+    suspendUntilListsAreLoaded: Boolean(vAPI.Net?.canSuspend?.()),
     tooltipsDisabled: false,
     userFiltersTrusted: false,
     webrtcIPAddressHidden: false,
@@ -234,7 +234,7 @@ const µBlock = {  // jshint ignore:line
     pageStores: new Map(),
     pageStoresToken: 0,
 
-    storageQuota: vAPI.storage.QUOTA_BYTES,
+    storageQuota: vAPI.storage?.QUOTA_BYTES ?? 0,
     storageUsed: 0,
 
     noopFunc: function(){},

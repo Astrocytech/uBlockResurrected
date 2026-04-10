@@ -428,7 +428,6 @@ const firewallRuleResourceTypes = (type: string) => {
         return [ 'image' ];
     case '3p-script':
     case '1p-script':
-    case 'inline-script':
         return [ 'script' ];
     case '3p-frame':
         return [ 'sub_frame' ];
@@ -448,6 +447,36 @@ const compileFirewallRulesToDnr = (firewall: DynamicFirewallRules) => {
     for ( const rule of firewall.toArray() ) {
         const [ srcHostname, desHostname, type, actionName ] = rule.split(' ');
         const resourceTypes = firewallRuleResourceTypes(type);
+        if ( type === 'inline-script' ) {
+            if ( nextRuleId > FIREWALL_RULE_ID_MAX ) { break; }
+            const condition: chrome.declarativeNetRequest.RuleCondition = {
+                resourceTypes: [
+                    'main_frame' as chrome.declarativeNetRequest.ResourceType,
+                    'sub_frame' as chrome.declarativeNetRequest.ResourceType,
+                ],
+            };
+            if ( srcHostname !== '*' ) {
+                condition.requestDomains = [ srcHostname ];
+            }
+            addRules.push({
+                id: nextRuleId++,
+                priority: 2_000_000 +
+                    ((actionName === 'allow' || actionName === 'noop') ? 10_000 : 0) +
+                    (srcHostname !== '*' ? 1_000 : 0),
+                action: {
+                    type: 'modifyHeaders',
+                    responseHeaders: [{
+                        header: 'content-security-policy',
+                        operation: 'set',
+                        value: actionName === 'block'
+                            ? "script-src 'self' 'unsafe-eval' http: https: data: blob:; object-src 'none'; base-uri 'self'"
+                            : "script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; object-src 'none'; base-uri 'self'",
+                    }],
+                },
+                condition,
+            });
+            continue;
+        }
         for ( const resourceType of resourceTypes ) {
             if ( nextRuleId > FIREWALL_RULE_ID_MAX ) { break; }
             const condition: chrome.declarativeNetRequest.RuleCondition = {
