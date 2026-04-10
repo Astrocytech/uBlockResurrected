@@ -1246,7 +1246,10 @@ onBroadcast(msg => {
 
         const fetcher = (path, options = undefined) => {
             if ( path.startsWith('/web_accessible_resources/') ) {
-                path += `?secret=${vAPI.warSecret.short()}`;
+                const secret = typeof vAPI.warSecret?.short === 'function'
+                    ? vAPI.warSecret.short()
+                    : '';
+                path += `?secret=${secret}`;
                 return io.fetch(path, options);
             }
             return io.fetchText(path);

@@ -1189,6 +1189,9 @@ const webRequest = {
     onBeforeRequest,
 
     start: (() => {
+        if ( typeof vAPI.Net !== 'function' ) {
+            return () => {};
+        }
         vAPI.net = new vAPI.Net();
         if ( vAPI.Net?.canSuspend?.() ) {
             vAPI.net.suspend();

@@ -66,6 +66,16 @@ import blockerAdapter from './blocker-adapter.js';
 
 /******************************************************************************/
 
+const registerMessagingListener = (details: { name: string; listener: unknown }) => {
+    if ( typeof vAPI.messaging?.listen !== 'function' ) { return; }
+    vAPI.messaging.listen(details as never);
+};
+
+const getWarSecretShort = () =>
+    typeof vAPI === 'object' && vAPI !== null && typeof vAPI.warSecret?.short === 'function'
+        ? vAPI.warSecret.short()
+        : '';
+
 // https://github.com/uBlockOrigin/uBlock-issues/issues/710
 //   Listeners have a name and a "privileged" status.
 //   The nameless default handler is always deemed "privileged".
@@ -296,7 +306,9 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.setup(onMessage);
+if ( typeof vAPI.messaging?.setup === 'function' ) {
+    vAPI.messaging.setup(onMessage);
+}
 
 // <<<<< end of local scope
 }
@@ -669,7 +681,7 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'popupPanel',
     listener: onMessage,
     privileged: true,
@@ -870,7 +882,7 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'contentscript',
     listener: onMessage,
 });
@@ -929,7 +941,7 @@ const onMessage = function(request, sender, callback) {
                 zap: µb.epickerArgs.zap,
                 eprom: µb.epickerArgs.eprom,
                 pickerURL: vAPI.getURL(
-                    `/web_accessible_resources/epicker-ui.html?secret=${vAPI.warSecret?.short ? vAPI.warSecret.short() : ''}`
+                    `/web_accessible_resources/epicker-ui.html?secret=${getWarSecretShort()}`
                 ),
             });
             µb.epickerArgs.target = '';
@@ -959,7 +971,7 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'elementPicker',
     listener: onMessage,
 });
@@ -1059,7 +1071,7 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'cloudWidget',
     listener: onMessage,
     privileged: true,
@@ -1660,7 +1672,7 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'dashboard',
     listener: onMessage,
     privileged: true,
@@ -1826,7 +1838,7 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'loggerUI',
     listener: onMessage,
     privileged: true,
@@ -1863,7 +1875,7 @@ const onMessage = (request, sender, callback) => {
         });
         response = {
             inspectorURL: vAPI.getURL(
-                `/web_accessible_resources/dom-inspector.html?secret=${vAPI.warSecret?.short ? vAPI.warSecret.short() : ''}`
+                `/web_accessible_resources/dom-inspector.html?secret=${getWarSecretShort()}`
             ),
         };
         break;
@@ -1875,7 +1887,7 @@ const onMessage = (request, sender, callback) => {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'domInspectorContent',
     listener: onMessage,
     privileged: false,
@@ -1922,7 +1934,7 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'documentBlocked',
     listener: onMessage,
     privileged: true,
@@ -2065,7 +2077,7 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'devTools',
     listener: onMessage,
     privileged: true,
@@ -2269,7 +2281,7 @@ const onMessage = function(request, sender, callback) {
     callback(response);
 };
 
-vAPI.messaging.listen({
+registerMessagingListener({
     name: 'scriptlets',
     listener: onMessage,
 });

@@ -64,7 +64,7 @@ const removeTopCommentBlock = text => {
 // "web_accessible_resources secret" added outside by the client of this
 // module, but for now I just want to remove an obstacle to modularization.
 const warSecret = typeof vAPI === 'object' && vAPI !== null
-    ? vAPI.warSecret.short
+    ? (vAPI.warSecret?.short || (( ) => ''))
     : ( ) => '';
 
 const RESOURCES_SELFIE_VERSION = 7;

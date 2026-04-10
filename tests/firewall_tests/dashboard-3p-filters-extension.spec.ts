@@ -103,9 +103,16 @@ test.describe('Dashboard 3p-filters Pane', () => {
             
             // Check Apply button exists
             await expect(frame.locator('#buttonApply')).toBeVisible();
+            await expect(frame.locator('#buttonApply')).toContainText(/apply/i);
             
             // Check Update button exists  
             await expect(frame.locator('#buttonUpdate')).toBeVisible();
+            await expect(frame.locator('#buttonUpdate')).toContainText(/update/i);
+
+            await expect(frame.locator('label[for="autoUpdate"], #autoUpdate')).toBeVisible();
+            await expect(frame.locator('body')).toContainText(/auto-update|auto update/i);
+            await expect(frame.locator('body')).toContainText(/parse cosmetic/i);
+            await expect(frame.locator('body')).toContainText(/ignore generic/i);
 
         } finally {
             await context?.close();
