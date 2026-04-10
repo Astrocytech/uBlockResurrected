@@ -28,10 +28,10 @@ import µb from './background.js';
 
 interface ListDetails {
     title?: string;
-    group?: string;
-    group2?: string;
+    group?: string | null;
+    group2?: string | null;
     lists?: Record<string, ListDetails>;
-    parent?: string;
+    parent?: string | null;
     preferred?: boolean;
     content?: string;
     contentURL?: string;
@@ -348,7 +348,7 @@ const renderFilterLists = (): Promise<void> => {
                 groupkey = 'unknown';
             }
             const groupDetails = listTree[groupkey];
-            if ( listDetails.parent !== undefined ) {
+            if ( typeof listDetails.parent === 'string' && listDetails.parent !== '' ) {
                 let lists = groupDetails.lists!;
                 for ( const parent of listDetails.parent.split('|') ) {
                     if ( lists[parent] === undefined ) {
@@ -700,7 +700,12 @@ const selectFilterLists = async (): Promise<void> => {
             for ( const [ listkey, list ] of Object.entries(lists) ) {
                 if ( list.content !== 'filters' ) { continue; }
                 if ( list.contentURL === undefined ) { continue; }
-                if ( list.contentURL.includes(line) === false ) { continue; }
+                const contentURLs = Array.isArray(list.contentURL)
+                    ? list.contentURL
+                    : typeof list.contentURL === 'string'
+                        ? [ list.contentURL ]
+                        : [];
+                if ( contentURLs.includes(line) === false ) { continue; }
                 const groupkey = list.group2 || list.group;
                 const listEntry = qs$(`[data-key="${groupkey}"] [data-key="${listkey}"]`);
                 if ( listEntry === null ) { break; }

@@ -55,9 +55,14 @@ type CollectedHostnameData = {
 
 const userSettingsDefault = {
     advancedUserEnabled: false,
+    autoUpdate: true,
     colorBlindFriendly: false,
+    ignoreGenericCosmeticFilters: false,
+    importedLists: [] as string[],
+    parseAllABPHideFilters: true,
     firewallPaneMinimized: true,
     popupPanelSections: 0b111,
+    suspendUntilListsAreLoaded: false,
     tooltipsDisabled: false,
 };
 
@@ -362,6 +367,45 @@ const popupState = {
     sessionFirewall: new DynamicFirewallRules(),
 };
 
+type FilterListDetails = {
+    content?: string;
+    group?: string;
+    group2?: string;
+    parent?: string;
+    title?: string;
+    off?: boolean;
+    preferred?: boolean;
+    external?: boolean;
+    submitter?: string;
+    contentURL?: string | string[];
+    supportURL?: string;
+    supportName?: string;
+    instructionURL?: string;
+    isDefault?: boolean;
+    isImportant?: boolean;
+    tags?: string;
+    entryCount?: number;
+    entryUsedCount?: number;
+};
+
+type FilterListResponse = {
+    autoUpdate: boolean;
+    available: Record<string, FilterListDetails>;
+    cache: Record<string, unknown>;
+    cosmeticFilterCount: number;
+    current: Record<string, FilterListDetails>;
+    ignoreGenericCosmeticFilters: boolean;
+    isUpdating: boolean;
+    netFilterCount: number;
+    parseCosmeticFilters: boolean;
+    suspendUntilListsAreLoaded: boolean;
+    userFiltersPath: string;
+};
+
+const FILTER_LIST_USER_PATH = 'user-filters';
+const FILTER_LIST_ASSETS_URL = 'assets/assets.dev.json';
+let filterListsUpdating = false;
+
 const tabRequestStates = new Map<number, TabRequestState>();
 const requestStateStorage = chrome.storage.session || chrome.storage.local;
 const tabRequestStateKey = (tabId: number) => `firewallTabState:${tabId}`;
@@ -414,6 +458,269 @@ const ensurePopupState = async () => {
 
 const persistUserSettings = async () => {
     await chrome.storage.local.set({ userSettings: popupState.userSettings });
+};
+
+const cloneObject = <T>(value: T): T => JSON.parse(JSON.stringify(value));
+
+const normalizeImportedLists = (value: unknown): string[] => {
+    if ( Array.isArray(value) === false ) { return []; }
+    return value
+        .map(entry => typeof entry === 'string' ? entry.trim() : '')
+        .filter(entry => entry !== '');
+};
+
+const normalizeSelectedFilterLists = (value: unknown): string[] => {
+    if ( Array.isArray(value) === false ) { return []; }
+    return value
+        .map(entry => typeof entry === 'string' ? entry.trim() : '')
+        .filter(entry => entry !== '');
+};
+
+const isValidExternalList = (value: string) =>
+    /^[a-z-]+:\/\/(?:\S+\/\S*|\/\S+)/i.test(value);
+
+const extractListURLs = (text: string): string[] => text
+    .split(/\s+/)
+    .map(line => line.trim())
+    .filter(line => line !== '' && isValidExternalList(line));
+
+const listSupportNameFromURL = (value: string): string => {
+    try {
+        return new URL(value).hostname;
+    } catch {
+        return '';
+    }
+};
+
+const fetchFilterListCatalog = async (): Promise<Record<string, FilterListDetails>> => {
+    const response = await fetch(chrome.runtime.getURL(FILTER_LIST_ASSETS_URL));
+    const json = await response.json() as Record<string, FilterListDetails>;
+    return json;
+};
+
+const deriveDefaultSelectedFilterLists = (available: Record<string, FilterListDetails>): string[] => {
+    const selected = [ FILTER_LIST_USER_PATH ];
+    for ( const [ key, details ] of Object.entries(available) ) {
+        if ( key === FILTER_LIST_USER_PATH ) { continue; }
+        if ( details.content !== 'filters' ) { continue; }
+        if ( details.off === true ) { continue; }
+        selected.push(key);
+    }
+    return selected;
+};
+
+const resolveStockAssetKeyFromURL = (
+    catalog: Record<string, FilterListDetails>,
+    urlKey: string,
+): string => {
+    const needle = urlKey.replace(/^https?:/, '');
+    for ( const [ assetKey, asset ] of Object.entries(catalog) ) {
+        if ( asset.content !== 'filters' ) { continue; }
+        const contentURLs = Array.isArray(asset.contentURL)
+            ? asset.contentURL
+            : typeof asset.contentURL === 'string'
+                ? [ asset.contentURL ]
+                : [];
+        for ( const contentURL of contentURLs ) {
+            if ( contentURL.replace(/^https?:/, '') === needle ) {
+                return assetKey;
+            }
+        }
+    }
+    return urlKey;
+};
+
+const buildAvailableFilterLists = (
+    catalog: Record<string, FilterListDetails>,
+    importedLists: string[],
+    selectedListSet: Set<string>,
+): Record<string, FilterListDetails> => {
+    const available: Record<string, FilterListDetails> = {
+        [FILTER_LIST_USER_PATH]: {
+            content: 'filters',
+            group: 'user',
+            title: 'My filters',
+            off: selectedListSet.has(FILTER_LIST_USER_PATH) === false,
+        },
+    };
+
+    for ( const [ assetKey, asset ] of Object.entries(catalog) ) {
+        if ( asset.content !== 'filters' ) { continue; }
+        available[assetKey] = {
+            ...cloneObject(asset),
+            off: selectedListSet.has(assetKey) === false,
+        };
+    }
+
+    for ( const importedList of importedLists ) {
+        if ( available[importedList] !== undefined ) {
+            available[importedList].off = selectedListSet.has(importedList) === false;
+            continue;
+        }
+        available[importedList] = {
+            content: 'filters',
+            contentURL: importedList,
+            external: true,
+            group: 'custom',
+            submitter: 'user',
+            supportURL: importedList,
+            supportName: listSupportNameFromURL(importedList),
+            title: importedList,
+            off: selectedListSet.has(importedList) === false,
+        };
+    }
+
+    return available;
+};
+
+const estimateFilterCounts = (available: Record<string, FilterListDetails>) => {
+    let netFilterCount = 0;
+    let cosmeticFilterCount = 0;
+    for ( const details of Object.values(available) ) {
+        if ( details.off === true ) { continue; }
+        netFilterCount += details.entryCount || 0;
+        cosmeticFilterCount += details.entryUsedCount || 0;
+    }
+    return {
+        netFilterCount,
+        cosmeticFilterCount,
+    };
+};
+
+const getFilterListState = async (): Promise<FilterListResponse> => {
+    await ensurePopupState();
+    const catalog = await fetchFilterListCatalog();
+    const stored = await chrome.storage.local.get([
+        'selectedFilterLists',
+        'availableFilterLists',
+        'userSettings',
+    ]);
+    const storedUserSettings = stored.userSettings || {};
+    const importedLists = normalizeImportedLists(
+        storedUserSettings.importedLists ?? popupState.userSettings.importedLists
+    );
+    const availableFromStorage = stored.availableFilterLists as Record<string, FilterListDetails> | undefined;
+    let selectedFilterLists = normalizeSelectedFilterLists(stored.selectedFilterLists);
+
+    if ( selectedFilterLists.length === 0 ) {
+        if ( availableFromStorage && Object.keys(availableFromStorage).length !== 0 ) {
+            selectedFilterLists = Object.entries(availableFromStorage)
+                .filter(([, details]) => details?.content === 'filters' && details?.off !== true)
+                .map(([ key ]) => key);
+            if ( selectedFilterLists.includes(FILTER_LIST_USER_PATH) === false ) {
+                selectedFilterLists.unshift(FILTER_LIST_USER_PATH);
+            }
+        } else {
+            selectedFilterLists = deriveDefaultSelectedFilterLists(catalog);
+            await chrome.storage.local.set({ selectedFilterLists });
+        }
+    }
+
+    const selectedListSet = new Set(selectedFilterLists);
+    selectedListSet.add(FILTER_LIST_USER_PATH);
+    const available = buildAvailableFilterLists(catalog, importedLists, selectedListSet);
+    const counts = estimateFilterCounts(available);
+
+    await chrome.storage.local.set({
+        availableFilterLists: available,
+    });
+
+    return {
+        autoUpdate: storedUserSettings.autoUpdate ?? popupState.userSettings.autoUpdate,
+        available,
+        cache: {},
+        cosmeticFilterCount: counts.cosmeticFilterCount,
+        current: cloneObject(available),
+        ignoreGenericCosmeticFilters:
+            storedUserSettings.ignoreGenericCosmeticFilters ??
+            popupState.userSettings.ignoreGenericCosmeticFilters,
+        isUpdating: filterListsUpdating,
+        netFilterCount: counts.netFilterCount,
+        parseCosmeticFilters:
+            storedUserSettings.parseAllABPHideFilters ??
+            popupState.userSettings.parseAllABPHideFilters,
+        suspendUntilListsAreLoaded:
+            storedUserSettings.suspendUntilListsAreLoaded ??
+            popupState.userSettings.suspendUntilListsAreLoaded,
+        userFiltersPath: FILTER_LIST_USER_PATH,
+    };
+};
+
+const applyFilterListSelection = async (payload: {
+    toSelect?: string[];
+    toImport?: string;
+    toRemove?: string[];
+}) => {
+    await ensurePopupState();
+    const catalog = await fetchFilterListCatalog();
+    const stored = await chrome.storage.local.get([ 'selectedFilterLists', 'userSettings' ]);
+    const currentUserSettings = {
+        ...popupState.userSettings,
+        ...(stored.userSettings || {}),
+    };
+    const importedSet = new Set(normalizeImportedLists(currentUserSettings.importedLists));
+    const selectedSet = new Set(normalizeSelectedFilterLists(stored.selectedFilterLists));
+    selectedSet.add(FILTER_LIST_USER_PATH);
+
+    if ( Array.isArray(payload.toSelect) ) {
+        selectedSet.clear();
+        selectedSet.add(FILTER_LIST_USER_PATH);
+        for ( const key of payload.toSelect ) {
+            if ( typeof key === 'string' && key.trim() !== '' ) {
+                selectedSet.add(key.trim());
+            }
+        }
+    }
+
+    if ( typeof payload.toImport === 'string' && payload.toImport.trim() !== '' ) {
+        for ( const imported of extractListURLs(payload.toImport) ) {
+            const resolved = resolveStockAssetKeyFromURL(catalog, imported);
+            if ( resolved === imported ) {
+                importedSet.add(imported);
+            }
+            selectedSet.add(resolved);
+        }
+    }
+
+    if ( Array.isArray(payload.toRemove) ) {
+        for ( const key of payload.toRemove ) {
+            if ( typeof key !== 'string' || key.trim() === '' ) { continue; }
+            const normalized = key.trim();
+            importedSet.delete(normalized);
+            selectedSet.delete(normalized);
+        }
+    }
+
+    const nextUserSettings = {
+        ...currentUserSettings,
+        importedLists: Array.from(importedSet).sort(),
+    };
+    popupState.userSettings = nextUserSettings;
+    await chrome.storage.local.set({
+        selectedFilterLists: Array.from(selectedSet),
+        userSettings: nextUserSettings,
+    });
+
+    return getFilterListState();
+};
+
+const reloadAllFilterLists = async () => {
+    filterListsUpdating = true;
+    try {
+        return await getFilterListState();
+    } finally {
+        filterListsUpdating = false;
+    }
+};
+
+const updateFilterListsNow = async (payload?: { assetKeys?: string[]; preferOrigin?: boolean }) => {
+    void payload;
+    filterListsUpdating = true;
+    try {
+        return await getFilterListState();
+    } finally {
+        filterListsUpdating = false;
+    }
 };
 
 const persistPermanentFirewall = async () => {
@@ -971,6 +1278,29 @@ const handlePopupPanelMessage = async (request: PopupRequest) => {
     }
 };
 
+const handleDashboardMessage = async (request: PopupRequest) => {
+    switch ( request.what ) {
+    case 'getLists':
+        return getFilterListState();
+    case 'applyFilterListSelection':
+        return applyFilterListSelection(request as {
+            toSelect?: string[];
+            toImport?: string;
+            toRemove?: string[];
+        });
+    case 'reloadAllFilters':
+        return reloadAllFilterLists();
+    case 'updateNow':
+        return updateFilterListsNow();
+    case 'listsUpdateNow':
+        return updateFilterListsNow(request as { assetKeys?: string[]; preferOrigin?: boolean });
+    case 'userSettings':
+        return setUserSetting(request);
+    default:
+        return undefined;
+    }
+};
+
 const Messaging = (() => {
     const portMap = new Map<string, chrome.runtime.Port>();
     const handlers = new Map<string, (payload: any, sendResponse?: (response: any) => void) => any>();
@@ -1037,6 +1367,13 @@ const Messaging = (() => {
 
         if ( channel === 'popupPanel' ) {
             handlePopupPanelMessage(msg || {}).then(respond).catch(error => {
+                respond({ error: error instanceof Error ? error.message : String(error) });
+            });
+            return;
+        }
+
+        if ( channel === 'dashboard' ) {
+            handleDashboardMessage(msg || {}).then(respond).catch(error => {
                 respond({ error: error instanceof Error ? error.message : String(error) });
             });
             return;
