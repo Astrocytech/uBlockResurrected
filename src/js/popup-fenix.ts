@@ -691,12 +691,16 @@ const renderPopup = function() {
 
     const canPick = popupData.canElementPicker && isFiltering;
 
+    // When filtering is disabled, show buttons as grayed out (disabled) instead of hidden
+    const isDisabled = !isFiltering;
+    
     dom.cl.toggle('#gotoZap', 'canPick', canPick);
     dom.cl.toggle('#gotoPick', 'canPick', canPick && popupData.userFiltersAreEnabled);
     dom.cl.toggle('#gotoReport', 'canPick', canPick);
-    dom.cl.toggle('#gotoZap', 'hidden', !canPick);
-    dom.cl.toggle('#gotoPick', 'hidden', !(canPick && popupData.userFiltersAreEnabled));
-    dom.cl.toggle('#gotoReport', 'hidden', !canPick);
+    // Use disabled class to gray out instead of hiding
+    dom.cl.toggle('#gotoZap', 'disabled', isDisabled);
+    dom.cl.toggle('#gotoPick', 'disabled', isDisabled);
+    dom.cl.toggle('#gotoReport', 'disabled', isDisabled);
 
     let blocked, total;
     if ( popupData.pageCounts !== undefined ) {

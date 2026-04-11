@@ -23,6 +23,34 @@ body {
 body.loading {
     opacity: 0;
     }
+body:not([data-more*="d"]) #extraTools,
+body:not([data-more*="d"]) #extraTools > *,
+body:not([data-more*="d"]) #extraTools .hnSwitch,
+body:not([data-more*="d"]) #extraTools .tool,
+body:not([data-more*="d"]) #extraTools .fa-icon,
+body:not([data-more*="d"]) #extraTools .caption,
+body:not([data-more*="d"]) #extraTools svg {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    max-height: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+    top: auto !important;
+    }
+body:not([data-more*="a"]) hr[data-more="a"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    }
+
+:root body.loading hr[data-more="a"] {
+    display: none !important;
+    }
 a {
     color: var(--ink-1);
         fill: var(--ink-1);
@@ -192,6 +220,17 @@ portrait #basicStats > [data-i18n] + span {
     unicode-bidi: embed;
     visibility: visible !important;
     }
+body:not([data-more*="d"]) #extraTools .tool {
+    visibility: hidden !important;
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+    }
+body:not([data-more*="d"]) #extraTools .fa-icon,
+body:not([data-more*="d"]) #extraTools .fa-icon svg {
+    visibility: hidden !important;
+    display: none !important;
+    }
 .toolRibbon .tool:hover {
     color: var(--ink-1);
         fill: var(--ink-1);
@@ -220,10 +259,23 @@ portrait #basicStats > [data-i18n] + span {
 #basicTools .needPick .fa-icon {
     visibility: visible !important;
     }
-body.off #basicTools .needPick,
 #basicTools .needPick.hidden {
     display: none;
-}
+    }
+#basicTools .needPick.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    filter: grayscale(100%);
+    cursor: not-allowed;
+    }
+#gotoZap.disabled,
+#gotoPick.disabled,
+#gotoReport.disabled {
+    opacity: 0.4;
+    pointer-events: none;
+    filter: grayscale(100%);
+    cursor: not-allowed;
+    }
 
 #extraTools .fa-icon {
     align-self: center;
@@ -708,14 +760,84 @@ body:not([data-more*="b"]) [data-more="b"],
 body:not([data-more*="c"]) [data-more="c"],
 body:not([data-more*="d"]) [data-more="d"],
 body:not([data-more*="f"]) [data-more="f"] {
-    height: 0;
-    margin-bottom: 0 !important;
-    margin-top: 0 !important;
-    overflow-y: hidden;
-    visibility: hidden;
+    height: 0 !important;
+    max-height: 0 !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    display: none !important;
+    }
+html > body:not([data-more*="d"]) #extraTools,
+html > body:not([data-more*="d"]) #extraTools > span,
+html > body:not([data-more*="d"]) #extraTools .tool,
+html > body:not([data-more*="d"]) #extraTools .fa-icon {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    max-height: 0 !important;
+    max-width: 0 !important;
+    clip: rect(0, 0, 0, 0) !important;
+    }
+body:not([data-more*="d"]) #extraTools {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    }
+body:not([data-more*="d"]) #extraTools > span {
+    display: none !important;
+    visibility: hidden !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    }
+body:not([data-more*="d"]) #extraTools,
+body:not([data-more*="d"]) #extraTools * {
+    display: none !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    }
+body.off #extraTools,
+body.off #extraTools * {
+    display: none !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    }
+body:not([data-more*="d"]).off #extraTools,
+body:not([data-more*="d"]).off #extraTools * {
+    display: none !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    width: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
     }
 body[data-more*="d"] hr[data-more="a"] {
     display: none;
+    }
+body:not([data-more*="d"]) hr[data-more="a"],
+body[data-more=""] hr[data-more="a"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    }
     }
 body[data-more*="c"] hr[data-more="f"] {
     display: none;
@@ -796,4 +918,32 @@ portrait body[data-more*="e"] #firewall-vspacer {
 :root.desktop #moreOrLess > span:hover {
     background-color: var(--surface-2);
     /* background-color: var(--popup-toolbar-surface-hover); */
+    }
+
+html body.off #extraTools,
+html body.off #extraTools .hnSwitch,
+html body.off #extraTools .tool,
+html body.off #extraTools span,
+html body.off #extraTools .fa-icon,
+html body.off #extraTools .caption,
+html body.off #extraTools svg {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    max-height: 0 !important;
+    max-width: 0 !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    position: fixed !important;
+    clip-path: inset(50%) !important;
+    }
+html body.off hr[data-more="a"] {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
     }
