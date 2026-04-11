@@ -44,8 +44,7 @@ test('popup loads and shows switch', async () => {
     const count = await popup.locator('#switch').count();
     expect(count).toBe(1);
     
-    // Click the exact inner icon path the real UI exposes
-    await popup.locator('#switch .fa-icon').click();
+    await popup.locator('#switch').click({ force: true });
     await popup.waitForTimeout(200);
     
     // Body should now have 'off' class

@@ -86,6 +86,8 @@ interface BootstrapResponse {
 type StorageBin = {
     'user-filters'?: string;
     selectedFilterLists?: string[];
+    perSiteFiltering?: Record<string, boolean>;
+    hostnameSwitches?: Record<string, Record<string, boolean>>;
 };
 
 type ContextMenuTargetDetails = {
@@ -309,13 +311,22 @@ const applyStoredUserFilters = async (): Promise<void> => {
     const pageHostname = self.location.hostname;
     if ( pageHostname === '' ) { return; }
 
-    const bin = await storageGet([ 'user-filters', 'selectedFilterLists', 'perSiteFiltering' ]);
+    const bin = await storageGet([ 'user-filters', 'selectedFilterLists', 'perSiteFiltering', 'hostnameSwitches' ]);
     const perSiteFiltering = (bin.perSiteFiltering || {}) as Record<string, boolean>;
+    const hostnameSwitches = (bin.hostnameSwitches || {}) as Record<string, Record<string, boolean>>;
     const pageURL = self.location.href;
     const pageScopeKey = `${pageHostname}:${pageURL}`;
     const netFilteringEnabled =
         perSiteFiltering[pageScopeKey] ?? perSiteFiltering[pageHostname] ?? true;
     if ( netFilteringEnabled === false ) { return; }
+    const hostnameSwitchState = hostnameSwitches[pageHostname] || {};
+    if ( hostnameSwitchState['no-cosmetic-filtering'] === true ) { return; }
+    if ( hostnameSwitchState['no-large-media'] === true ) {
+        await applyImmediateHostnameSwitchState('no-large-media', true);
+    }
+    if ( hostnameSwitchState['no-remote-fonts'] === true ) {
+        await applyImmediateHostnameSwitchState('no-remote-fonts', true);
+    }
     if ( Array.isArray(bin.selectedFilterLists) === false ) { return; }
     if ( bin.selectedFilterLists.includes('user-filters') === false ) { return; }
     if ( typeof bin['user-filters'] !== 'string' || bin['user-filters'].trim() === '' ) {
@@ -348,6 +359,49 @@ const applyImmediatePowerSwitchState = async (enabled: boolean): Promise<void> =
     style?.remove();
     vAPI.domFilterer?.toggle?.(false);
     vAPI.domFilterer?.commitNow?.();
+};
+
+const hostnameSwitchStyleIds = {
+    'no-large-media': 'ublock-resurrected-no-large-media',
+    'no-remote-fonts': 'ublock-resurrected-no-remote-fonts',
+};
+
+const upsertStyle = (id: string, css: string, enabled: boolean): void => {
+    let style = document.getElementById(id) as HTMLStyleElement | null;
+    if ( enabled ) {
+        if ( style === null ) {
+            style = document.createElement('style');
+            style.id = id;
+            (document.head || document.documentElement).append(style);
+        }
+        style.textContent = css;
+        return;
+    }
+    style?.remove();
+};
+
+const applyImmediateHostnameSwitchState = async (name: string, enabled: boolean): Promise<void> => {
+    switch ( name ) {
+    case 'no-cosmetic-filtering':
+        await applyImmediatePowerSwitchState(!enabled);
+        break;
+    case 'no-large-media':
+        upsertStyle(
+            hostnameSwitchStyleIds['no-large-media'],
+            'video, audio { display: none !important; }',
+            enabled,
+        );
+        break;
+    case 'no-remote-fonts':
+        upsertStyle(
+            hostnameSwitchStyleIds['no-remote-fonts'],
+            'html, body, body * { font-family: system-ui, sans-serif !important; }',
+            enabled,
+        );
+        break;
+    default:
+        break;
+    }
 };
 
 export function initBootstrap(): void {
@@ -497,6 +551,12 @@ export function initBootstrap(): void {
                 if (msg?.topic === 'uBlockPowerSwitch') {
                     const enabled = (msg.payload as { enabled?: boolean } | undefined)?.enabled === true;
                     void applyImmediatePowerSwitchState(enabled);
+                }
+                if (msg?.topic === 'uBlockHostnameSwitch') {
+                    const payload = (msg.payload as { name?: string; enabled?: boolean } | undefined) || {};
+                    if ( typeof payload.name === 'string' ) {
+                        void applyImmediateHostnameSwitchState(payload.name, payload.enabled === true);
+                    }
                 }
             });
         }

@@ -20,6 +20,8 @@ type PopupRequest = {
     tabId?: number | null;
     name?: string;
     value?: any;
+    hostname?: string;
+    state?: boolean;
     srcHostname?: string;
     desHostname?: string;
     desHostnames?: Record<string, unknown>;
@@ -48,10 +50,19 @@ type TabRequestState = {
     hostnameDict: Record<string, HostnameDetails>;
 };
 
+type TabSwitchMetrics = {
+    popupBlockedCount: number;
+    largeMediaCount: number;
+    remoteFontCount: number;
+    scriptCount: number;
+};
+
 type CollectedHostnameData = {
     pageCounts: FirewallCounts;
     hostnameDict: Record<string, HostnameDetails>;
 };
+
+type HostnameSwitchState = Record<string, Partial<Record<string, boolean>>>;
 
 type LegacyMessagingAPI = {
     ports: Map<string, any>;
@@ -76,6 +87,15 @@ const legacyBackendState = {
     initializing: null as Promise<void> | null,
     initialized: false,
 };
+
+const hostnameSwitchNames = new Set([
+    'no-popups',
+    'no-large-media',
+    'no-cosmetic-filtering',
+    'no-remote-fonts',
+    'no-scripting',
+]);
+const HOSTNAME_SWITCHES_SCHEMA_VERSION = 2;
 
 const getLegacyMessaging = (): LegacyMessagingAPI | undefined => {
     return (globalThis as any).vAPI?.messaging;
@@ -320,6 +340,8 @@ const FIREWALL_RULE_ID_MIN = 9_000_000;
 const FIREWALL_RULE_ID_MAX = 9_099_999;
 const POWER_RULE_ID_MIN = 9_100_000;
 const POWER_RULE_ID_MAX = 9_199_999;
+const HOSTNAME_SWITCH_RULE_ID_MIN = 9_200_000;
+const HOSTNAME_SWITCH_RULE_ID_MAX = 9_299_999;
 
 const createCounts = (): FirewallCounts => ({
     allowed: { any: 0, frame: 0, script: 0 },
@@ -1031,6 +1053,114 @@ const updateFilterListsNow = async (payload?: { assetKeys?: string[]; preferOrig
     }
 };
 
+type StoredCosmeticFilterData = {
+    genericCosmeticFilters: Array<{ key?: number; selector?: string }>;
+    genericCosmeticExceptions: Array<{ key?: number; selector?: string }>;
+    specificCosmeticFilters: Array<[string, {
+        key?: number;
+        matches?: string[];
+        excludeMatches?: string[];
+        rejected?: boolean;
+    }]>;
+    scriptletFilters: Array<[string, {
+        args?: string[];
+        matches?: string[];
+        excludeMatches?: string[];
+        trustedSource?: boolean;
+    }]>;
+};
+
+const serializeCosmeticFilterData = (dnrData: any): StoredCosmeticFilterData => ({
+    genericCosmeticFilters: Array.isArray(dnrData?.genericCosmeticFilters)
+        ? dnrData.genericCosmeticFilters
+        : [],
+    genericCosmeticExceptions: Array.isArray(dnrData?.genericCosmeticExceptions)
+        ? dnrData.genericCosmeticExceptions
+        : [],
+    specificCosmeticFilters: dnrData?.specificCosmetic instanceof Map
+        ? Array.from(dnrData.specificCosmetic.entries())
+        : Array.isArray(dnrData?.specificCosmetic)
+            ? dnrData.specificCosmetic
+            : [],
+    scriptletFilters: dnrData?.scriptlet instanceof Map
+        ? Array.from(dnrData.scriptlet.entries())
+        : Array.isArray(dnrData?.scriptlet)
+            ? dnrData.scriptlet
+            : [],
+});
+
+const parseStoredCosmeticFilterData = (raw: unknown): StoredCosmeticFilterData => {
+    let parsed = raw;
+    if ( typeof parsed === 'string' && parsed !== '' ) {
+        try {
+            parsed = JSON.parse(parsed);
+        } catch {
+            parsed = {};
+        }
+    }
+    const data = parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {};
+    return {
+        genericCosmeticFilters: Array.isArray(data.genericCosmeticFilters)
+            ? data.genericCosmeticFilters as StoredCosmeticFilterData['genericCosmeticFilters']
+            : [],
+        genericCosmeticExceptions: Array.isArray(data.genericCosmeticExceptions)
+            ? data.genericCosmeticExceptions as StoredCosmeticFilterData['genericCosmeticExceptions']
+            : [],
+        specificCosmeticFilters: Array.isArray(data.specificCosmeticFilters)
+            ? data.specificCosmeticFilters as StoredCosmeticFilterData['specificCosmeticFilters']
+            : [],
+        scriptletFilters: Array.isArray(data.scriptletFilters)
+            ? data.scriptletFilters as StoredCosmeticFilterData['scriptletFilters']
+            : [],
+    };
+};
+
+const hostnameMatchesFilterScope = (pageHostname: string, scope: string): boolean => {
+    if ( scope === '*' ) { return true; }
+    if ( scope === pageHostname ) { return true; }
+    return pageHostname.endsWith(`.${scope}`);
+};
+
+const buildSpecificCosmeticPayload = (
+    pageHostname: string,
+    storedData: StoredCosmeticFilterData,
+) => {
+    const injectedSelectors: string[] = [];
+    for ( const entry of storedData.specificCosmeticFilters ) {
+        if ( Array.isArray(entry) === false || entry.length < 2 ) { continue; }
+        const [ selector, details ] = entry;
+        if ( typeof selector !== 'string' || selector === '' ) { continue; }
+        if ( selector.startsWith('{') ) { continue; }
+        if ( details?.rejected === true ) { continue; }
+        const matches = Array.isArray(details?.matches) ? details.matches : [];
+        const excludeMatches = Array.isArray(details?.excludeMatches) ? details.excludeMatches : [];
+        const included = matches.length === 0
+            ? true
+            : matches.some(scope => hostnameMatchesFilterScope(pageHostname, scope));
+        if ( included === false ) { continue; }
+        const excluded = excludeMatches.some(scope => hostnameMatchesFilterScope(pageHostname, scope));
+        if ( excluded ) { continue; }
+        injectedSelectors.push(selector);
+    }
+
+    const injectedCSS = injectedSelectors.length === 0
+        ? ''
+        : `${injectedSelectors.join(',\n')}\n{display:none!important;}`;
+
+    return {
+        ready: true,
+        injectedCSS,
+        proceduralFilters: [] as string[],
+        exceptionFilters: [] as string[],
+        exceptedFilters: [] as string[],
+        convertedProceduralFilters: [] as unknown[],
+        genericCosmeticHashes: storedData.genericCosmeticFilters
+            .map(filter => filter?.key)
+            .filter((key): key is number => typeof key === 'number'),
+        disableSurveyor: false,
+    };
+};
+
 // Sync filter list network rules to Chrome DNR
 const syncFilterListDnrRules = async () => {
     if ( chrome.declarativeNetRequest === undefined ) { 
@@ -1137,12 +1267,7 @@ const syncFilterListDnrRules = async () => {
         console.log('[DNR] Installed', addRules.length, 'filter list rules');
         
         // Store cosmetic filters for content script access
-        const cosmeticFiltersData = {
-            genericCosmeticFilters: dnrData.genericCosmeticFilters || [],
-            genericCosmeticExceptions: dnrData.genericCosmeticExceptions || [],
-            specificCosmeticFilters: dnrData.specificCosmetic || [],
-            scriptletFilters: dnrData.scriptlet || new Map(),
-        };
+        const cosmeticFiltersData = serializeCosmeticFilterData(dnrData);
         await chrome.storage.local.set({ cosmeticFiltersData: JSON.stringify(cosmeticFiltersData) });
         console.log('[DNR] Stored cosmetic filters:', 
             cosmeticFiltersData.genericCosmeticFilters.length, 'generic,',
@@ -1309,6 +1434,293 @@ const syncPowerSwitchDnrRules = async () => {
         .filter(id => id >= POWER_RULE_ID_MIN && id <= POWER_RULE_ID_MAX);
     const addRules = compilePowerSwitchDnrRules(perSiteFiltering);
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+};
+
+const getHostnameSwitchState = async (): Promise<HostnameSwitchState> => {
+    const stored = await chrome.storage.local.get([
+        'hostnameSwitches',
+        'hostnameSwitchesVersion',
+    ]);
+    if ( stored?.hostnameSwitchesVersion !== HOSTNAME_SWITCHES_SCHEMA_VERSION ) {
+        // Older builds wrote unstable hostname-switch state. Reset it once so
+        // the controls start from a clean default and then persist correctly.
+        await chrome.storage.local.set({
+            hostnameSwitches: {},
+            hostnameSwitchesVersion: HOSTNAME_SWITCHES_SCHEMA_VERSION,
+        });
+        return {};
+    }
+    const hostnameSwitches = stored?.hostnameSwitches;
+    return hostnameSwitches && typeof hostnameSwitches === 'object'
+        ? hostnameSwitches as HostnameSwitchState
+        : {};
+};
+
+const compileHostnameSwitchDnrRules = (hostnameSwitches: HostnameSwitchState) => {
+    const addRules: chrome.declarativeNetRequest.Rule[] = [];
+    let nextRuleId = HOSTNAME_SWITCH_RULE_ID_MIN;
+
+    for ( const hostname of Object.keys(hostnameSwitches).sort() ) {
+        const switches = hostnameSwitches[hostname];
+        if ( switches?.['no-scripting'] === true && nextRuleId <= HOSTNAME_SWITCH_RULE_ID_MAX ) {
+            addRules.push({
+                id: nextRuleId++,
+                priority: 2_100_000,
+                action: { type: 'block' },
+                condition: {
+                    initiatorDomains: [ hostname ],
+                    resourceTypes: [ 'script' ],
+                },
+            });
+            if ( nextRuleId <= HOSTNAME_SWITCH_RULE_ID_MAX ) {
+                addRules.push({
+                    id: nextRuleId++,
+                    priority: 2_100_001,
+                    action: {
+                        type: 'modifyHeaders',
+                        responseHeaders: [{
+                            header: 'content-security-policy',
+                            operation: 'set',
+                            value: "script-src 'none'; object-src 'none'; base-uri 'self'",
+                        }],
+                    },
+                    condition: {
+                        requestDomains: [ hostname ],
+                        resourceTypes: [
+                            'main_frame' as chrome.declarativeNetRequest.ResourceType,
+                            'sub_frame' as chrome.declarativeNetRequest.ResourceType,
+                        ],
+                    },
+                });
+            }
+        }
+        if ( switches?.['no-remote-fonts'] === true && nextRuleId <= HOSTNAME_SWITCH_RULE_ID_MAX ) {
+            addRules.push({
+                id: nextRuleId++,
+                priority: 2_100_010,
+                action: { type: 'block' },
+                condition: {
+                    initiatorDomains: [ hostname ],
+                    resourceTypes: [ 'font' ],
+                },
+            });
+        }
+        if ( switches?.['no-large-media'] === true && nextRuleId <= HOSTNAME_SWITCH_RULE_ID_MAX ) {
+            addRules.push({
+                id: nextRuleId++,
+                priority: 2_100_020,
+                action: { type: 'block' },
+                condition: {
+                    initiatorDomains: [ hostname ],
+                    resourceTypes: [ 'media' ],
+                },
+            });
+        }
+    }
+
+    return addRules;
+};
+
+const syncHostnameSwitchDnrRules = async () => {
+    if ( chrome.declarativeNetRequest === undefined ) { return; }
+    const hostnameSwitches = await getHostnameSwitchState();
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeRuleIds = existingRules
+        .map(rule => rule.id)
+        .filter(id => id >= HOSTNAME_SWITCH_RULE_ID_MIN && id <= HOSTNAME_SWITCH_RULE_ID_MAX);
+    const addRules = compileHostnameSwitchDnrRules(hostnameSwitches);
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+};
+
+const applyMainWorldPopupBlock = async (tabId: number, enabled: boolean) => {
+    try {
+        await chrome.scripting.executeScript({
+            target: { tabId, allFrames: true },
+            world: 'MAIN',
+            func: (isEnabled: boolean) => {
+                const key = '__ubrOriginalWindowOpen';
+                const clickKey = '__ubrPopupClickBlocker';
+                const countKey = '__ubrPopupBlockedCount';
+                const win = window as Window & Record<string, any>;
+                if ( isEnabled ) {
+                    if ( typeof win[countKey] !== 'number' ) {
+                        win[countKey] = 0;
+                    }
+                    if ( typeof win[key] !== 'function' ) {
+                        win[key] = window.open.bind(window);
+                    }
+                    window.open = function() {
+                        win[countKey] += 1;
+                        return null;
+                    } as typeof window.open;
+                    if ( typeof win[clickKey] !== 'function' ) {
+                        win[clickKey] = (event: MouseEvent) => {
+                            const target = event.target as Element | null;
+                            const anchor = target?.closest?.('a[target]:not([target="_self"])') as HTMLAnchorElement | null;
+                            if ( anchor === null ) { return; }
+                            win[countKey] += 1;
+                            event.preventDefault();
+                            event.stopImmediatePropagation();
+                        };
+                        document.addEventListener('click', win[clickKey], true);
+                    }
+                    return;
+                }
+                if ( typeof win[key] === 'function' ) {
+                    window.open = win[key];
+                    delete win[key];
+                }
+                if ( typeof win[clickKey] === 'function' ) {
+                    document.removeEventListener('click', win[clickKey], true);
+                    delete win[clickKey];
+                }
+            },
+            args: [ enabled ],
+        });
+    } catch {
+    }
+};
+
+const getTabSwitchMetrics = async (tabId: number): Promise<TabSwitchMetrics> => {
+    if ( chrome.scripting?.executeScript === undefined ) {
+        return {
+            popupBlockedCount: 0,
+            largeMediaCount: 0,
+            remoteFontCount: 0,
+            scriptCount: 0,
+        };
+    }
+    try {
+        const [ result ] = await chrome.scripting.executeScript({
+            target: { tabId },
+            world: 'MAIN',
+            func: () => {
+                const win = window as Window & Record<string, any>;
+                const popupBlockedCount = typeof win.__ubrPopupBlockedCount === 'number'
+                    ? win.__ubrPopupBlockedCount
+                    : 0;
+                const largeMediaCount = document.querySelectorAll('video, audio').length;
+                const scriptCount = document.scripts.length;
+                const remoteFontCount = performance
+                    .getEntriesByType('resource')
+                    .filter(entry => {
+                        const name = entry.name || '';
+                        return (
+                            entry.initiatorType === 'font' ||
+                            /\.(woff2?|ttf|otf|eot)(?:$|[?#])/i.test(name) ||
+                            /fonts\.(gstatic|googleapis)\.com/i.test(name)
+                        );
+                    })
+                    .length;
+                return {
+                    popupBlockedCount,
+                    largeMediaCount,
+                    remoteFontCount,
+                    scriptCount,
+                };
+            },
+        });
+        return (result?.result as TabSwitchMetrics | undefined) || {
+            popupBlockedCount: 0,
+            largeMediaCount: 0,
+            remoteFontCount: 0,
+            scriptCount: 0,
+        };
+    } catch {
+        return {
+            popupBlockedCount: 0,
+            largeMediaCount: 0,
+            remoteFontCount: 0,
+            scriptCount: 0,
+        };
+    }
+};
+
+const getHiddenElementCountForTab = async (tabId: number): Promise<number> => {
+    if ( chrome.scripting?.executeScript === undefined ) { return 0; }
+    try {
+        const [ result ] = await chrome.scripting.executeScript({
+            target: { tabId },
+            func: () => Array.from(document.querySelectorAll('body *'))
+                .reduce((count, element) => {
+                    const style = getComputedStyle(element);
+                    return (
+                        style.display === 'none' ||
+                        style.visibility === 'hidden' ||
+                        (element as HTMLElement).hidden
+                    )
+                        ? count + 1
+                        : count;
+                }, 0),
+        });
+        return typeof result?.result === 'number' ? result.result : 0;
+    } catch {
+        return 0;
+    }
+};
+
+const applyPersistedHostnameSwitchesForTab = async (tabId: number, url?: string) => {
+    let hostname = '';
+    try {
+        if ( typeof url === 'string' && url !== '' ) {
+            hostname = new URL(url).hostname;
+        } else {
+            const tab = await chrome.tabs.get(tabId);
+            hostname = tab.url ? new URL(tab.url).hostname : '';
+        }
+    } catch {
+        hostname = '';
+    }
+    if ( hostname === '' ) { return; }
+    const hostnameSwitches = await getHostnameSwitchState();
+    const switches = hostnameSwitches[hostname];
+    if ( switches === undefined ) { return; }
+    for ( const name of hostnameSwitchNames ) {
+        if ( switches[name] === true ) {
+            await applyImmediateHostnameSwitchEffects(tabId, name, true);
+        }
+    }
+};
+
+const applyImmediateHostnameSwitchEffects = async (tabId: number, name: string, enabled: boolean) => {
+    try {
+        const result = chrome.tabs.sendMessage(tabId, {
+            topic: 'uBlockHostnameSwitch',
+            payload: { name, enabled },
+        }) as Promise<unknown> | undefined;
+        result?.catch(() => {});
+    } catch {
+    }
+
+    if ( name === 'no-popups' ) {
+        await applyMainWorldPopupBlock(tabId, enabled);
+        return;
+    }
+
+    if ( name === 'no-remote-fonts' ) {
+        const css = 'html, body, body * { font-family: system-ui, sans-serif !important; }';
+        try {
+            if ( enabled ) {
+                await chrome.scripting.insertCSS({ target: { tabId, allFrames: true }, css });
+            } else {
+                await chrome.scripting.removeCSS({ target: { tabId, allFrames: true }, css });
+            }
+        } catch {
+        }
+        return;
+    }
+
+    if ( name === 'no-large-media' ) {
+        const css = 'video, audio { display: none !important; }';
+        try {
+            if ( enabled ) {
+                await chrome.scripting.insertCSS({ target: { tabId, allFrames: true }, css });
+            } else {
+                await chrome.scripting.removeCSS({ target: { tabId, allFrames: true }, css });
+            }
+        } catch {
+        }
+    }
 };
 
 const zeroHostnameDetails = (hostname: string): HostnameDetails => ({
@@ -1585,6 +1997,7 @@ const getPopupData = async (request: PopupRequest) => {
     // Get per-site filtering state
     const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
     const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
+    const hostnameSwitches = await getHostnameSwitchState();
     
     // Determine if filtering is enabled for this page
     let netFilteringEnabled = true;
@@ -1594,6 +2007,20 @@ const getPopupData = async (request: PopupRequest) => {
         // Check page-specific setting first, then hostname setting
         netFilteringEnabled = perSiteFiltering[pageUrlScopeKey] ?? perSiteFiltering[pageScopeKey] ?? true;
     }
+
+    const noPopups = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-popups'] === true;
+    const noCosmeticFiltering = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-cosmetic-filtering'] === true;
+    const noLargeMedia = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-large-media'] === true;
+    const noRemoteFonts = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-remote-fonts'] === true;
+    const noScripting = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-scripting'] === true;
+    const switchMetrics = tabId > 0
+        ? await getTabSwitchMetrics(tabId)
+        : {
+            popupBlockedCount: 0,
+            largeMediaCount: 0,
+            remoteFontCount: 0,
+            scriptCount: 0,
+        };
 
     return {
         advancedUserEnabled: popupState.userSettings.advancedUserEnabled,
@@ -1612,7 +2039,7 @@ const getPopupData = async (request: PopupRequest) => {
         pageDomain,
         pageHostname,
         pageURL,
-        popupBlockedCount: 0,
+        popupBlockedCount: switchMetrics.popupBlockedCount,
         popupPanelDisabledSections: 0,
         popupPanelHeightMode: 0,
         popupPanelLockedSections: 0,
@@ -1625,13 +2052,13 @@ const getPopupData = async (request: PopupRequest) => {
         userFiltersAreEnabled: true,
         netFilteringSwitch: netFilteringEnabled,
         canElementPicker: /^https?:/.test(pageURL),
-        noPopups: false,
-        noCosmeticFiltering: false,
-        noLargeMedia: false,
-        largeMediaCount: 0,
-        noRemoteFonts: false,
-        remoteFontCount: 0,
-        noScripting: false,
+        noPopups,
+        noCosmeticFiltering,
+        noLargeMedia,
+        largeMediaCount: switchMetrics.largeMediaCount,
+        noRemoteFonts,
+        remoteFontCount: switchMetrics.remoteFontCount,
+        noScripting,
         matrixIsDirty: popupState.sessionFirewall.hasSameRules(
             popupState.permanentFirewall,
             pageHostname,
@@ -1759,6 +2186,41 @@ const setUserSetting = async (request: PopupRequest) => {
     return { ...popupState.userSettings };
 };
 
+const toggleHostnameSwitch = async (request: PopupRequest) => {
+    await ensurePopupState();
+    const name = request.name || '';
+    const hostname = request.srcHostname || request.hostname || '';
+    const tabId = request.tabId ?? undefined;
+    const enabled = request.state === true;
+
+    if ( hostname === '' || hostnameSwitchNames.has(name) === false ) {
+        return getPopupData(request);
+    }
+
+    const hostnameSwitches = await getHostnameSwitchState();
+    const current = { ...(hostnameSwitches[hostname] || {}) };
+    if ( enabled ) {
+        current[name] = true;
+        hostnameSwitches[hostname] = current;
+    } else {
+        delete current[name];
+        if ( Object.keys(current).length === 0 ) {
+            delete hostnameSwitches[hostname];
+        } else {
+            hostnameSwitches[hostname] = current;
+        }
+    }
+
+    await chrome.storage.local.set({ hostnameSwitches });
+    await syncHostnameSwitchDnrRules();
+
+    if ( typeof tabId === 'number' ) {
+        await applyImmediateHostnameSwitchEffects(tabId, name, enabled);
+    }
+
+    return getPopupData(request);
+};
+
 const handlePopupPanelMessage = async (request: PopupRequest) => {
     switch ( request.what ) {
     case 'getPopupData':
@@ -1772,8 +2234,11 @@ const handlePopupPanelMessage = async (request: PopupRequest) => {
     case 'revertFirewallRules':
         return revertFirewallRules(request);
     case 'getScriptCount':
+        return request.tabId ? (await getTabSwitchMetrics(request.tabId)).scriptCount : 0;
     case 'getHiddenElementCount':
-        return 0;
+        return request.tabId ? await getHiddenElementCountForTab(request.tabId) : 0;
+    case 'toggleHostnameSwitch':
+        return toggleHostnameSwitch(request);
     case 'userSettings':
         return setUserSetting(request);
     default:
@@ -2423,6 +2888,13 @@ Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
         const stored = await chrome.storage.local.get('userSettings');
         const userSettings = stored.userSettings || popupState.userSettings;
         
+        const hostnameSwitches = await getHostnameSwitchState();
+        const noCosmeticFilteringSwitch = hostname !== '' &&
+            hostnameSwitches[hostname]?.['no-cosmetic-filtering'] === true;
+        const noCosmeticFiltering = netFilteringEnabled === false || noCosmeticFilteringSwitch;
+        const storedCosmeticData = await chrome.storage.local.get('cosmeticFiltersData');
+        const cosmeticData = parseStoredCosmeticFilterData(storedCosmeticData.cosmeticFiltersData);
+
         const response = {
             advancedUserEnabled: userSettings.advancedUserEnabled === true,
             autoReload: userSettings.autoReload,
@@ -2433,16 +2905,21 @@ Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
             debugScriptlet: userSettings.debugScriptlet,
             extensionPopupEnabled: userSettings.extensionPopupEnabled,
             externalRendererEnabled: false,
-            genericCosmeticFiltersHidden: true,
+            genericCosmeticFiltersHidden: false,
             getSelection: () => window.getSelection()?.toString() || '',
             hidePlaceholders: userSettings.hidePlaceholders === true,
             hostname: hostname,
             ignoreGenericCosmeticFilters: userSettings.ignoreGenericCosmeticFilters === true,
             ioPush: () => {},
-            noCosmeticFiltering: netFilteringEnabled === false,
+            noCosmeticFiltering,
+            noGenericCosmeticFiltering: noCosmeticFiltering,
+            noSpecificCosmeticFiltering: noCosmeticFiltering,
             parseAllABPHideFilters: userSettings.parseAllABPHideFilters === true,
             popupPanelType: 'legacy',
             removeWLCollections: () => {},
+            specificCosmeticFilters: noCosmeticFiltering
+                ? { ready: true, injectedCSS: '', proceduralFilters: [], exceptionFilters: [], exceptedFilters: [], convertedProceduralFilters: [], genericCosmeticHashes: [], disableSurveyor: true }
+                : buildSpecificCosmeticPayload(hostname, cosmeticData),
             showIconBadge: userSettings.showIconBadge,
             storage: null,
             tabId: tabId,
@@ -2482,15 +2959,7 @@ Messaging.on('retrieveGenericCosmeticSelectors', async (payload, callback) => {
         
         // Load stored cosmetic filters
         const stored = await chrome.storage.local.get('cosmeticFiltersData');
-        let cosmeticData = { genericCosmeticFilters: [], genericCosmeticExceptions: [] };
-        
-        if (stored.cosmeticFiltersData) {
-            try {
-                cosmeticData = JSON.parse(stored.cosmeticFiltersData);
-            } catch (e) {
-                console.warn('[MV3] Failed to parse cosmeticFiltersData:', e);
-            }
-        }
+        const cosmeticData = parseStoredCosmeticFilterData(stored.cosmeticFiltersData);
         
         // Filter by hashes - the content script sends hashes of element classes/ids
         // We need to match these against our stored cosmetic filters
@@ -2656,6 +3125,7 @@ chrome.tabs.onRemoved.addListener(tabId => {
 // Inject YouTube ad blocking script into page context immediately
 chrome.webNavigation?.onCommitted?.addListener(async (details) => {
     if (details.frameId !== 0) { return; }
+    await applyPersistedHostnameSwitchesForTab(details.tabId, details.url);
     
     const url = details.url;
     if (!url || !url.includes('youtube.com')) { return; }
@@ -2801,6 +3271,7 @@ ensurePopupState()
         syncFirewallDnrRules();
         syncFilterListDnrRules();
         syncPowerSwitchDnrRules();
+        syncHostnameSwitchDnrRules();
     })
     .catch(error => {
         console.error('Failed to initialize popup/firewall state', error);

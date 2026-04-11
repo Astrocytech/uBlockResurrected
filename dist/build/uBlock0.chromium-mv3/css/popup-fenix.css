@@ -282,8 +282,11 @@ body:not([data-more*="d"]) #extraTools .fa-icon svg {
     position: relative;
     }
 #extraTools .fa-icon > .nope {
+    display: none;
     height: 1.1em;
     left: 50%;
+    opacity: 0;
+    pointer-events: none;
     position: absolute;
     stroke: var(--popup-icon-x-ink);
     stroke-width: 2;
@@ -292,6 +295,8 @@ body:not([data-more*="d"]) #extraTools .fa-icon svg {
     width: 1.1em;
     }
 #extraTools > span.on .fa-icon >.nope {
+    display: block;
+    opacity: 1;
     visibility: visible;
     }
 

@@ -691,16 +691,15 @@ const renderPopup = function() {
 
     const canPick = popupData.canElementPicker && isFiltering;
 
-    // When filtering is disabled, show buttons as grayed out (disabled) instead of hidden
-    const isDisabled = !isFiltering;
-    
     dom.cl.toggle('#gotoZap', 'canPick', canPick);
     dom.cl.toggle('#gotoPick', 'canPick', canPick && popupData.userFiltersAreEnabled);
     dom.cl.toggle('#gotoReport', 'canPick', canPick);
-    // Use disabled class to gray out instead of hiding
-    dom.cl.toggle('#gotoZap', 'disabled', isDisabled);
-    dom.cl.toggle('#gotoPick', 'disabled', isDisabled);
-    dom.cl.toggle('#gotoReport', 'disabled', isDisabled);
+    dom.cl.toggle('#gotoZap', 'hidden', isFiltering === false);
+    dom.cl.toggle('#gotoPick', 'hidden', isFiltering === false);
+    dom.cl.toggle('#gotoReport', 'hidden', isFiltering === false);
+    dom.cl.remove('#gotoZap', 'disabled');
+    dom.cl.remove('#gotoPick', 'disabled');
+    dom.cl.remove('#gotoReport', 'disabled');
 
     let blocked, total;
     if ( popupData.pageCounts !== undefined ) {
@@ -1431,11 +1430,16 @@ const toggleHostnameSwitch = async function(ev) {
         persist: ev.ctrlKey || ev.metaKey,
     });
 
-    if ( switchName === 'no-scripting' ) {
-        forceReloadFlag ^= 1;
+    // Update badge for no-cosmetic-filtering directly (like other buttons)
+    if ( switchName === 'no-cosmetic-filtering' ) {
+        const badge = qs$(`#no-cosmetic-filtering .fa-icon-badge`);
+        // Show the cosmetic filtering indicator (⋯/ellipsis) when enabled
+        dom.text(badge, dom.cl.has('#no-cosmetic-filtering', 'on') ? '\u22EF' : '');
     }
 
     cachePopupData(response);
+    renderPopup();
+    renderPopupLazy();
     hashFromPopupData();
 
     dom.cl.toggle(dom.body, 'needSave', popupData.matrixIsDirty === true);
