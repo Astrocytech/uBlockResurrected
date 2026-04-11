@@ -54,6 +54,10 @@ npx esbuild i18n.ts --bundle --format=iife --outfile=i18n-bundle.js --target=chr
 echo "*** Bundling dashboard-common.ts"
 npx esbuild dashboard-common.ts --bundle --format=iife --outfile=dashboard-common-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
+# Bundle settings.ts
+echo "*** Bundling settings.ts"
+npx esbuild settings.ts --bundle --format=iife --outfile=settings-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
 # Bundle storage.ts
 npx esbuild storage.ts --bundle --format=iife --outfile=storage-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 

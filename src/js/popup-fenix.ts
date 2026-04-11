@@ -111,6 +111,7 @@ let dfHotspots = null;
 const allHostnameRows = [];
 let cachedPopupHash = '';
 let forceReloadFlag = 0;
+let hiddenElementCount = 0;
 
 const normalizeMessagingResponse = function(data) {
     if ( data && typeof data === 'object' ) {
@@ -257,6 +258,23 @@ let intlNumberFormat;
 
 /******************************************************************************/
 
+const renderBlockedOnThisPageStat = function() {
+    let blocked = 0;
+    let total = 0;
+    if ( popupData.pageCounts !== undefined ) {
+        const counts = popupData.pageCounts;
+        blocked = counts.blocked.any;
+        total = blocked + counts.allowed.any;
+    }
+    const text = total === 0
+        ? formatNumber(0)
+        : statsStr.replace('{{count}}', formatNumber(blocked))
+                  .replace('{{percent}}', formatNumber(Math.floor(blocked * 100 / total)));
+    dom.text('[data-i18n^="popupBlockedOnThisPage"] + span', text);
+};
+
+/******************************************************************************/
+
 const safePunycodeToUnicode = function(hn) {
     const pretty = punycode.toUnicode(hn);
     return pretty === hn ||
@@ -391,16 +409,24 @@ const updateAllFirewallCells = function(doRules = true, doCounts = true) {
 // this only when overview pane needs to be rendered.
 
 const expandHostnameStats = ( ) => {
-    let dnDetails;
     for ( const des of allHostnameRows ) {
         const hnDetails = popupData.hostnameDict[des];
+        if ( hnDetails === undefined || hnDetails.counts === undefined ) { continue; }
         const { domain, counts } = hnDetails;
         const isDomain = des === domain;
         const { allowed: hnAllowed, blocked: hnBlocked } = counts;
+        const dnDetails = popupData.hostnameDict[domain];
+        if ( dnDetails === undefined || dnDetails.counts === undefined ) { continue; }
         if ( isDomain ) {
-            dnDetails = hnDetails;
             dnDetails.totals = JSON.parse(JSON.stringify(dnDetails.counts));
+            dnDetails.hasScript = false;
+            dnDetails.hasFrame = false;
         } else {
+            if ( dnDetails.totals === undefined ) {
+                dnDetails.totals = JSON.parse(JSON.stringify(dnDetails.counts));
+                dnDetails.hasScript = false;
+                dnDetails.hasFrame = false;
+            }
             const { allowed: dnAllowed, blocked: dnBlocked } = dnDetails.totals;
             dnAllowed.any += hnAllowed.any;
             dnBlocked.any += hnBlocked.any;
@@ -702,22 +728,7 @@ const renderPopup = function() {
     dom.cl.remove('#gotoReport', 'disabled');
 
     let blocked, total;
-    if ( popupData.pageCounts !== undefined ) {
-        const counts = popupData.pageCounts;
-        blocked = counts.blocked.any;
-        total = blocked + counts.allowed.any;
-    } else {
-        blocked = 0;
-        total = 0;
-    }
-    let text;
-    if ( total === 0 ) {
-        text = formatNumber(0);
-    } else {
-        text = statsStr.replace('{{count}}', formatNumber(blocked))
-                       .replace('{{percent}}', formatNumber(Math.floor(blocked * 100 / total)));
-    }
-    dom.text('[data-i18n^="popupBlockedOnThisPage"] + span', text);
+    renderBlockedOnThisPageStat();
 
     blocked = popupData.globalBlockedRequestCount;
     total = popupData.globalAllowedRequestCount + blocked;
@@ -900,6 +911,7 @@ let renderOnce = function() {
 
 const renderPopupLazy = (( ) => {
     let mustRenderCosmeticFilteringBadge = true;
+    let renderCosmeticBadge = ( ) => {};
 
     // https://github.com/uBlockOrigin/uBlock-issues/issues/756
     //   Launch potentially expensive hidden elements-counting scriptlet on
@@ -918,6 +930,7 @@ const renderPopupLazy = (( ) => {
                 what: 'getHiddenElementCount',
                 tabId: popupData.tabId,
             }).then(count => {
+                hiddenElementCount = Math.max(0, count || 0);
                 let text;
                 if ( (count || 0) === 0 ) {
                     text = '';
@@ -927,9 +940,11 @@ const renderPopupLazy = (( ) => {
                     text = Math.min(count, 99).toLocaleString();
                 }
                 dom.text(badge, text);
+                renderBlockedOnThisPageStat();
                 dom.cl.remove(sw, 'hnSwitchBusy');
             });
         };
+        renderCosmeticBadge = render;
 
         dom.on(sw, 'mouseenter', render, { passive: true });
     }
@@ -943,7 +958,9 @@ const renderPopupLazy = (( ) => {
             '#no-scripting .fa-icon-badge',
             (count || 0) !== 0 ? Math.min(count, 99).toLocaleString() : ''
         );
+        hiddenElementCount = 0;
         mustRenderCosmeticFilteringBadge = true;
+        renderCosmeticBadge();
     };
 })();
 

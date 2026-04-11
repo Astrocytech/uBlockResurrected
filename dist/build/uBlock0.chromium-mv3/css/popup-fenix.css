@@ -129,7 +129,7 @@ body.off #switch {
     flex-grow: 1;
     font-size: 2.2em;
     padding: 0;
-    visibility: visible !important;
+    visibility: hidden;
     }
 .rulesetTools [id]:not(:first-of-type) {
     margin-block-start: 1px;
@@ -137,6 +137,10 @@ body.off #switch {
 .rulesetTools [id] > svg {
     fill: var(--ink-4);
     }
+body.needReload #refresh,
+body.needSave #saveRules,
+body.needSave #revertRules {
+    visibility: visible;
     }
 #hostname {
     background-color: var(--popup-toolbar-surface);

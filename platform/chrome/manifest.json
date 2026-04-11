@@ -57,6 +57,7 @@
     "alarms",
     "contextMenus",
     "declarativeNetRequest",
+    "declarativeNetRequestFeedback",
     "downloads",
     "privacy",
     "scripting",

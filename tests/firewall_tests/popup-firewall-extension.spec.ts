@@ -191,6 +191,9 @@ const revertFirewallRules = async (popupPage: Page): Promise<void> => {
     await expect(popupPage.locator('body')).not.toHaveClass(/needSave/);
 };
 
+const blockedOnPageText = (popupPage: Page) =>
+    popupPage.locator('[data-i18n^="popupBlockedOnThisPage"] + span');
+
 const startTestServers = async (): Promise<TestServers> => {
     const hits: ResourceHits = new Map();
     const firstPartyHits: FirstPartyHits = new Map();
@@ -454,6 +457,44 @@ const startTestServers = async (): Promise<TestServers> => {
 };
 
 test.describe('Popup Firewall Extension', () => {
+    test('blocked on this page counter reflects blocked requests in the popup UI', async () => {
+        test.setTimeout(60000);
+        const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-popup-counter-'));
+        const servers = await startTestServers();
+
+        let context: BrowserContext | undefined;
+        try {
+            context = await launchExtensionContext(userDataDir);
+            const serviceWorker = await getServiceWorker(context);
+            const extensionId = await getExtensionId(context);
+
+            const blankPage = await context.newPage();
+            await blankPage.goto(servers.blankURL, { waitUntil: 'domcontentloaded' });
+            const blankTabId = await getTabIdForURL(serviceWorker, servers.blankURL);
+            const popupPage = await openPopupForTab(context, extensionId, blankTabId);
+
+            await setFirewallCellAction(popupPage, '3p', '/', 'block');
+            await saveFirewallRules(popupPage);
+
+            const uid = `counter-${Date.now()}`;
+            const page = await context.newPage();
+            await page.goto(servers.resourcePageURL(uid), { waitUntil: 'domcontentloaded' });
+            await page.waitForTimeout(1500);
+
+            expect(servers.getHits(uid)).toEqual({ image: 0, script: 0, frame: 0 });
+
+            const tabId = await getTabIdForURL(serviceWorker, servers.resourcePageURL(uid));
+            const resourcePopup = await openPopupForTab(context, extensionId, tabId);
+            await expect(blockedOnPageText(resourcePopup)).not.toHaveText('0');
+            await expect(blockedOnPageText(resourcePopup)).not.toContainText('0%');
+        } finally {
+            await context?.close();
+            await rm(userDataDir, { force: true, recursive: true });
+            servers.appServer.close();
+            servers.resourceServer.close();
+        }
+    });
+
     test('can set and persist a global 3p block rule from the popup', async () => {
         test.setTimeout(60000);
         const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-firewall-persist-'));
@@ -471,12 +512,18 @@ test.describe('Popup Firewall Extension', () => {
 
             const popupPage = await openPopupForTab(context, extensionId, tabId);
             const global3pCell = firewallCell(popupPage, '3p', '/');
+            await expect(popupPage.locator('#saveRules')).toBeHidden();
+            await expect(popupPage.locator('#revertRules')).toBeHidden();
 
             await setFirewallCellAction(popupPage, '3p', '/', 'block');
             await expect(global3pCell).toHaveClass(/blockRule/);
             await expect(global3pCell).toHaveClass(/ownRule/);
+            await expect(popupPage.locator('#saveRules')).toBeVisible();
+            await expect(popupPage.locator('#revertRules')).toBeVisible();
 
             await saveFirewallRules(popupPage);
+            await expect(popupPage.locator('#saveRules')).toBeHidden();
+            await expect(popupPage.locator('#revertRules')).toBeHidden();
 
             await expect.poll(async () => {
                 return serviceWorker.evaluate(() => self.µBlock.permanentFirewall.toString());

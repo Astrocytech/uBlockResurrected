@@ -46,7 +46,11 @@
         }
     };
 
+    const isSettingsPage = window.location.pathname.endsWith('settings.html') ||
+                          window.location.href.includes('settings.html');
+
     const disableControls = () => {
+        if (isSettingsPage) { return; }
         for ( const element of document.querySelectorAll('button, input, textarea, select')) {
             element.disabled = true;
             if ( element.title === '' ) {

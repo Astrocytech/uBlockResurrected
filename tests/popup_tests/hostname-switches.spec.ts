@@ -161,17 +161,29 @@ test.describe('Popup hostname switches', () => {
             await expect(popup.locator('#no-large-media')).not.toHaveClass(/on/);
             await expect(popup.locator('#no-remote-fonts')).not.toHaveClass(/on/);
             await expect.poll(() => getHostnameSwitches(popup)).toEqual({});
+            await expect(popup.locator('body')).not.toHaveClass(/needSave/);
+            await expect(popup.locator('#saveRules')).toBeHidden();
+            await expect(popup.locator('#revertRules')).toBeHidden();
 
             await dispatchClick(popup, '#no-popups');
             await expect(popup.locator('#no-popups')).toHaveClass(/on/);
+            await expect(popup.locator('body')).toHaveClass(/needSave/);
+            await expect(popup.locator('#saveRules')).toBeVisible();
+            await expect(popup.locator('#revertRules')).toBeVisible();
             await expect
                 .poll(async () => page.evaluate(() => window.open('/popup-target', '_blank') === null))
                 .toBe(true);
+            await expect.poll(() => getHostnameSwitches(popup)).toEqual({});
+            await dispatchClick(popup, '#saveRules');
+            await expect(popup.locator('body')).not.toHaveClass(/needSave/);
             await popup.reload({ waitUntil: 'domcontentloaded' });
+            await dispatchClick(popup, '#moreButton');
+            await expect(popup.locator('#no-popups')).toHaveClass(/on/);
             await expect(popup.locator('#no-popups .fa-icon-badge')).toHaveText('1');
 
             await dispatchClick(popup, '#no-large-media');
             await expect(popup.locator('#no-large-media')).toHaveClass(/on/);
+            await expect(popup.locator('body')).toHaveClass(/needSave/);
             await expect
                 .poll(async () => page.evaluate(() => {
                     const video = document.getElementById('video');
@@ -191,6 +203,8 @@ test.describe('Popup hostname switches', () => {
                 .poll(async () => page.evaluate(() => getComputedStyle(document.body).fontFamily))
                 .not.toBe(beforeFontFamily);
 
+            await dispatchClick(popup, '#saveRules');
+            await expect(popup.locator('body')).not.toHaveClass(/needSave/);
             const hostnameSwitches = await getHostnameSwitches(popup);
             expect(hostnameSwitches['127.0.0.1']['no-popups']).toBe(true);
             expect(hostnameSwitches['127.0.0.1']['no-large-media']).toBe(true);
@@ -244,18 +258,23 @@ test.describe('Popup hostname switches', () => {
 
             const tabId = await getTabIdForURL(serviceWorker, `${baseURL}/fixture`);
             const popup = await openPopupForTab(context, extensionId, tabId);
+            await dispatchClick(popup, '#moreButton');
 
             await dispatchClick(popup, '#no-cosmetic-filtering');
             await expect(popup.locator('#no-cosmetic-filtering')).toHaveClass(/on/);
-            await expect(popup.locator('body')).toHaveClass(/needReload/);
+            await expect(popup.locator('body')).toHaveClass(/needSave/);
+            await expect(popup.locator('#saveRules')).toBeVisible();
+            await expect(popup.locator('#revertRules')).toBeVisible();
 
             await dispatchClick(popup, '#no-scripting');
             await expect(popup.locator('#no-scripting')).toHaveClass(/on/);
             expect(navigationCount).toBe(1);
+            await expect.poll(() => getHostnameSwitches(popup)).toEqual({});
 
-            const hostnameSwitches = await getHostnameSwitches(popup);
-            expect(hostnameSwitches['127.0.0.1']['no-cosmetic-filtering']).toBe(true);
-            expect(hostnameSwitches['127.0.0.1']['no-scripting']).toBe(true);
+            await dispatchClick(popup, '#revertRules');
+            await expect(popup.locator('body')).not.toHaveClass(/needSave/);
+            await expect(popup.locator('#no-cosmetic-filtering')).not.toHaveClass(/on/);
+            await expect(popup.locator('#no-scripting')).not.toHaveClass(/on/);
 
             const beforeReload = await page.evaluate(() => ({
                 inline: (window as any).__inlineExecuted || 0,
@@ -274,6 +293,13 @@ test.describe('Popup hostname switches', () => {
             }));
             expect(afterReload.inline).toBe(0);
             expect(afterReload.external).toBe(0);
+
+            await dispatchClick(popup, '#no-cosmetic-filtering');
+            await dispatchClick(popup, '#no-scripting');
+            await dispatchClick(popup, '#saveRules');
+            const hostnameSwitches = await getHostnameSwitches(popup);
+            expect(hostnameSwitches['127.0.0.1']['no-cosmetic-filtering']).toBe(true);
+            expect(hostnameSwitches['127.0.0.1']['no-scripting']).toBe(true);
         } finally {
             await context?.close();
             await rm(userDataDir, { force: true, recursive: true });
