@@ -1331,6 +1331,32 @@ vAPI.DOMFilterer = class {
         console.log('[MV3-CS] Page URL:', vAPI.effectiveSelf.location.href);
         console.log('[MV3-CS] About to call vAPI.messaging.send');
         
+        // Set up picker message handlers
+        vAPI.pickerCallback = function(payload) {
+            console.log('[MV3-CS] pickerActivate received, sessionId:', payload?.sessionId);
+            // Trigger epicker.js to start - send message to trigger picker
+            vAPI.messaging.send('elementPicker', {
+                what: 'elementPickerArguments',
+            }).then(response => {
+                console.log('[MV3-CS] elementPickerArguments response:', response);
+                // The epicker.js should be injected and will handle the rest
+            }).catch(err => {
+                console.error('[MV3-CS] Failed to get picker args:', err);
+            });
+        };
+        
+        vAPI.pickerDeactivateCallback = function() {
+            console.log('[MV3-CS] pickerDeactivate received');
+        };
+        
+        vAPI.pickerMessageCallback = function(payload) {
+            console.log('[MV3-CS] pickerMessage received:', payload);
+            // Forward to epicker if loaded
+            if (window.epickerMessageHandler) {
+                window.epickerMessageHandler(payload);
+            }
+        };
+        
         vAPI.messaging.send('contentscript', {
             what: 'retrieveContentScriptParameters',
             url: vAPI.effectiveSelf.location.href,

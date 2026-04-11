@@ -28,18 +28,20 @@ import punycode from '../lib/punycode.js';
 /******************************************************************************/
 
 let popupFontSize = 'unset';
-vAPI.localStorage.getItemAsync('popupFontSize').then(value => {
+Promise.resolve(vAPI.localStorage?.getItemAsync?.('popupFontSize')).then(value => {
     if ( typeof value !== 'string' || value === 'unset' ) { return; }
     document.body.style.setProperty('--font-size', value);
     popupFontSize = value;
+}).catch(() => {
 });
 
 // https://github.com/chrisaljoudi/uBlock/issues/996
 //   Experimental: mitigate glitchy popup UI: immediately set the firewall
 //   pane visibility to its last known state. By default the pane is hidden.
-vAPI.localStorage.getItemAsync('popupPanelSections').then(bits => {
+Promise.resolve(vAPI.localStorage?.getItemAsync?.('popupPanelSections')).then(bits => {
     if ( typeof bits !== 'number' ) { return; }
     setSections(bits);
+}).catch(() => {
 });
 
 /******************************************************************************/
@@ -49,6 +51,7 @@ const messaging = vAPI.messaging;
 /******************************************************************************/
 
 const gotoZap = async function() {
+    if ( popupData.netFilteringSwitch !== true ) { return; }
     if ( typeof chrome === 'undefined' ) {
         console.log('[Zapper] chrome.scripting API not available');
         return;
@@ -71,6 +74,7 @@ const gotoZap = async function() {
 /******************************************************************************/
 
 const gotoPick = async function() {
+    if ( popupData.netFilteringSwitch !== true ) { return; }
     if ( typeof chrome !== 'undefined' ) {
         try {
             const fallbackTabId = popupData.tabId ?? (
@@ -108,6 +112,20 @@ const allHostnameRows = [];
 let cachedPopupHash = '';
 let forceReloadFlag = 0;
 
+const normalizeMessagingResponse = function(data) {
+    if ( data && typeof data === 'object' ) {
+        const payload = data.payload;
+        if ( payload && typeof payload === 'object' ) {
+            return payload;
+        }
+        const msg = data.msg;
+        if ( msg && typeof msg === 'object' ) {
+            return msg;
+        }
+    }
+    return data;
+};
+
 // https://github.com/gorhill/uBlock/issues/2550
 // Solution inspired from
 // - https://bugs.chromium.org/p/chromium/issues/detail?id=683314
@@ -122,6 +140,7 @@ const reCyrillicAmbiguous = /[\u042c\u0430\u0433\u0435\u043e\u043f\u0440\u0441\u
 /******************************************************************************/
 
 const cachePopupData = function(data) {
+    data = normalizeMessagingResponse(data);
     popupData = {};
     scopeToSrcHostnameMap['.'] = '';
     hostnameToSortableTokenMap.clear();
@@ -675,6 +694,9 @@ const renderPopup = function() {
     dom.cl.toggle('#gotoZap', 'canPick', canPick);
     dom.cl.toggle('#gotoPick', 'canPick', canPick && popupData.userFiltersAreEnabled);
     dom.cl.toggle('#gotoReport', 'canPick', canPick);
+    dom.cl.toggle('#gotoZap', 'hidden', !canPick);
+    dom.cl.toggle('#gotoPick', 'hidden', !(canPick && popupData.userFiltersAreEnabled));
+    dom.cl.toggle('#gotoReport', 'hidden', !canPick);
 
     let blocked, total;
     if ( popupData.pageCounts !== undefined ) {
@@ -924,22 +946,47 @@ const renderPopupLazy = (( ) => {
 
 /******************************************************************************/
 
-const toggleNetFilteringSwitch = function(ev) {
-    if ( !popupData || !popupData.pageURL ) { return; }
-    messaging.send('popupPanel', {
+const toggleNetFilteringSwitch = async function(ev) {
+    console.log('[POPUP-FENIX] toggleNetFilteringSwitch called, popupData:', popupData);
+    if ( !popupData || !popupData.pageURL ) {
+        const fallbackTabId =
+            (popupData?.tabId ??
+            parseInt(new URL(self.location.href).searchParams.get('tabId'), 10)) ||
+            null;
+        try {
+            await getPopupData(fallbackTabId);
+        } catch (error) {
+            console.log('[POPUP-FENIX] Failed to refresh popup data before toggle:', error);
+        }
+        if ( !popupData || !popupData.pageURL ) {
+            console.log('[POPUP-FENIX] No popupData or pageURL, returning early');
+            return;
+        }
+    }
+    const nextEnabled = dom.cl.toggle(dom.body, 'off') === false;
+    const msg = {
         what: 'toggleNetFiltering',
         url: popupData.pageURL,
         scope: ev.ctrlKey || ev.metaKey ? 'page' : '',
-        state: dom.cl.toggle(dom.body, 'off') === false,
+        state: nextEnabled,
         tabId: popupData.tabId,
-    });
+    };
+    console.log('[POPUP-FENIX] Sending popupPanel message:', msg);
+    const response = await messaging.send('popupPanel', msg);
+    console.log('[POPUP-FENIX] toggleNetFiltering response:', response);
+    if ( response && typeof response === 'object' ) {
+        cachePopupData(normalizeMessagingResponse(response));
+        renderPopup();
+        renderPopupLazy();
+    }
     renderTooltips('#switch');
-    hashFromPopupData();
+    hashFromPopupData(true);
 };
 
 /******************************************************************************/
 
 const gotoReport = function() {
+    if ( popupData.netFilteringSwitch !== true ) { return; }
     const popupPanel = {
         blocked: popupData.pageCounts.blocked.any,
     };
@@ -1197,35 +1244,18 @@ const setFirewallRuleHandler = function(ev) {
 /******************************************************************************/
 
 const reloadTab = function(bypassCache = false) {
-    // Preemptively clear the unprocessed-requests status since we know for sure
-    // the page is being reloaded in this code path.
-    if ( popupData.hasUnprocessedRequest === true )  {
-        messaging.send('popupPanel', {
-            what: 'dismissUnprocessedRequest',
-            tabId: popupData.tabId,
-        }).then(( ) => {
-            popupData.hasUnprocessedRequest = false;
-            dom.cl.remove(dom.root, 'warn');
-        });
+    // Simply reload the tab directly
+    // Ignore errors since page will reload and close the popup
+    if (popupData.tabId) {
+        try {
+            chrome.tabs.reload(popupData.tabId, { bypassCache: !!bypassCache });
+        } catch (e) {
+            // Ignore errors - the reload will happen anyway
+        }
     }
-
-    messaging.send('popupPanel', {
-        what: 'reloadTab',
-        tabId: popupData.tabId,
-        url: popupData.rawURL,
-        select: vAPI.webextFlavor.soup.has('mobile'),
-        bypassCache: bypassCache || forceReloadFlag !== 0,
-    });
-
-    // Polling will take care of refreshing the popup content
-    // https://github.com/chrisaljoudi/uBlock/issues/748
-    //   User forces a reload, assume the popup has to be updated regardless
-    //   if there were changes or not.
-    popupData.contentLastModified = -1;
-
-    // Reset popup state hash to current state.
-    hashFromPopupData(true);
 };
+
+/******************************************************************************/
 
 dom.on('#refresh', 'click', ev => {
     reloadTab(ev.ctrlKey || ev.metaKey || ev.shiftKey);
@@ -1485,10 +1515,10 @@ const pollForContentChange = (( ) => {
 /******************************************************************************/
 
 const getPopupData = async function(tabId, first = false) {
-    const response = await messaging.send('popupPanel', {
+    const response = normalizeMessagingResponse(await messaging.send('popupPanel', {
         what: 'getPopupData',
         tabId,
-    });
+    }));
 
     cachePopupData(response);
     renderOnce();

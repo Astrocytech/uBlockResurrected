@@ -267,3 +267,15 @@ svg#overlay > path + path {
 #ubol-picker #candidateFilters .changeFilter li:hover {
     background-color: var(--surface-2);
 }
+
+/* Create button - should look like other buttons when enabled */
+#ubol-picker #toolbar button#create {
+    background-color: var(--button-surface);
+    color: var(--button-ink);
+    border: 1px solid var(--border-1);
+}
+
+#ubol-picker #toolbar button#create:not([disabled]):hover {
+    background-color: var(--button-preferred-surface);
+    color: var(--button-preferred-ink);
+}

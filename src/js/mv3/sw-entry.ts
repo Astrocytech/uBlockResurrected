@@ -274,6 +274,7 @@ const userSettingsDefault = {
     advancedUserEnabled: false,
     autoUpdate: true,
     colorBlindFriendly: false,
+    contextMenuEnabled: true,
     ignoreGenericCosmeticFilters: false,
     importedLists: [] as string[],
     parseAllABPHideFilters: true,
@@ -317,6 +318,8 @@ const firewallActionValues: Record<string, number> = {
 
 const FIREWALL_RULE_ID_MIN = 9_000_000;
 const FIREWALL_RULE_ID_MAX = 9_099_999;
+const POWER_RULE_ID_MIN = 9_100_000;
+const POWER_RULE_ID_MAX = 9_199_999;
 
 const createCounts = (): FirewallCounts => ({
     allowed: { any: 0, frame: 0, script: 0 },
@@ -624,12 +627,45 @@ const FILTER_LIST_ASSETS_URL = 'assets/assets.dev.json';
 let filterListsUpdating = false;
 
 const tabRequestStates = new Map<number, TabRequestState>();
+const pickerContextPoints = new Map<string, {
+    tabId: number;
+    frameId: number;
+    x: number;
+    y: number;
+    timestamp: number;
+    target?: { selector: string };
+}>();
 const requestStateStorage = chrome.storage.session || chrome.storage.local;
 const tabRequestStateKey = (tabId: number) => `firewallTabState:${tabId}`;
+const pickerContextPointKey = (tabId: number, frameId: number) => `${tabId}:${frameId}`;
+
+const isOwnExtensionTab = (tab?: chrome.tabs.Tab) => {
+    const url = tab?.url || '';
+    return url !== '' && url.startsWith(chrome.runtime.getURL(''));
+};
+
+const pickMostRelevantBrowsingTab = async () => {
+    const tabs = await chrome.tabs.query({});
+    const candidates = tabs.filter(tab => {
+        const url = tab.url || '';
+        if ( url === '' ) { return false; }
+        if ( isOwnExtensionTab(tab) ) { return false; }
+        return /^(https?|file):/.test(url);
+    });
+    candidates.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+    return candidates[0];
+};
 
 const getActiveTab = async () => {
-    const [ tab ] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return tab;
+    let [ tab ] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if ( tab && isOwnExtensionTab(tab) === false ) {
+        return tab;
+    }
+    [ tab ] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if ( tab && isOwnExtensionTab(tab) === false ) {
+        return tab;
+    }
+    return pickMostRelevantBrowsingTab();
 };
 
 const getTabForRequest = async (tabId?: number | null) => {
@@ -675,6 +711,54 @@ const ensurePopupState = async () => {
 
 const persistUserSettings = async () => {
     await chrome.storage.local.set({ userSettings: popupState.userSettings });
+};
+
+const getPickerContextPoint = (tabId: number, frameId = 0) => {
+    const now = Date.now();
+    const exact = pickerContextPoints.get(pickerContextPointKey(tabId, frameId));
+    if ( exact && now - exact.timestamp < 10_000 ) {
+        return exact;
+    }
+    const topFrame = pickerContextPoints.get(pickerContextPointKey(tabId, 0));
+    if ( topFrame && now - topFrame.timestamp < 10_000 ) {
+        return topFrame;
+    }
+    return undefined;
+};
+
+const launchPickerInTab = async (
+    tabId: number,
+    frameId = 0,
+    boot: {
+        initialPoint?: { x: number; y: number };
+        target?: string;
+        exactTarget?: { selector: string };
+    } = {},
+) => {
+    if ( chrome.scripting?.executeScript === undefined ) {
+        throw new Error('chrome.scripting.executeScript is unavailable');
+    }
+    const target = frameId !== 0
+        ? { tabId, frameIds: [ frameId ] }
+        : { tabId };
+    await chrome.scripting.executeScript({
+        target,
+        func: (bootArgs: {
+            initialPoint?: { x: number; y: number };
+            target?: string;
+            exactTarget?: { selector: string };
+        }) => {
+            (self as unknown as { __ubrPickerBoot?: typeof bootArgs }).__ubrPickerBoot = bootArgs;
+        },
+        args: [ boot ],
+    });
+    await chrome.scripting.executeScript({
+        target,
+        files: [
+            '/js/scripting/tool-overlay.js',
+            '/js/scripting/picker.js',
+        ],
+    });
 };
 
 const cloneObject = <T>(value: T): T => JSON.parse(JSON.stringify(value));
@@ -1175,6 +1259,58 @@ const syncFirewallDnrRules = async () => {
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
 };
 
+const compilePowerSwitchDnrRules = (perSiteFiltering: Record<string, boolean>) => {
+    const addRules: chrome.declarativeNetRequest.Rule[] = [];
+    let nextRuleId = POWER_RULE_ID_MIN;
+    const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    for ( const [ scopeKey, enabled ] of Object.entries(perSiteFiltering).sort(([ a ], [ b ]) => a.localeCompare(b)) ) {
+        if ( enabled !== false ) { continue; }
+        if ( nextRuleId > POWER_RULE_ID_MAX ) { break; }
+
+        const separator = scopeKey.indexOf(':http');
+        const isPageScoped = separator !== -1;
+        const hostname = isPageScoped ? scopeKey.slice(0, separator) : scopeKey;
+        const scopedURL = isPageScoped ? scopeKey.slice(separator + 1) : '';
+
+        const condition: chrome.declarativeNetRequest.RuleCondition = {
+            resourceTypes: [
+                'main_frame' as chrome.declarativeNetRequest.ResourceType,
+                'sub_frame' as chrome.declarativeNetRequest.ResourceType,
+            ],
+        };
+
+        if ( isPageScoped ) {
+            condition.regexFilter = `^${escapeRegex(scopedURL)}$`;
+        } else if ( hostname !== '' ) {
+            condition.requestDomains = [ hostname ];
+        } else {
+            continue;
+        }
+
+        addRules.push({
+            id: nextRuleId++,
+            priority: 3_000_000,
+            action: { type: 'allowAllRequests' },
+            condition,
+        });
+    }
+
+    return addRules;
+};
+
+const syncPowerSwitchDnrRules = async () => {
+    if ( chrome.declarativeNetRequest === undefined ) { return; }
+    const stored = await chrome.storage.local.get('perSiteFiltering');
+    const perSiteFiltering: Record<string, boolean> = stored?.perSiteFiltering || {};
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeRuleIds = existingRules
+        .map(rule => rule.id)
+        .filter(id => id >= POWER_RULE_ID_MIN && id <= POWER_RULE_ID_MAX);
+    const addRules = compilePowerSwitchDnrRules(perSiteFiltering);
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+};
+
 const zeroHostnameDetails = (hostname: string): HostnameDetails => ({
     domain: domainFromHostname(hostname),
     counts: createCounts(),
@@ -1446,6 +1582,19 @@ const getPopupData = async (request: PopupRequest) => {
         mergeCounts(pageCounts, liveState.pageCounts);
     }
 
+    // Get per-site filtering state
+    const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
+    const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
+    
+    // Determine if filtering is enabled for this page
+    let netFilteringEnabled = true;
+    if (pageHostname) {
+        const pageScopeKey = pageHostname;
+        const pageUrlScopeKey = `${pageHostname}:${pageURL}`;
+        // Check page-specific setting first, then hostname setting
+        netFilteringEnabled = perSiteFiltering[pageUrlScopeKey] ?? perSiteFiltering[pageScopeKey] ?? true;
+    }
+
     return {
         advancedUserEnabled: popupState.userSettings.advancedUserEnabled,
         appName: chrome.runtime.getManifest().name,
@@ -1474,7 +1623,7 @@ const getPopupData = async (request: PopupRequest) => {
         tabTitle: pageTitle,
         tooltipsDisabled: popupState.userSettings.tooltipsDisabled,
         userFiltersAreEnabled: true,
-        netFilteringSwitch: true,
+        netFilteringSwitch: netFilteringEnabled,
         canElementPicker: /^https?:/.test(pageURL),
         noPopups: false,
         noCosmeticFiltering: false,
@@ -1603,6 +1752,9 @@ const setUserSetting = async (request: PopupRequest) => {
     if ( typeof request.name === 'string' ) {
         (popupState.userSettings as Record<string, any>)[request.name] = request.value;
         await persistUserSettings();
+        if ( request.name === 'contextMenuEnabled' ) {
+            createContextMenu();
+        }
     }
     return { ...popupState.userSettings };
 };
@@ -1611,12 +1763,17 @@ const handlePopupPanelMessage = async (request: PopupRequest) => {
     switch ( request.what ) {
     case 'getPopupData':
         return getPopupData(request);
+    case 'toggleNetFiltering':
+        return handleDashboardMessage(request);
     case 'toggleFirewallRule':
         return toggleFirewallRule(request);
     case 'saveFirewallRules':
         return saveFirewallRules(request);
     case 'revertFirewallRules':
         return revertFirewallRules(request);
+    case 'getScriptCount':
+    case 'getHiddenElementCount':
+        return 0;
     case 'userSettings':
         return setUserSetting(request);
     default:
@@ -1642,10 +1799,65 @@ const handleDashboardMessage = async (request: PopupRequest) => {
         return updateFilterListsNow(request as { assetKeys?: string[]; preferOrigin?: boolean });
     case 'userSettings':
         return setUserSetting(request);
+    case 'toggleNetFiltering': {
+        // Handle power switch toggle - enable/disable filtering for a site
+        const { url, scope, state, tabId } = request;
+        if (!url || !tabId) { return getPopupData(request); }
+        
+        // Extract hostname from URL
+        let hostname = '';
+        try {
+            hostname = new URL(url).hostname;
+        } catch {
+            return getPopupData(request);
+        }
+        
+        // Get current per-site filtering settings
+        const stored = await chrome.storage.local.get('perSiteFiltering');
+        const perSiteFiltering: Record<string, boolean> = stored?.perSiteFiltering || {};
+        
+        // Determine scope (page or entire site)
+        const scopeKey = scope === 'page' ? `${hostname}:${url}` : hostname;
+        
+        // Set the filtering state
+        perSiteFiltering[scopeKey] = state;
+        
+        // Save to storage
+        await chrome.storage.local.set({ perSiteFiltering: perSiteFiltering });
+        await syncPowerSwitchDnrRules();
+        
+        // Notify content script about the change
+        if ( tabId ) {
+            try {
+                const result = chrome.tabs.sendMessage(tabId, {
+                    topic: 'uBlockPowerSwitch',
+                    payload: {
+                        enabled: state === true,
+                    },
+                }) as Promise<unknown> | undefined;
+                result?.catch(() => {});
+            } catch {
+            }
+        }
+        
+        console.log('[MV3] toggleNetFiltering:', scopeKey, '=', state);
+        
+        return getPopupData(request);
+    }
+    case 'reloadTab': {
+        const { tabId, bypassCache } = request;
+        if (tabId) {
+            chrome.tabs.reload(tabId, { bypassCache: !!bypassCache });
+        }
+        return {};
+    }
     default:
         return undefined;
     }
 };
+
+// Sync DNR rules based on per-site filtering state - existing function handles this
+// The syncPowerSwitchDnrRules function already exists and is called below
 
 const Messaging = (() => {
     const portMap = new Map<string, chrome.runtime.Port>();
@@ -1674,6 +1886,26 @@ const Messaging = (() => {
         if (!message || !message.topic) return;
 
         const { topic, payload, seq } = message;
+
+        if ( topic === 'popupPanel' || topic === 'dashboard' ) {
+            try {
+                const response = topic === 'popupPanel'
+                    ? await handlePopupPanelMessage(payload || {})
+                    : await handleDashboardMessage(payload || {});
+                if ( seq !== undefined ) {
+                    port.postMessage({ seq, payload: response });
+                }
+            } catch (error) {
+                if ( seq !== undefined ) {
+                    port.postMessage({
+                        seq,
+                        payload: { error: (error as Error).message },
+                    });
+                }
+            }
+            return;
+        }
+
         const handler = handlers.get(topic);
 
         if (handler) {
@@ -1716,7 +1948,9 @@ const Messaging = (() => {
         // Handle dashboard and popupPanel natively without legacy backend
         if ( channel === 'dashboard' || channel === 'popupPanel' ) {
             try {
-                const response = await handleDashboardMessage(msg || {});
+                const response = channel === 'popupPanel'
+                    ? await handlePopupPanelMessage(msg || {})
+                    : await handleDashboardMessage(msg || {});
                 respond(response);
             } catch (error) {
                 respond({ error: (error as Error).message });
@@ -1774,6 +2008,7 @@ const Messaging = (() => {
         sender: chrome.runtime.MessageSender,
         sendResponse: (response?: any) => void
     ): boolean {
+        console.log('[MV3] handleRuntimeMessage received:', message.topic, message);
         if (!message || !message.topic) return false;
 
         const { topic, payload, seq } = message;
@@ -1782,7 +2017,25 @@ const Messaging = (() => {
             return handleContentScriptMessage(message, sender, sendResponse);
         }
 
+        if ( topic === 'popupPanel' || topic === 'dashboard' ) {
+            Promise.resolve(
+                topic === 'popupPanel'
+                    ? handlePopupPanelMessage(payload || {})
+                    : handleDashboardMessage(payload || {}),
+            ).then(response => {
+                if ( seq !== undefined ) {
+                    sendResponse({ seq, payload: response });
+                } else {
+                    sendResponse(response);
+                }
+            }).catch(error => {
+                sendResponse({ error: (error as Error).message });
+            });
+            return true;
+        }
+
         const handler = handlers.get(topic);
+        console.log('[MV3] Handler for', topic, ':', handler ? 'found' : 'not found');
         if (handler) {
             try {
                 const result = handler(payload, (response: any) => {
@@ -1856,7 +2109,9 @@ const Messaging = (() => {
             for (const tab of tabs) {
                 if (tab.id) {
                     try {
-                        chrome.tabs.sendMessage(tab.id, { topic, payload });
+                        chrome.tabs.sendMessage(tab.id, { topic, payload }, () => {
+                            void chrome.runtime?.lastError;
+                        });
                     } catch (e) {
                     }
                 }
@@ -1873,14 +2128,26 @@ const Messaging = (() => {
     }
 
     function sendToTab(tabId: number, topic: string, payload?: any, callback?: (response: any) => void) {
-        chrome.tabs.sendMessage(tabId, { topic, payload }, callback);
+        chrome.tabs.sendMessage(tabId, { topic, payload }, (response) => {
+            if ( chrome.runtime?.lastError ) {
+                if ( typeof callback === 'function' ) {
+                    callback(undefined);
+                }
+                return;
+            }
+            if ( typeof callback === 'function' ) {
+                callback(response);
+            }
+        });
     }
 
     function sendToAllTabs(topic: string, payload?: any) {
         chrome.tabs.query({}, (tabs) => {
             for (const tab of tabs) {
                 if (tab.id) {
-                    chrome.tabs.sendMessage(tab.id, { topic, payload });
+                    chrome.tabs.sendMessage(tab.id, { topic, payload }, () => {
+                        void chrome.runtime?.lastError;
+                    });
                 }
             }
         });
@@ -2094,6 +2361,22 @@ const Picker = (() => {
         }
     });
 
+    // Handle element picker arguments request (for epicker.js)
+    Messaging.on('elementPicker', (payload, callback) => {
+        if (payload?.what === 'elementPickerArguments') {
+            callback({
+                target: epickerArgs.target,
+                mouse: epickerArgs.mouse,
+                zap: epickerArgs.zap,
+                pickerURL: '/web_accessible_resources/epicker-ui.html',
+            });
+            // Clear target after returning
+            epickerArgs.target = '';
+        } else {
+            callback({});
+        }
+    });
+
     return {
         activate,
         deactivate,
@@ -2108,6 +2391,20 @@ Messaging.on('ping', (_, callback) => {
     if (callback) callback({ pong: true, timestamp: Date.now() });
 });
 
+    // Handle popupPanel messages (including toggleNetFiltering)
+    console.log('[MV3] Registering popupPanel handler');
+    Messaging.on('popupPanel', async (payload, callback) => {
+        console.log('[MV3] popupPanel message received:', payload);
+        try {
+            const result = await handlePopupPanelMessage(payload);
+            console.log('[MV3] popupPanel result:', result);
+            if (callback) callback(result);
+        } catch (e) {
+            console.error('[MV3] popupPanel error:', e);
+            if (callback) callback({ error: (e as Error).message });
+        }
+    });
+
 // Content script handlers for MV3
 Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
     console.log('[MV3] retrieveContentScriptParameters:', payload);
@@ -2115,6 +2412,12 @@ Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
         const tabId = payload?._tabId;
         const url = payload?.url || '';
         const hostname = url ? new URL(url).hostname : '';
+        const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
+        const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
+        const pageScopeKey = hostname !== '' && url !== '' ? `${hostname}:${url}` : '';
+        const netFilteringEnabled = hostname === ''
+            ? true
+            : perSiteFiltering[pageScopeKey] ?? perSiteFiltering[hostname] ?? true;
         
         // Get user settings from storage
         const stored = await chrome.storage.local.get('userSettings');
@@ -2136,7 +2439,7 @@ Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
             hostname: hostname,
             ignoreGenericCosmeticFilters: userSettings.ignoreGenericCosmeticFilters === true,
             ioPush: () => {},
-            noCosmeticFiltering: false,
+            noCosmeticFiltering: netFilteringEnabled === false,
             parseAllABPHideFilters: userSettings.parseAllABPHideFilters === true,
             popupPanelType: 'legacy',
             removeWLCollections: () => {},
@@ -2161,9 +2464,21 @@ Messaging.on('retrieveGenericCosmeticSelectors', async (payload, callback) => {
     try {
         const tabId = payload?._tabId;
         const hostname = payload?.hostname || '';
+        const pageURL = payload?.url || '';
         const hashes = payload?.hashes || [];
         const exceptions = payload?.exceptions || [];
         const safeOnly = payload?.safeOnly === true;
+        const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
+        const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
+        const pageScopeKey = hostname !== '' && pageURL !== '' ? `${hostname}:${pageURL}` : '';
+        const netFilteringEnabled = hostname === ''
+            ? true
+            : perSiteFiltering[pageScopeKey] ?? perSiteFiltering[hostname] ?? true;
+        if ( netFilteringEnabled === false ) {
+            const result = { injectedCSS: '', excepted: [] };
+            if (callback) callback({ result });
+            return;
+        }
         
         // Load stored cosmetic filters
         const stored = await chrome.storage.local.get('cosmeticFiltersData');
@@ -2278,6 +2593,31 @@ Messaging.on('dashboardResetRules', async (_, callback) => {
         callback(details);
     }
     return details;
+});
+
+Messaging.on('pickerContextMenuPoint', (payload, callback) => {
+    const tabId = typeof payload?._tabId === 'number' ? payload._tabId : payload?._sender?.tab?.id;
+    const frameId = typeof payload?._sender?.frameId === 'number' ? payload._sender.frameId : 0;
+    if (
+        typeof tabId === 'number' &&
+        typeof payload?.x === 'number' &&
+        typeof payload?.y === 'number'
+    ) {
+        pickerContextPoints.set(pickerContextPointKey(tabId, frameId), {
+            tabId,
+            frameId,
+            x: payload.x,
+            y: payload.y,
+            timestamp: Date.now(),
+            target: payload?.target && typeof payload.target.selector === 'string'
+                ? { selector: payload.target.selector }
+                : undefined,
+        });
+    }
+    if ( callback ) {
+        callback({ success: true });
+    }
+    return { success: true };
 });
 
 chrome.commands.onCommand.addListener((command) => {
@@ -2460,6 +2800,7 @@ ensurePopupState()
     .then(() => {
         syncFirewallDnrRules();
         syncFilterListDnrRules();
+        syncPowerSwitchDnrRules();
     })
     .catch(error => {
         console.error('Failed to initialize popup/firewall state', error);
@@ -2474,3 +2815,80 @@ ensurePopupState()
 (self as any).Messaging = Messaging;
 (self as any).Zapper = Zapper;
 (self as any).Picker = Picker;
+
+// elementPickerExec - called from context menu to launch the element picker
+(self as any).µb = {
+    elementPickerExec: async function(tabId: number, frameId: number, target?: string) {
+        // Match the popup picker path: always launch in the top page frame.
+        // Keep the saved point/target when it came from the top frame, and only
+        // fall back to the clicked frame's stored point if needed.
+        const point = getPickerContextPoint(tabId, 0) || getPickerContextPoint(tabId, frameId);
+        await launchPickerInTab(tabId, 0, {
+            initialPoint: point ? { x: point.x, y: point.y } : undefined,
+            target,
+            exactTarget: point?.target,
+        });
+        return { success: true };
+    },
+    userSettings: popupState.userSettings,
+};
+
+// Create context menu for "Block element..."
+function createContextMenu() {
+    if (typeof chrome.contextMenus === 'undefined') {
+        console.log('[MV3] chrome.contextMenus not available');
+        return;
+    }
+    
+    chrome.contextMenus.removeAll(() => {
+        if ( popupState.userSettings.contextMenuEnabled === false ) {
+            return;
+        }
+        chrome.contextMenus.create({
+            id: 'uBlock0-blockElement',
+            title: 'Block element...',
+            contexts: ['all'],
+            documentUrlPatterns: ['http://*/*', 'https://*/*']
+        }, () => {
+            console.log('[MV3] Context menu created');
+        });
+    });
+}
+
+chrome.contextMenus?.onClicked?.addListener((details, tab) => {
+    if (details.menuItemId === 'uBlock0-blockElement' && tab) {
+        const tabId = tab.id;
+        if ( typeof tabId !== 'number' ) { return; }
+        const frameId = typeof details.frameId === 'number' ? details.frameId : 0;
+        let target = '';
+        
+        // Build target from context menu details
+        if (details.linkUrl) {
+            target = `a\t${details.linkUrl}`;
+        } else if (details.srcUrl) {
+            if (details.mediaType === 'image') {
+                target = `img\t${details.srcUrl}`;
+            } else if (details.mediaType === 'video') {
+                target = `video\t${details.srcUrl}`;
+            } else if (details.mediaType === 'audio') {
+                target = `audio\t${details.srcUrl}`;
+            } else {
+                target = `${details.tagName || 'img'}\t${details.srcUrl}`;
+            }
+        } else if (details.frameUrl) {
+            target = `iframe\t${details.frameUrl}`;
+        } else if (details.tagName) {
+            target = details.tagName;
+        }
+        
+        console.log('[MV3] Context menu clicked - target:', target);
+        
+        // Call elementPickerExec
+        void (self as any).µb.elementPickerExec(tabId, frameId, target).catch(error => {
+            console.error('[MV3] Failed to launch picker from context menu', error);
+        });
+    }
+});
+
+// Create context menu on service worker startup
+createContextMenu();

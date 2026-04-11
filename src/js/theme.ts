@@ -138,7 +138,7 @@ interface UIThemeResponse {
 }
 
 {
-    vAPI.messaging.send('dom', { what: 'uiStyles' }).then(response => {
+    Promise.resolve(vAPI.messaging?.send?.('dom', { what: 'uiStyles' })).then(response => {
         if ( typeof response !== 'object' || response === null ) { return; }
         const r = response as UIThemeResponse;
         setTheme(r.uiTheme);
@@ -153,6 +153,7 @@ interface UIThemeResponse {
         if ( r.uiStyles !== 'unset' ) {
             document.body.style.cssText = r.uiStyles;
         }
+    }).catch(() => {
     });
 
     const rootcl = document.documentElement.classList;

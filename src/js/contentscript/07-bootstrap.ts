@@ -64,6 +64,7 @@ interface VAPI {
 }
 
 declare const vAPI: VAPI;
+declare const chrome: typeof globalThis.chrome;
 
 interface CFEDetails {
     ready: boolean;
@@ -86,6 +87,19 @@ type StorageBin = {
     'user-filters'?: string;
     selectedFilterLists?: string[];
 };
+
+type ContextMenuTargetDetails = {
+    selector: string;
+};
+
+const blockLikeTags = new Set([
+    'article',
+    'aside',
+    'div',
+    'li',
+    'main',
+    'section',
+]);
 
 const userFilterStyleId = 'ublock-resurrected-user-filters';
 
@@ -163,11 +177,145 @@ const collectStoredCosmeticSelectors = (rawFilters: string, pageHostname: string
     return selectors;
 };
 
+const cssEscape = (value: string): string => {
+    if ( typeof CSS !== 'undefined' && typeof CSS.escape === 'function' ) {
+        return CSS.escape(value);
+    }
+    return value.replace(/[^a-zA-Z0-9_-]/g, '\\$&');
+};
+
+const nthOfTypeIndex = (elem: Element): number => {
+    let index = 1;
+    let prev = elem.previousElementSibling;
+    while ( prev !== null ) {
+        if ( prev.localName === elem.localName ) {
+            index += 1;
+        }
+        prev = prev.previousElementSibling;
+    }
+    return index;
+};
+
+const distanceToAncestor = (start: Element, matcher: string): { element: Element; distance: number } | undefined => {
+    let current: Element | null = start;
+    let distance = 0;
+    while ( current !== null && current !== document.documentElement ) {
+        if ( current.matches(matcher) ) {
+            return { element: current, distance };
+        }
+        current = current.parentElement;
+        distance += 1;
+    }
+};
+
+const buildContextMenuTargetSelector = (elem: Element | null): string => {
+    if ( elem === null ) { return ''; }
+
+    const parts: string[] = [];
+    let current: Element | null = elem;
+    let depth = 0;
+
+    while ( current !== null && current !== document.documentElement && depth < 5 ) {
+        let part = current.localName || '*';
+        const id = current.getAttribute('id') || '';
+        if ( id !== '' ) {
+            part += `#${cssEscape(id)}`;
+            parts.unshift(part);
+            break;
+        }
+
+        const classAttr = current.getAttribute('class') || '';
+        const classes = classAttr
+            .split(/\s+/)
+            .map(token => token.trim())
+            .filter(Boolean)
+            .slice(0, 6);
+        if ( classes.length !== 0 ) {
+            part += classes.map(name => `.${cssEscape(name)}`).join('');
+        }
+
+        const href = current.getAttribute('href');
+        if ( href ) {
+            part += `[href="${cssEscape(href)}"]`;
+        }
+        const src = current.getAttribute('src');
+        if ( src ) {
+            part += `[src="${cssEscape(src)}"]`;
+        }
+        const eventAction = current.getAttribute('data-event-action');
+        if ( eventAction ) {
+            part += `[data-event-action="${cssEscape(eventAction)}"]`;
+        }
+
+        if ( classes.length === 0 && !href && !src && !eventAction ) {
+            part += `:nth-of-type(${nthOfTypeIndex(current)})`;
+        }
+
+        parts.unshift(part);
+        current = current.parentElement;
+        depth += 1;
+    }
+
+    return parts.join(' > ');
+};
+
+const getContextMenuTargetDetails = (ev: MouseEvent): ContextMenuTargetDetails | undefined => {
+    const rawTarget = ev.target;
+    const element = rawTarget instanceof Element
+        ? rawTarget
+        : rawTarget instanceof Node
+            ? rawTarget.parentElement
+            : null;
+    if ( element === null ) { return; }
+
+    const actionable = distanceToAncestor(
+        element,
+        'a[href], img[src], iframe[src], video[src], audio[src], [data-event-action], [href], [src]',
+    );
+    const identifiable = distanceToAncestor(element, '[id]');
+    const actionableElement = actionable?.element;
+    const actionableTag = actionableElement?.localName || '';
+    const actionableEvent = actionableElement?.getAttribute('data-event-action') || '';
+    const identifiableElement = identifiable?.element;
+    const identifiableTag = identifiableElement?.localName || '';
+
+    // Prefer the nearest meaningful exact element:
+    // - if the click landed directly on an element with an id, use it
+    // - if the actionable target is an explicit "title", keep it
+    // - if a nearby block-like id container wraps an actionable link, prefer the container
+    // - otherwise use the closer actionable/id ancestor
+    const preferred = identifiable?.distance === 0
+        ? identifiable.element
+        : actionableEvent === 'title'
+            ? actionableElement
+        : identifiable && actionable
+            ? actionableTag === 'a' &&
+              blockLikeTags.has(identifiableTag) &&
+              identifiable.distance <= actionable.distance + 2
+                ? identifiable.element
+                : identifiable.distance <= actionable.distance + 1
+                ? identifiable.element
+                : actionable.element
+            : actionable?.element ||
+              identifiable?.element ||
+              element.closest('[class]') ||
+              element;
+    const selector = buildContextMenuTargetSelector(preferred);
+    if ( selector === '' ) { return; }
+    return { selector };
+};
+
 const applyStoredUserFilters = async (): Promise<void> => {
     const pageHostname = self.location.hostname;
     if ( pageHostname === '' ) { return; }
 
-    const bin = await storageGet([ 'user-filters', 'selectedFilterLists' ]);
+    const bin = await storageGet([ 'user-filters', 'selectedFilterLists', 'perSiteFiltering' ]);
+    const perSiteFiltering = (bin.perSiteFiltering || {}) as Record<string, boolean>;
+    const pageURL = self.location.href;
+    const pageScopeKey = `${pageHostname}:${pageURL}`;
+    const netFilteringEnabled =
+        perSiteFiltering[pageScopeKey] ?? perSiteFiltering[pageHostname] ?? true;
+    if ( netFilteringEnabled === false ) { return; }
     if ( Array.isArray(bin.selectedFilterLists) === false ) { return; }
     if ( bin.selectedFilterLists.includes('user-filters') === false ) { return; }
     if ( typeof bin['user-filters'] !== 'string' || bin['user-filters'].trim() === '' ) {
@@ -186,6 +334,20 @@ const applyStoredUserFilters = async (): Promise<void> => {
     style.textContent = selectors
         .map(selector => `${selector}\n{display:none!important;}`)
         .join('\n');
+};
+
+const applyImmediatePowerSwitchState = async (enabled: boolean): Promise<void> => {
+    const style = document.getElementById(userFilterStyleId);
+    if ( enabled ) {
+        await applyStoredUserFilters();
+        vAPI.domFilterer?.toggle?.(true);
+        vAPI.domFilterer?.commitNow?.();
+        return;
+    }
+
+    style?.remove();
+    vAPI.domFilterer?.toggle?.(false);
+    vAPI.domFilterer?.commitNow?.();
 };
 
 export function initBootstrap(): void {
@@ -227,10 +389,30 @@ export function initBootstrap(): void {
             });
         };
 
+        const onContextMenu = function(ev: MouseEvent): void {
+            if ( ev.isTrusted === false ) { return; }
+            if ( chrome?.runtime?.sendMessage instanceof Function === false ) { return; }
+            vAPI.mouseClick.x = ev.clientX;
+            vAPI.mouseClick.y = ev.clientY;
+            const target = getContextMenuTargetDetails(ev);
+            const result = chrome.runtime.sendMessage({
+                topic: 'pickerContextMenuPoint',
+                payload: {
+                    x: ev.clientX,
+                    y: ev.clientY,
+                    pageURL: window.location.href,
+                    target,
+                },
+            }) as Promise<unknown> | undefined;
+            result?.catch(() => {});
+        };
+
         document.addEventListener('mousedown', onMouseClick, true);
+        document.addEventListener('contextmenu', onContextMenu, true);
 
         vAPI.shutdown.add(function(): void {
             document.removeEventListener('mousedown', onMouseClick, true);
+            document.removeEventListener('contextmenu', onContextMenu, true);
         });
     };
 
@@ -300,6 +482,25 @@ export function initBootstrap(): void {
         console.log('[MV3-CS] Page URL:', vAPI.effectiveSelf.location.href);
         console.log('[MV3-CS] About to call vAPI.messaging.send');
 
+        // Set up pickerActivate listener
+        if (typeof chrome !== 'undefined' && chrome.runtime?.onMessage) {
+            chrome.runtime.onMessage.addListener((message: unknown, _sender: unknown, sendResponse: unknown) => {
+                const msg = message as { topic?: string; payload?: unknown };
+                if (msg?.topic === 'pickerActivate') {
+                    console.log('[MV3-CS] pickerActivate received');
+                    // Inject epicker.js when picker is activated from context menu
+                    injectEpickerScript();
+                }
+                if (msg?.topic === 'pickerDeactivate') {
+                    console.log('[MV3-CS] pickerDeactivate received');
+                }
+                if (msg?.topic === 'uBlockPowerSwitch') {
+                    const enabled = (msg.payload as { enabled?: boolean } | undefined)?.enabled === true;
+                    void applyImmediatePowerSwitchState(enabled);
+                }
+            });
+        }
+
         applyStoredUserFilters().catch(err => {
             console.error('[MV3-CS] Stored user filters error:', err);
         }).finally(() => {
@@ -318,6 +519,30 @@ export function initBootstrap(): void {
                 console.error('[MV3-CS] Promise error:', err);
             });
         });
+    };
+
+    // Function to inject epicker.js into the page
+    const injectEpickerScript = async (): Promise<void> => {
+        console.log('[MV3-CS] injectEpickerScript called');
+        const epickerUrl = vAPI.extensionURL('/js/scriptlets/epicker.js');
+        console.log('[MV3-CS] epicker URL:', epickerUrl);
+        
+        try {
+            // Create script element
+            const script = document.createElement('script');
+            script.src = epickerUrl;
+            script.id = 'ublock-epicker';
+            script.async = false;
+            
+            // Note: This injects into the content script context, not page context
+            // For full page context injection, we need chrome.scripting.executeScript
+            // But for now, let's just create the script element
+            (document.documentElement || document.head || document.body)?.appendChild(script);
+            
+            console.log('[MV3-CS] epicker.js script element added to DOM');
+        } catch (e) {
+            console.error('[MV3-CS] Failed to inject epicker script:', e);
+        }
     };
 }
 

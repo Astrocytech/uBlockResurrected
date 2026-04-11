@@ -55,6 +55,7 @@
   },
   "permissions": [
     "alarms",
+    "contextMenus",
     "declarativeNetRequest",
     "downloads",
     "privacy",

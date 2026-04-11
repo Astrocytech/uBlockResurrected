@@ -130,7 +130,7 @@
         },
 
         postMessage: function(msg) {
-            if (this.port === null) { return; }
+            if (this.port === null) { return Promise.resolve(); }
             var wrapped = {
                 fromFrameId: this.messageId++,
                 msg: msg

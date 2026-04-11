@@ -123,13 +123,17 @@ export function initDOMWatcher(afterInit?: () => void): void {
             subtree: true
         });
         safeObserverHandlerTimer = new vAPI.SafeAnimationFrame(safeObserverHandler);
-        vAPI.shutdown.add(cleanup);
+        if ( vAPI?.shutdown?.add instanceof Function ) {
+            vAPI.shutdown.add(cleanup);
+        }
     };
 
     const stopMutationObserver = function(): void {
         if ( domLayoutObserver === undefined ) { return; }
         cleanup();
-        vAPI.shutdown.remove(cleanup);
+        if ( vAPI?.shutdown?.remove instanceof Function ) {
+            vAPI.shutdown.remove(cleanup);
+        }
     };
 
     const getListenerIterator = function(): DOMListener[] {

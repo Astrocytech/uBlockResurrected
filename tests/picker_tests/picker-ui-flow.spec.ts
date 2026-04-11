@@ -150,6 +150,308 @@ test.describe('Picker UI Flow', () => {
         }));
     });
 
+    test('picker startup primes the highlight without opening the dialog', async ({ page }) => {
+        const html = await readFile(pickerHtmlPath, 'utf8');
+        const pickerUiScript = await readFile(pickerUiPath, 'utf8');
+
+        await page.setContent(
+            html.replace(/<script[\s\S]*?<\/script>/g, ''),
+            { waitUntil: 'domcontentloaded' },
+        );
+
+        await page.evaluate(() => {
+            const globalWindow = window as typeof window & {
+                faIconsInit?: () => void;
+                toolOverlay?: unknown;
+                __startToolCalls?: number;
+            };
+            globalWindow.__startToolCalls = 0;
+            globalWindow.faIconsInit = () => {};
+            globalWindow.toolOverlay = {
+                start(onmessage: (msg: { what: string }) => void) {
+                    onmessage({ what: 'startTool' });
+                },
+                stop() {},
+                highlightElementUnderMouse() {},
+                postMessage(msg: { what: string }) {
+                    if ( msg.what === 'startTool' ) {
+                        globalWindow.__startToolCalls = (globalWindow.__startToolCalls || 0) + 1;
+                        return Promise.resolve({
+                            primed: true,
+                            highlighted: true,
+                        });
+                    }
+                    if ( msg.what === 'highlightFromSelector' ) {
+                        return Promise.resolve({ count: 1 });
+                    }
+                    return Promise.resolve();
+                },
+            };
+        });
+
+        await page.addScriptTag({ content: pickerUiScript });
+
+        await expect(page.locator('html')).not.toHaveClass(/paused/);
+        await expect(page.locator('#filterText')).toHaveValue('');
+        await expect(page.locator('#cosmeticFilters .changeFilter li')).toHaveCount(0);
+        await expect.poll(async () => {
+            return page.evaluate(() =>
+                (window as typeof window & { __startToolCalls?: number }).__startToolCalls || 0,
+            );
+        }).toBe(1);
+    });
+
+    test('startup does not open the dialog until the user clicks an element', async ({ page }) => {
+        const html = await readFile(pickerHtmlPath, 'utf8');
+        const pickerUiScript = await readFile(pickerUiPath, 'utf8');
+
+        await page.setContent(
+            html.replace(/<script[\s\S]*?<\/script>/g, ''),
+            { waitUntil: 'domcontentloaded' },
+        );
+
+        await page.evaluate(() => {
+            const globalWindow = window as typeof window & {
+                faIconsInit?: () => void;
+                toolOverlay?: unknown;
+            };
+            globalWindow.faIconsInit = () => {};
+            globalWindow.toolOverlay = {
+                start(onmessage: (msg: { what: string }) => void) {
+                    onmessage({ what: 'startTool' });
+                },
+                stop() {},
+                highlightElementUnderMouse() {},
+                postMessage(msg: { what: string }) {
+                    if ( msg.what === 'startTool' ) {
+                        return Promise.resolve({
+                            primed: true,
+                            highlighted: true,
+                        });
+                    }
+                    return Promise.resolve();
+                },
+            };
+        });
+
+        await page.addScriptTag({ content: pickerUiScript });
+
+        await expect(page.locator('html')).not.toHaveClass(/paused/);
+        await expect(page.locator('#filterText')).toHaveValue('');
+        await expect(page.locator('#cosmeticFilters .changeFilter li')).toHaveCount(0);
+    });
+
+    test('boot startup highlights the exact clicked element instead of normalizing upward', async ({ page }) => {
+        const pickerScript = await readFile(
+            path.resolve(process.cwd(), 'src/js/scripting/picker.js'),
+            'utf8',
+        );
+
+        await page.setContent('<!doctype html><body><div class="card"><span id="picked">Label</span></div></body>', {
+            waitUntil: 'domcontentloaded',
+        });
+
+        const result = await page.evaluate((script) => {
+            const picked = document.getElementById('picked');
+            const card = document.querySelector('.card');
+            (window as typeof window & {
+                __bootResult?: unknown;
+                __highlightedTag?: string | null;
+                ubolOverlay?: unknown;
+                __ubrPickerBoot?: unknown;
+            }).__ubrPickerBoot = {
+                initialPoint: { x: 10, y: 10 },
+            };
+            (window as typeof window & { ubolOverlay?: unknown }).ubolOverlay = {
+                file: null,
+                frame: null,
+                start() {},
+                stop() {},
+                install(_file: string, onmessage: (msg: { what: string }) => unknown) {
+                    (window as typeof window & { __bootResult?: unknown }).__bootResult = onmessage({ what: 'startTool' });
+                },
+                elementFromPoint() {
+                    return picked;
+                },
+                elementsFromSelector(selector: string) {
+                    if ( selector === '#picked' || selector === 'span:nth-of-type(1)' ) {
+                        return { elems: [ picked ], error: undefined };
+                    }
+                    if ( selector === '.card' || selector === 'div.card' ) {
+                        return { elems: [ card ], error: undefined };
+                    }
+                    return { elems: [], error: undefined };
+                },
+                qsa(_node: ParentNode, selector: string) {
+                    return Array.from(document.querySelectorAll(selector));
+                },
+                highlightElements(elems: Element[]) {
+                    (window as typeof window & { __highlightedTag?: string | null }).__highlightedTag = elems[0]?.id || elems[0]?.className || null;
+                },
+                sendMessage() {
+                    return Promise.resolve();
+                },
+                postMessage() {
+                    return Promise.resolve();
+                },
+            };
+            eval(script);
+            return {
+                bootResult: (window as typeof window & { __bootResult?: unknown }).__bootResult as {
+                    primed?: boolean;
+                    highlighted?: boolean;
+                },
+                highlightedTag: (window as typeof window & { __highlightedTag?: string | null }).__highlightedTag,
+            };
+        }, pickerScript);
+
+        expect(result.bootResult.primed).toBe(true);
+        expect(result.bootResult.highlighted).toBe(true);
+        expect(result.highlightedTag).toBe('picked');
+    });
+
+    test('boot startup prefers exactTarget over an ambiguous initial point', async ({ page }) => {
+        const pickerScript = await readFile(
+            path.resolve(process.cwd(), 'src/js/scripting/picker.js'),
+            'utf8',
+        );
+
+        await page.setContent(
+            '<!doctype html><body><article><a class="invisible-when-pinned thumbnail outbound loggedin may-blank" data-event-action="thumbnail" href="https://example.com/story">Thumbnail</a><a class="outbound loggedin title may-blank" data-event-action="title" href="https://example.com/story"><span>Story title</span></a></article></body>',
+            { waitUntil: 'domcontentloaded' },
+        );
+
+        const result = await page.evaluate((script) => {
+            const thumbnail = document.querySelector('[data-event-action="thumbnail"]');
+            const title = document.querySelector('[data-event-action="title"]');
+            (window as typeof window & {
+                __bootResult?: unknown;
+                __highlightedAction?: string | null;
+                ubolOverlay?: unknown;
+                __ubrPickerBoot?: unknown;
+            }).__ubrPickerBoot = {
+                initialPoint: { x: 10, y: 10 },
+                exactTarget: {
+                    selector: 'a.outbound.loggedin.title.may-blank[href="https\\:\\/\\/example.com\\/story"][data-event-action="title"]',
+                },
+            };
+            (window as typeof window & { ubolOverlay?: unknown }).ubolOverlay = {
+                file: null,
+                frame: null,
+                start() {},
+                stop() {},
+                install(_file: string, onmessage: (msg: { what: string }) => unknown) {
+                    (window as typeof window & { __bootResult?: unknown }).__bootResult = onmessage({ what: 'startTool' });
+                },
+                elementFromPoint() {
+                    return thumbnail;
+                },
+                elementsFromSelector(selector: string) {
+                    return {
+                        elems: Array.from(document.querySelectorAll(selector)),
+                        error: undefined,
+                    };
+                },
+                qsa(_node: ParentNode, selector: string) {
+                    return Array.from(document.querySelectorAll(selector));
+                },
+                highlightElements(elems: Element[]) {
+                    (window as typeof window & { __highlightedAction?: string | null }).__highlightedAction =
+                        elems[0]?.getAttribute('data-event-action') || null;
+                },
+                sendMessage() {
+                    return Promise.resolve();
+                },
+                postMessage() {
+                    return Promise.resolve();
+                },
+            };
+            eval(script);
+            return {
+                bootResult: (window as typeof window & { __bootResult?: unknown }).__bootResult as {
+                    primed?: boolean;
+                    highlighted?: boolean;
+                },
+                highlightedAction: (window as typeof window & { __highlightedAction?: string | null }).__highlightedAction,
+                titleExists: Boolean(title),
+            };
+        }, pickerScript);
+
+        expect(result.titleExists).toBe(true);
+        expect(result.bootResult.primed).toBe(true);
+        expect(result.bootResult.highlighted).toBe(true);
+        expect(result.highlightedAction).toBe('title');
+    });
+
+    test('boot startup can prefer an id-bearing container over a nearby actionable link', async ({ page }) => {
+        const pickerScript = await readFile(
+            path.resolve(process.cwd(), 'src/js/scripting/picker.js'),
+            'utf8',
+        );
+
+        await page.setContent(
+            '<!doctype html><body><div id="_DErZab3nHNnJ0PEP5o_p2AU_61"><a class="zReHs" href="https://www.reddit.com/r/recruitinghell/comments/1mht84e/is_innodata_a_scam/" data-ved="2ahUKEwiE7bCG_eOTAxUxCjQIHbIvCH8QFnoECCMQAQ"><span>Innodata result</span></a></div></body>',
+            { waitUntil: 'domcontentloaded' },
+        );
+
+        const result = await page.evaluate((script) => {
+            const link = document.querySelector('a.zReHs');
+            (window as typeof window & {
+                __bootResult?: unknown;
+                __highlightedId?: string | null;
+                ubolOverlay?: unknown;
+                __ubrPickerBoot?: unknown;
+            }).__ubrPickerBoot = {
+                initialPoint: { x: 10, y: 10 },
+                exactTarget: {
+                    selector: 'div#_DErZab3nHNnJ0PEP5o_p2AU_61',
+                },
+            };
+            (window as typeof window & { ubolOverlay?: unknown }).ubolOverlay = {
+                file: null,
+                frame: null,
+                start() {},
+                stop() {},
+                install(_file: string, onmessage: (msg: { what: string }) => unknown) {
+                    (window as typeof window & { __bootResult?: unknown }).__bootResult = onmessage({ what: 'startTool' });
+                },
+                elementFromPoint() {
+                    return link;
+                },
+                elementsFromSelector(selector: string) {
+                    return {
+                        elems: Array.from(document.querySelectorAll(selector)),
+                        error: undefined,
+                    };
+                },
+                qsa(_node: ParentNode, selector: string) {
+                    return Array.from(document.querySelectorAll(selector));
+                },
+                highlightElements(elems: Element[]) {
+                    (window as typeof window & { __highlightedId?: string | null }).__highlightedId = elems[0]?.id || null;
+                },
+                sendMessage() {
+                    return Promise.resolve();
+                },
+                postMessage() {
+                    return Promise.resolve();
+                },
+            };
+            eval(script);
+            return {
+                bootResult: (window as typeof window & { __bootResult?: unknown }).__bootResult as {
+                    primed?: boolean;
+                    highlighted?: boolean;
+                },
+                highlightedId: (window as typeof window & { __highlightedId?: string | null }).__highlightedId,
+            };
+        }, pickerScript);
+
+        expect(result.bootResult.primed).toBe(true);
+        expect(result.bootResult.highlighted).toBe(true);
+        expect(result.highlightedId).toBe('_DErZab3nHNnJ0PEP5o_p2AU_61');
+    });
+
     test('manual filter editing keeps preview usable while Confirm enables for valid selectors', async ({ page }) => {
         const html = await readFile(pickerHtmlPath, 'utf8');
         const pickerUiScript = await readFile(pickerUiPath, 'utf8');

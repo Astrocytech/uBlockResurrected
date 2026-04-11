@@ -41,14 +41,15 @@ export function initCSPlistener(): void {
 
     const send = function(): void {
         if ( vAPI instanceof Object === false ) { return; }
-        vAPI.messaging.send('scriptlets', {
+        Promise.resolve(vAPI.messaging?.send?.('scriptlets', {
             what: 'securityPolicyViolation',
             type: 'net',
             docURL: document.location.href,
             violations: Array.from(newEvents),
-        }).then(response => {
+        })).then(response => {
             if ( response === true ) { return; }
             stop();
+        }).catch(() => {
         });
         for ( const event of newEvents ) {
             allEvents.add(event);
@@ -86,11 +87,13 @@ export function initCSPlistener(): void {
             timer = undefined;
         }
         document.removeEventListener('securitypolicyviolation', listener);
-        if ( vAPI ) { vAPI.shutdown.remove(stop); }
+        if ( vAPI?.shutdown?.remove instanceof Function ) { vAPI.shutdown.remove(stop); }
     };
 
     document.addEventListener('securitypolicyviolation', listener);
-    vAPI.shutdown.add(stop);
+    if ( vAPI?.shutdown?.add instanceof Function ) {
+        vAPI.shutdown.add(stop);
+    }
 
     sendAsync();
 }

@@ -80,7 +80,8 @@ hr {
     stroke-width: 64;
     }
 body.off #switch {
-    fill: var(--surface-1);
+    color: var(--checkbox-ink);
+    fill: var(--checkbox-ink);
     stroke: var(--checkbox-ink);
     }
 .rulesetTools {
@@ -219,6 +220,10 @@ portrait #basicStats > [data-i18n] + span {
 #basicTools .needPick .fa-icon {
     visibility: visible !important;
     }
+body.off #basicTools .needPick,
+#basicTools .needPick.hidden {
+    display: none;
+}
 
 #extraTools .fa-icon {
     align-self: center;

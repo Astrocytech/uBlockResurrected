@@ -155,7 +155,7 @@
         },
 
         postMessage: function(msg) {
-            if ( this.port === null ) { return; }
+            if ( this.port === null ) { return Promise.resolve(); }
             var wrapped = {
                 fromScriptId: this.messageId++,
                 msg: msg

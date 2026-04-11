@@ -84,9 +84,17 @@
         }
         try {
             var result = runtimeAPI.sendMessage(message);
-            if ( result instanceof Promise ) {
-                return result;
-            }
+            return Promise.resolve(result).catch(function() {
+            });
+        } catch {
+        }
+        return Promise.resolve();
+    }
+
+    function overlayPostMessage(message) {
+        try {
+            return Promise.resolve(toolOverlay.postMessage(message)).catch(function() {
+            });
         } catch {
         }
         return Promise.resolve();
@@ -219,11 +227,11 @@
         var filter = currentFilter();
         var selector = filterToSelector(filter);
         if ( selector === '' ) {
-            toolOverlay.postMessage({ what: 'unhighlight' });
+            void overlayPostMessage({ what: 'unhighlight' });
             updateElementCount({ count: 0, error: null });
             return;
         }
-        toolOverlay.postMessage({
+        overlayPostMessage({
             what: 'highlightFromSelector',
             selector: selector,
         }).then(function(result) {
@@ -312,7 +320,7 @@
             unpausePicker();
             return;
         }
-        toolOverlay.postMessage({
+        overlayPostMessage({
             what: 'candidatesAtPoint',
             mx: ev.clientX,
             my: ev.clientY,
@@ -365,11 +373,11 @@
         var filter = qs('#filterText').value.trim();
         var selector = filterToSelector(filter);
         if ( selector === '' ) {
-            toolOverlay.postMessage({ what: 'unhighlight' });
+            void overlayPostMessage({ what: 'unhighlight' });
             updateElementCount({ count: 0, error: null });
             return;
         }
-        toolOverlay.postMessage({
+        overlayPostMessage({
             what: 'highlightFromSelector',
             selector: selector,
         }).then(function(result) {
@@ -388,7 +396,7 @@
         updatePreview(false);
         Promise.allSettled([
             appendFilterToMyFilters(filter),
-            toolOverlay.postMessage({
+            overlayPostMessage({
                 what: 'confirmSelection',
                 filter: filter,
             }),
@@ -407,7 +415,7 @@
         if ( state ) {
             selector = filterToSelector(qs('#filterText').value.trim());
         }
-        return toolOverlay.postMessage({ what: 'previewSelector', selector: selector });
+        return overlayPostMessage({ what: 'previewSelector', selector: selector });
     }
 
     function pausePicker() {
@@ -424,7 +432,7 @@
     }
 
     function resetPicker() {
-        toolOverlay.postMessage({ what: 'unhighlight' });
+        void overlayPostMessage({ what: 'unhighlight' });
         unpausePicker();
     }
 
@@ -441,7 +449,7 @@
             faIconsInit();
         }
 
-        toolOverlay.postMessage({ what: 'startTool' });
+        void overlayPostMessage({ what: 'startTool' });
 
         localRead('picker.view').then(function() {});
 
