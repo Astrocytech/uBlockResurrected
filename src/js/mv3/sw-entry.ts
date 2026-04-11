@@ -309,6 +309,14 @@ const userSettingsDefault = {
     ignoreGenericCosmeticFilters: false,
     importedLists: [] as string[],
     largeMediaSize: 10485760,
+    netWhitelistDefault: [
+        'about:blank',
+        'about:srcdoc',
+        'http://127.0.0.1/*',
+        'http://localhost/*',
+        'https://127.0.0.1/*',
+        'https://localhost/*',
+    ],
     noCosmeticFiltering: false,
     noLargeMedia: false,
     noRemoteFonts: false,
@@ -325,6 +333,9 @@ const userSettingsDefault = {
     uiAccentCustom0: '#3498d6',
     uiTheme: 'auto',
 };
+
+const reWhitelistBadHostname = /[^a-z0-9.\-_[\]:]/;
+const reWhitelistHostnameExtractor = /([a-z0-9.\-_[\]]+)(?::[\d*]+)?\/(?:[^\x00-\x20/]|$)[^\x00-\x20]*$/;
 
 const firewallRuleTypes = [
     '*',
@@ -631,6 +642,7 @@ const popupState = {
     sessionFirewall: new DynamicFirewallRules(),
     permanentHostnameSwitches: {} as HostnameSwitchState,
     sessionHostnameSwitches: {} as HostnameSwitchState,
+    whitelist: [] as string[],
     globalAllowedRequestCount: 0,
     globalBlockedRequestCount: 0,
 };
@@ -744,6 +756,7 @@ const loadPopupState = async () => {
         'hostnameSwitchesVersion',
         'globalAllowedRequestCount',
         'globalBlockedRequestCount',
+        'whitelist',
     ]);
     Object.assign(
         popupState.userSettings,
@@ -767,6 +780,9 @@ const loadPopupState = async () => {
     popupState.globalBlockedRequestCount = typeof items.globalBlockedRequestCount === 'number'
         ? items.globalBlockedRequestCount
         : 0;
+    popupState.whitelist = typeof items.whitelist === 'string' 
+        ? items.whitelist.split('\n').filter(Boolean)
+        : [];
     popupState.initialized = true;
 };
 
@@ -3456,6 +3472,34 @@ Messaging.on('dashboardResetRules', async (_, callback) => {
         callback(details);
     }
     return details;
+});
+
+Messaging.on('getWhitelist', async (_, callback) => {
+    await ensurePopupState();
+    const response = {
+        whitelist: popupState.whitelist || [],
+        whitelistDefault: userSettingsDefault.netWhitelistDefault || [],
+        reBadHostname: reWhitelistBadHostname.source,
+        reHostnameExtractor: reWhitelistHostnameExtractor.source,
+    };
+    if ( callback ) {
+        callback(response);
+    }
+    return response;
+});
+
+Messaging.on('setWhitelist', async (payload, callback) => {
+    const whitelist = typeof payload?.whitelist === 'string' 
+        ? payload.whitelist.split('\n').filter(Boolean) 
+        : [];
+    await ensurePopupState();
+    popupState.whitelist = whitelist;
+    const storage = chrome.storage.local;
+    await storage.set({ whitelist: whitelist.join('\n') });
+    if ( callback ) {
+        callback({ success: true });
+    }
+    return { success: true };
 });
 
 Messaging.on('pickerContextMenuPoint', (payload, callback) => {

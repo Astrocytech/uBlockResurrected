@@ -86,6 +86,12 @@ npx esbuild 3p-filters.ts --bundle --format=iife --outfile=3p-filters-bundle.js 
 echo "*** Bundling dyna-rules.ts"
 npx esbuild dyna-rules.ts --bundle --format=iife --outfile=dyna-rules-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
+# Bundle whitelist.ts
+echo "*** Bundling whitelist.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/whitelist.ts --bundle --format=iife --outfile=$DES/js/whitelist-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
+
 # Bundle static-dnr-filtering.ts (required for filter list DNR rules)
 echo "*** Bundling static-dnr-filtering.ts"
 cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
