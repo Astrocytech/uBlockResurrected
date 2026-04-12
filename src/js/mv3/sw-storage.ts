@@ -1,0 +1,107 @@
+/*******************************************************************************
+
+    uBlock Origin - MV3 Storage
+    https://github.com/gorhill/uBlock
+
+    This file contains storage operations and popup state management.
+
+******************************************************************************/
+
+import { userSettingsDefault } from './sw-types.js';
+import { DynamicFirewallRules } from './sw-classes.js';
+
+export interface PopupState {
+    userSettings: typeof userSettingsDefault;
+    permanentFirewall: DynamicFirewallRules;
+    sessionFirewall: DynamicFirewallRules;
+    permanentHostnameSwitches: Record<string, Record<string, boolean>>;
+    sessionHostnameSwitches: Record<string, Record<string, boolean>>;
+    globalAllowedRequestCount: number;
+    globalBlockedRequestCount: number;
+    whitelist: string[];
+    initialized: boolean;
+    initPromise: Promise<void>;
+    tabMetrics: Record<number, { blocked?: number; allowed?: number; hasUnprocessedRequest?: boolean }>;
+}
+
+export const popupState: PopupState = {
+    userSettings: { ...userSettingsDefault },
+    permanentFirewall: new DynamicFirewallRules(),
+    sessionFirewall: new DynamicFirewallRules(),
+    permanentHostnameSwitches: {},
+    sessionHostnameSwitches: {},
+    globalAllowedRequestCount: 0,
+    globalBlockedRequestCount: 0,
+    whitelist: [],
+    initialized: false,
+    initPromise: Promise.resolve(),
+    tabMetrics: {},
+};
+
+export const ensurePopupState = async (): Promise<void> => {
+    if (popupState.initialized) return;
+    popupState.initPromise = popupState.initPromise.then(async () => {
+        if (popupState.initialized) return;
+    });
+    await popupState.initPromise;
+};
+
+export const persistUserSettings = async (): Promise<void> => {
+    await chrome.storage.local.set({ userSettings: popupState.userSettings });
+};
+
+export const getModifiedSettings = (current: Record<string, unknown>, defaults: Record<string, unknown>): Record<string, unknown> => {
+    const modified: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(current)) {
+        if (value !== defaults[key]) {
+            modified[key] = value;
+        }
+    }
+    return modified;
+};
+
+export const backupUserData = async (): Promise<void> => {
+    await ensurePopupState();
+    const storage = await chrome.storage.local.get(null);
+    const storageUsed = await chrome.storage.local.getBytesInUse(null);
+    const blob = new Blob([JSON.stringify(storage)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `ublock-backup-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+};
+
+export const restoreUserData = async (request: { userData?: unknown; file?: string }): Promise<void> => {
+    await ensurePopupState();
+    if (request.userData && typeof request.userData === 'object') {
+        await chrome.storage.local.set(request.userData as Record<string, unknown>);
+    }
+};
+
+export const getLocalData = async (): Promise<Record<string, unknown>> => {
+    const storageUsed = await chrome.storage.local.getBytesInUse(null);
+    const localData = (await chrome.storage.local.get('localData')).localData || {};
+    const userSettings = (await chrome.storage.local.get('userSettings')).userSettings || {};
+    return {
+        storageUsed,
+        lastBackupFile: localData.lastBackupFile || '',
+        lastBackupTime: localData.lastBackupTime || 0,
+        lastRestoreFile: localData.lastRestoreFile || '',
+        lastRestoreTime: localData.lastRestoreTime || 0,
+        cloudStorageSupported: userSettings.cloudStorageEnabled === true && typeof chrome.storage.sync !== 'undefined',
+    };
+};
+
+export const resetUserData = async (): Promise<void> => {
+    popupState.userSettings = { ...userSettingsDefault };
+    await persistUserSettings();
+    await chrome.storage.local.set({
+        selectedFilterLists: [],
+        filterLists: {},
+        netWhitelist: '',
+        whitelist: '',
+        dynamicRules: [],
+    });
+};

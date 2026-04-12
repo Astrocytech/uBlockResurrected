@@ -61,6 +61,10 @@ npx esbuild settings.ts --bundle --format=iife --outfile=settings-bundle.js --ta
 # Bundle storage.ts
 npx esbuild storage.ts --bundle --format=iife --outfile=storage-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
+# Bundle webext.ts (provides webext.storage for dashboard pages)
+echo "*** Bundling webext.ts"
+npx esbuild webext.ts --bundle --format=iife --outfile=webext-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
 # Bundle messaging.ts (external flag doesn't work for dynamic imports, use --bundle false)
 npx esbuild messaging.ts --bundle --format=iife --outfile=messaging-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 

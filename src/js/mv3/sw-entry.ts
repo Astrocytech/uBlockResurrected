@@ -7,7 +7,131 @@
     all background tasks including messaging, element picker/zapper, and
     DNR rule management.
 
-*******************************************************************************/
+******************************************************************************/
+
+import {
+    createCounts,
+    isIPAddress,
+    domainFromHostname,
+    formatCount,
+    dateNowToSensibleString,
+    adjustColor,
+    decomposeHostname,
+    isThirdParty,
+    delay,
+    mergeCounts,
+    cloneHostnameDetails,
+    zeroHostnameDetails,
+    getActiveTab,
+    getTabForRequest,
+    isOwnExtensionTab,
+    pickMostRelevantBrowsingTab,
+    updateToolbarIcon,
+    normalizeListEntries,
+    parseStoredCosmeticFilterData,
+    buildSpecificCosmeticPayload,
+    getHiddenElementCountForTab,
+    cloudPush,
+    cloudPull,
+    getDeviceName,
+    encodeCloudData,
+    decodeCloudData,
+    pickerContextPoints,
+    pickerContextPointKey,
+    getPickerContextPoint,
+} from './sw-helpers.js';
+
+import {
+    initContextMenu,
+} from './sw-context-menu.js';
+
+import {
+    legacyBackendState,
+    epickerArgs,
+    getLegacyMessaging,
+    broadcastFilteringBehaviorChanged,
+    broadcastFilteringBehaviorChangedToTabs,
+    withDisabledRuntimeOnConnect,
+} from './sw-messaging.js';
+
+import {
+    ensureTabRequestState,
+    persistTabRequestState,
+    loadTabRequestState,
+    loadTabRequestStateWithRetry,
+    clearTabRequestState,
+    tabRequestStates,
+    getTabRequestStateKey,
+    incrementCounts,
+} from './sw-request-tracking.js';
+
+import {
+    registerMessagingHandlers,
+} from './sw-messaging-handlers.js';
+
+import {
+    FILTER_LIST_USER_PATH,
+    FILTER_LIST_ASSETS_URL,
+    getFilterListState,
+    applyFilterListSelection,
+    reloadAllFilterLists,
+    updateFilterListsNow,
+    syncFilterListDnrRules,
+} from './sw-policies.js';
+
+import {
+    popupState,
+    ensurePopupState,
+} from './sw-storage.js';
+
+import {
+    createToggleHandlers,
+} from './sw-toggle-handlers.js';
+
+import {
+    createMessageHandlers,
+} from './sw-message-handlers.js';
+
+import {
+    createMessagingRouter,
+} from './sw-message-router.js';
+
+import {
+    pageStoreFromTabId,
+    mustLookup,
+    pageStores,
+    pageStoresToken,
+} from './sw-pagestore.js';
+
+import {
+    syncFirewallDnrRules,
+    syncWhitelistDnrRules,
+    syncPowerSwitchDnrRules,
+    syncHostnameSwitchDnrRules,
+    getFirewallRulesForPopup,
+    firewallRuleTypes,
+    firewallRuleResourceTypes,
+    compileFirewallRulesToDnr,
+} from './sw-firewall.js';
+
+import {
+    getTabSwitchMetrics,
+    getHiddenElementCountForTab as getHiddenElementCountForTabFromModule,
+    updateToolbarIcon as updateToolbarIconFromModule,
+    updateBadge,
+    persistGlobalRequestCounts,
+} from './sw-tab-metrics.js';
+
+import {
+    recordTabRequest,
+    trackPendingRequest,
+    finalizeTrackedRequest,
+    collectTabHostnameData,
+    getMatchedBlockedRequestCountForTab,
+} from './sw-request-handlers.js';
+
+import type { LegacyMessagingAPI } from './sw-types.js';
+import { userSettingsDefault, reWhitelistBadHostname, reWhitelistHostnameExtractor, hostnameSwitchNames, HOSTNAME_SWITCHES_SCHEMA_VERSION } from './sw-types.js';
 
 type LegacyMessage = {
     channel?: string;
@@ -264,19 +388,8 @@ const setEngineReferences = () => {
     }
 };
 
-const legacyBackendState = {
-    initializing: null as Promise<void> | null,
-    initialized: false,
-};
-
-const hostnameSwitchNames = new Set([
-    'no-popups',
-    'no-large-media',
-    'no-cosmetic-filtering',
-    'no-remote-fonts',
-    'no-scripting',
-]);
-const HOSTNAME_SWITCHES_SCHEMA_VERSION = 2;
+// Duplicate variables/objects - now imported from sw-messaging.js and sw-helpers.js
+// Duplicate variables removed - now imported from sw-types.js
 
 // Element picker state
 const epickerArgs = {
@@ -286,118 +399,11 @@ const epickerArgs = {
     eprom: null as any,
 };
 
-// Helper function to adjust color brightness
-const adjustColor = (color: string, percent: number): string => {
-    // Handle hex colors
-    if (color.startsWith('#')) {
-        const hex = color.slice(1);
-        const num = parseInt(hex, 16);
-        const r = Math.min(255, Math.max(0, (num >> 16) + percent));
-        const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + percent));
-        const b = Math.min(255, Math.max(0, (num & 0x0000FF) + percent));
-        return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1)}`;
-    }
-    return color;
-};
-
 const getLegacyMessaging = (): LegacyMessagingAPI | undefined => {
     return (globalThis as any).vAPI?.messaging;
 };
 
-// Cloud data encoding/decoding helpers
-const getDeviceName = async (): Promise<string> => {
-    const stored = await chrome.storage.local.get('cloudOptions');
-    const name = stored?.cloudOptions?.deviceName;
-    if (name) return name;
-    
-    // Generate default device name
-    const info = await chrome.runtime.getPlatformInfo();
-    const os = info.os || 'unknown';
-    const deviceName = `${os}-device-${Date.now().toString(36).slice(-6)}`;
-    await chrome.storage.local.set({ cloudOptions: { deviceName } });
-    return deviceName;
-};
-
-const encodeCloudData = async (data: any): Promise<string> => {
-    const json = JSON.stringify(data);
-    const stored = await chrome.storage.local.get('hiddenSettings');
-    const hiddenSettings = stored?.hiddenSettings || {};
-    
-    // s14e format with compression support if enabled
-    const useCompression = hiddenSettings.cloudStorageCompression === true;
-    
-    let encoded = json;
-    if (useCompression) {
-        // Simple compression using encodeURIComponent
-        // In a full implementation, this would use lz4 or similar
-        encoded = btoa(unescape(encodeURIComponent(json)));
-        // Mark as compressed version
-        return '2:' + encoded;
-    }
-    
-    encoded = btoa(unescape(encodeURIComponent(json)));
-    // Add s14e version marker
-    return '1:' + encoded;
-};
-
-const decodeCloudData = async (encoded: string): Promise<any> => {
-    try {
-        // Handle s14e format
-        let dataStr = encoded;
-        let isCompressed = false;
-        
-        if (encoded.startsWith('2:')) {
-            dataStr = encoded.substring(2);
-            isCompressed = true;
-        } else if (encoded.startsWith('1:')) {
-            dataStr = encoded.substring(2);
-        }
-        
-        const json = decodeURIComponent(escape(atob(dataStr)));
-        const parsed = JSON.parse(json);
-        
-        // Check for merge conflict markers and handle appropriately
-        if (parsed._mergeConflict) {
-            // Return data with conflict info
-            return parsed;
-        }
-        
-        return parsed;
-    } catch (e) {
-        throw new Error('Failed to decode cloud data: ' + (e as Error).message);
-    }
-};
-
-// Broadcast filtering behavior change to all tabs
-const broadcastFilteringBehaviorChanged = async (): Promise<void> => {
-    try {
-        const tabs = await chrome.tabs.query({});
-        for (const tab of tabs) {
-            if (tab.id) {
-                try {
-                    await chrome.tabs.sendMessage(tab.id, { what: 'filteringBehaviorChanged' });
-                } catch {
-                    // Tab may not have content script
-                }
-            }
-        }
-    } catch (e) {}
-};
-
-const withDisabledRuntimeOnConnect = async <T>(callback: () => Promise<T>): Promise<T> => {
-    const runtime = (globalThis as any).browser?.runtime || (globalThis as any).chrome?.runtime;
-    const onConnect = runtime?.onConnect;
-    if ( typeof onConnect?.addListener !== 'function' ) {
-        return callback();
-    }
-    const originalAddListener = onConnect.addListener.bind(onConnect);
-    onConnect.addListener = () => {};
-    try {
-        return await callback();
-    } finally {
-        onConnect.addListener = originalAddListener;
-    }
-};
+// Duplicate functions removed - using imported versions from sw-messaging.ts
 
 const ensureLegacyBackend = async (): Promise<void> => {
     if ( legacyBackendState.initialized ) { return; }
@@ -574,3042 +580,9 @@ const registerLegacyPort = (port: chrome.runtime.Port): LegacyPortDetails | unde
     return details;
 };
 
-const userSettingsDefault = {
-    advancedUserEnabled: false,
-    autoUpdate: true,
-    cloudStorageEnabled: false,
-    collapseBlocked: true,
-    colorBlindFriendly: false,
-    contextMenuEnabled: true,
-    cnameUncloakEnabled: false,
-    hyperlinkAuditingDisabled: true,
-    ignoreGenericCosmeticFilters: false,
-    importedLists: [] as string[],
-    largeMediaSize: 10485760,
-    netWhitelistDefault: [
-        'about:blank',
-        'about:srcdoc',
-        'http://127.0.0.1/*',
-        'http://localhost/*',
-        'https://127.0.0.1/*',
-        'https://localhost/*',
-    ],
-    noCosmeticFiltering: false,
-    noLargeMedia: false,
-    noRemoteFonts: false,
-    noScripting: false,
-    noCSPReports: true,
-    parseAllABPHideFilters: true,
-    prefetchingDisabled: false,
-    firewallPaneMinimized: true,
-    popupPanelSections: 0b111,
-    showIconBadge: true,
-    suspendUntilListsAreLoaded: false,
-    tooltipsDisabled: false,
-    uiAccentCustom: false,
-    uiAccentCustom0: '#3498d6',
-    uiTheme: 'auto',
-};
+// Duplicate userSettingsDefault - now imported from sw-types.ts
 
-const reWhitelistBadHostname = /[^a-z0-9.\-_[\]:]/;
-const reWhitelistHostnameExtractor = /([a-z0-9.\-_[\]]+)(?::[\d*]+)?\/(?:[^\x00-\x20/]|$)[^\x00-\x20]*$/;
-
-const firewallRuleTypes = [
-    '*',
-    'image',
-    '3p',
-    'inline-script',
-    '1p-script',
-    '3p-script',
-    '3p-frame',
-];
-
-const firewallTypeBitOffsets: Record<string, number> = {
-    '*': 0,
-    'inline-script': 2,
-    '1p-script': 4,
-    '3p-script': 6,
-    '3p-frame': 8,
-    image: 10,
-    '3p': 12,
-};
-
-const firewallActionNames: Record<number, string> = {
-    1: 'block',
-    2: 'allow',
-    3: 'noop',
-};
-
-const firewallActionValues: Record<string, number> = {
-    block: 1,
-    allow: 2,
-    noop: 3,
-};
-
-const FIREWALL_RULE_ID_MIN = 9_000_000;
-const FIREWALL_RULE_ID_MAX = 9_099_999;
-const POWER_RULE_ID_MIN = 9_100_000;
-const POWER_RULE_ID_MAX = 9_199_999;
-const HOSTNAME_SWITCH_RULE_ID_MIN = 9_200_000;
-const HOSTNAME_SWITCH_RULE_ID_MAX = 9_299_999;
-const WHITELIST_RULE_ID_MIN = 9_300_000;
-const WHITELIST_RULE_ID_MAX = 9_399_999;
-
-const createCounts = (): FirewallCounts => ({
-    allowed: { any: 0, frame: 0, script: 0 },
-    blocked: { any: 0, frame: 0, script: 0 },
-});
-
-const isIPAddress = (hostname: string): boolean => {
-    return /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
-};
-
-const domainFromHostname = (hostname: string): string => {
-    if ( hostname === '' || hostname === '*' ) { return hostname; }
-    if ( hostname === 'localhost' || isIPAddress(hostname) ) { return hostname; }
-    const parts = hostname.split('.').filter(Boolean);
-    if ( parts.length <= 2 ) { return hostname; }
-    return parts.slice(-2).join('.');
-};
-
-const domainFromURI = (uri: string): string => {
-    try {
-        const url = new URL(uri);
-        return domainFromHostname(url.hostname);
-    } catch {
-        return '';
-    }
-};
-
-const hostnameFromURI = (uri: string): string => {
-    try {
-        const url = new URL(uri);
-        return url.hostname;
-    } catch {
-        return '';
-    }
-};
-
-const isNetworkURI = (url: string): boolean => {
-    try {
-        const parsed = new URL(url);
-        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-    } catch {
-        return false;
-    }
-};
-
-const formatCount = (count: number): string => {
-    if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
-    if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
-    return String(count);
-};
-
-const dateNowToSensibleString = (): string => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hour = String(now.getHours()).padStart(2, '0');
-    const minute = String(now.getMinutes()).padStart(2, '0');
-    return `${year}${month}${day}-${hour}${minute}`;
-};
-
-const generateAccentStylesheet = (accent: string, dark: boolean): string => {
-    const baseColor = accent.replace('#', '');
-    const r = parseInt(baseColor.substring(0, 2), 16);
-    const g = parseInt(baseColor.substring(2, 4), 16);
-    const b = parseInt(baseColor.substring(4, 6), 16);
-    
-    const lighter = `rgba(${Math.min(255, r + 30)}, ${Math.min(255, g + 30)}, ${Math.min(255, b + 30)}, 0.5)`;
-    const darker = `rgba(${Math.max(0, r - 30)}, ${Math.max(0, g - 30)}, ${Math.max(0, b - 30)}, 0.5)`;
-    
-    return `
-:root {
-    --accent: ${accent};
-    --accent-light: ${lighter};
-    --accent-dark: ${darker};
-}
-::-webkit-scrollbar-thumb { background: var(--accent); }
-::-webkit-scrollbar-thumb:hover { background: var(--accent-dark); }
-::-webkit-scrollbar-corner { background: var(--accent-light); }
-`;
-};
-
-const decomposeHostname = (hostname: string): string[] => {
-    if ( hostname === '' || hostname === '*' ) {
-        return [ '*' ];
-    }
-    const parts = hostname.split('.');
-    const out: string[] = [];
-    for ( let i = 0; i < parts.length; i++ ) {
-        out.push(parts.slice(i).join('.'));
-    }
-    out.push('*');
-    return out;
-};
-
-const isThirdParty = (srcHostname: string, desHostname: string): boolean => {
-    if ( desHostname === '*' || srcHostname === '*' || srcHostname === '' ) {
-        return false;
-    }
-    const srcDomain = domainFromHostname(srcHostname) || srcHostname;
-    if ( desHostname.endsWith(srcDomain) === false ) {
-        return true;
-    }
-    return desHostname.length !== srcDomain.length &&
-        desHostname.charAt(desHostname.length - srcDomain.length - 1) !== '.';
-};
-
-class DynamicFirewallRules {
-    private rules = new Map<string, number>();
-    private r = 0;
-    private type = '';
-    private y = '';
-    private z = '';
-
-    reset() {
-        this.rules.clear();
-        this.clearRegisters();
-    }
-
-    clearRegisters() {
-        this.r = 0;
-        this.type = '';
-        this.y = '';
-        this.z = '';
-    }
-
-    assign(other: DynamicFirewallRules) {
-        this.rules = new Map(other.rules);
-        this.clearRegisters();
-    }
-
-    setCell(srcHostname: string, desHostname: string, type: string, state: number) {
-        const bitOffset = firewallTypeBitOffsets[type];
-        const key = `${srcHostname} ${desHostname}`;
-        const oldBitmap = this.rules.get(key) || 0;
-        const newBitmap = (oldBitmap & ~(3 << bitOffset)) | (state << bitOffset);
-        if ( newBitmap === 0 ) {
-            this.rules.delete(key);
-        } else {
-            this.rules.set(key, newBitmap);
-        }
-    }
-
-    unsetCell(srcHostname: string, desHostname: string, type: string) {
-        this.evaluateCellZY(srcHostname, desHostname, type);
-        if ( this.r === 0 ) { return false; }
-        this.setCell(srcHostname, desHostname, type, 0);
-        return true;
-    }
-
-    evaluateCell(srcHostname: string, desHostname: string, type: string) {
-        const bitmap = this.rules.get(`${srcHostname} ${desHostname}`);
-        if ( bitmap === undefined ) { return 0; }
-        return (bitmap >> firewallTypeBitOffsets[type]) & 3;
-    }
-
-    private evaluateCellZ(srcHostname: string, desHostname: string, type: string) {
-        const bitOffset = firewallTypeBitOffsets[type];
-        for ( const sourceHostname of decomposeHostname(srcHostname) ) {
-            this.z = sourceHostname;
-            const bitmap = this.rules.get(`${sourceHostname} ${desHostname}`);
-            if ( bitmap === undefined ) { continue; }
-            const value = (bitmap >>> bitOffset) & 3;
-            if ( value === 0 ) { continue; }
-            this.type = type;
-            this.r = value;
-            return value;
-        }
-        return 0;
-    }
-
-    evaluateCellZY(srcHostname: string, desHostname: string, type: string) {
-        if ( desHostname === '' ) {
-            this.clearRegisters();
-            return 0;
-        }
-
-        for ( const destinationHostname of decomposeHostname(desHostname) ) {
-            if ( destinationHostname === '*' ) { break; }
-            this.y = destinationHostname;
-            if ( this.evaluateCellZ(srcHostname, destinationHostname, '*') !== 0 ) {
-                return this.r;
-            }
-        }
-
-        const thirdParty = isThirdParty(srcHostname, desHostname);
-        this.y = '*';
-
-        if ( thirdParty ) {
-            if ( type === 'script' ) {
-                if ( this.evaluateCellZ(srcHostname, '*', '3p-script') !== 0 ) {
-                    return this.r;
-                }
-            } else if ( type === 'sub_frame' || type === 'object' ) {
-                if ( this.evaluateCellZ(srcHostname, '*', '3p-frame') !== 0 ) {
-                    return this.r;
-                }
-            }
-            if ( this.evaluateCellZ(srcHostname, '*', '3p') !== 0 ) {
-                return this.r;
-            }
-        } else if ( type === 'script' ) {
-            if ( this.evaluateCellZ(srcHostname, '*', '1p-script') !== 0 ) {
-                return this.r;
-            }
-        }
-
-        if ( firewallTypeBitOffsets[type] !== undefined ) {
-            if ( this.evaluateCellZ(srcHostname, '*', type) !== 0 ) {
-                return this.r;
-            }
-            if ( type.startsWith('3p-') ) {
-                if ( this.evaluateCellZ(srcHostname, '*', '3p') !== 0 ) {
-                    return this.r;
-                }
-            }
-        }
-
-        if ( this.evaluateCellZ(srcHostname, '*', '*') !== 0 ) {
-            return this.r;
-        }
-
-        this.type = '';
-        this.r = 0;
-        return 0;
-    }
-
-    lookupRuleData(srcHostname: string, desHostname: string, type: string) {
-        const result = this.evaluateCellZY(srcHostname, desHostname, type);
-        if ( result === 0 ) { return undefined; }
-        return `${this.z} ${this.y} ${this.type} ${result}`;
-    }
-
-    copyRules(from: DynamicFirewallRules, srcHostname: string, desHostnames: Record<string, unknown>) {
-        let changed = false;
-        const syncKey = (key: string) => {
-            const current = this.rules.get(key);
-            const next = from.rules.get(key);
-            if ( current === next ) { return; }
-            changed = true;
-            if ( next === undefined ) {
-                this.rules.delete(key);
-            } else {
-                this.rules.set(key, next);
-            }
-        };
-
-        syncKey('* *');
-        syncKey(`${srcHostname} *`);
-
-        for ( const desHostname in desHostnames ) {
-            syncKey(`* ${desHostname}`);
-            syncKey(`${srcHostname} ${desHostname}`);
-        }
-
-        return changed;
-    }
-
-    hasSameRules(other: DynamicFirewallRules, srcHostname: string, desHostnames: Record<string, unknown>) {
-        const sameKey = (key: string) => this.rules.get(key) === other.rules.get(key);
-        if ( sameKey('* *') === false ) { return false; }
-        if ( sameKey(`${srcHostname} *`) === false ) { return false; }
-        for ( const desHostname in desHostnames ) {
-            if ( sameKey(`* ${desHostname}`) === false ) { return false; }
-            if ( sameKey(`${srcHostname} ${desHostname}`) === false ) { return false; }
-        }
-        return true;
-    }
-
-    toArray() {
-        const out: string[] = [];
-        for ( const [ key ] of this.rules ) {
-            const spaceIndex = key.indexOf(' ');
-            const srcHostname = key.slice(0, spaceIndex);
-            const desHostname = key.slice(spaceIndex + 1);
-            for ( const type of Object.keys(firewallTypeBitOffsets) ) {
-                const value = this.evaluateCell(srcHostname, desHostname, type);
-                if ( value === 0 ) { continue; }
-                out.push(`${srcHostname} ${desHostname} ${type} ${firewallActionNames[value]}`);
-            }
-        }
-        return out;
-    }
-
-    toString() {
-        return this.toArray().join('\n');
-    }
-
-    fromString(text: string) {
-        this.reset();
-        for ( const line of text.split('\n') ) {
-            const trimmed = line.trim();
-            if ( trimmed === '' ) { continue; }
-            const parts = trimmed.split(/\s+/);
-            if ( parts.length < 4 ) { continue; }
-            const [ srcHostname, desHostname, type, actionName ] = parts;
-            const action = firewallActionValues[actionName];
-            if ( action === undefined || firewallTypeBitOffsets[type] === undefined ) { continue; }
-            this.setCell(srcHostname, desHostname, type, action);
-        }
-    }
-
-    addFromRuleParts(parts: [string, string, string, string]) {
-        if ( parts.length < 4 ) { return false; }
-        const [ srcHostname, desHostname, type, actionName ] = parts;
-        const action = firewallActionValues[actionName];
-        if ( action === undefined || firewallTypeBitOffsets[type] === undefined ) {
-            return false;
-        }
-        this.setCell(srcHostname, desHostname, type, action);
-        return true;
-    }
-
-    removeFromRuleParts(parts: [string, string, string, string]) {
-        if ( parts.length < 4 ) { return false; }
-        const [ srcHostname, desHostname, type ] = parts;
-        if ( firewallTypeBitOffsets[type] === undefined ) {
-            return false;
-        }
-        return this.unsetCell(srcHostname, desHostname, type);
-    }
-}
-
-type FirewallCount = {
-    any: number;
-    frame: number;
-    script: number;
-};
-
-type FirewallCounts = {
-    allowed: FirewallCount;
-    blocked: FirewallCount;
-};
-
-class FrameStore {
-    frameURL: string;
-    parentId: number;
-    clickToLoad: boolean;
-    type: number;
-    timestamp: number;
-    
-    constructor(frameURL: string, parentId: number) {
-        this.frameURL = frameURL;
-        this.parentId = parentId;
-        this.clickToLoad = false;
-        this.type = 0;
-        this.timestamp = Date.now();
-    }
-    
-    init(frameURL: string, parentId: number): void {
-        this.frameURL = frameURL;
-        this.parentId = parentId;
-        this.clickToLoad = false;
-        this.type = 0;
-        this.timestamp = Date.now();
-    }
-    
-    dispose(): void {
-        this.frameURL = '';
-        this.parentId = 0;
-        this.clickToLoad = false;
-    }
-    
-    updateURL(url: string): void {
-        this.frameURL = url;
-        this.timestamp = Date.now();
-    }
-    
-    getCosmeticFilteringBits(tabId: number): number {
-        return 0;
-    }
-    
-    shouldApplySpecificCosmeticFilters(tabId: number): boolean {
-        return true;
-    }
-    
-    shouldApplyGenericCosmeticFilters(tabId: number): boolean {
-        return true;
-    }
-}
-
-class MV3PageStore {
-    tabId: number;
-    rawURL: string;
-    hostname: string;
-    rootHostname: string;
-    rootDomain: string;
-    netFilteringSwitch: boolean;
-    contentLastModified: number;
-    largeMediaCount: number;
-    remoteFontCount: number;
-    popupBlockedCount: number;
-    counts: { blocked: FirewallCounts; allowed: FirewallCounts };
-    hostnameDetailsMap: Map<string, { domain: string; counts: FirewallCounts; cname?: string }>;
-    frameStores: Map<number, FrameStore>;
-    extraData: Map<string, any>;
-    allowLargeMediaElementsUntil: number;
-    
-    constructor(tabId: number) {
-        this.tabId = tabId;
-        this.rawURL = '';
-        this.hostname = '';
-        this.rootHostname = '';
-        this.rootDomain = '';
-        this.netFilteringSwitch = true;
-        this.contentLastModified = 0;
-        this.largeMediaCount = 0;
-        this.remoteFontCount = 0;
-        this.popupBlockedCount = 0;
-        this.counts = {
-            blocked: { any: 0, frame: 0, script: 0 },
-            allowed: { any: 0, frame: 0, script: 0 },
-        };
-        this.hostnameDetailsMap = new Map();
-        this.frameStores = new Map();
-        this.extraData = new Map();
-        this.allowLargeMediaElementsUntil = 0;
-    }
-    
-    async initialize(tab: chrome.tabs.Tab): Promise<void> {
-        if (!tab?.url) return;
-        
-        try {
-            const url = new URL(tab.url);
-            this.rawURL = url.href;
-            this.hostname = url.hostname;
-            
-            // Extract root hostname and root domain
-            const parts = this.hostname.split('.');
-            if (parts.length >= 2) {
-                // Root hostname is second-level domain (e.g., "example" from "sub.example.com")
-                this.rootHostname = parts.slice(-2)[0];
-                // Root domain is second-level domain with TLD (e.g., "example.com")
-                this.rootDomain = parts.slice(-2).join('.');
-            } else {
-                this.rootHostname = this.hostname;
-                this.rootDomain = this.hostname;
-            }
-            
-            // Load per-site filtering state
-            const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
-            const perSiteFiltering = storedFiltering?.perSiteFiltering || {};
-            this.netFilteringSwitch = perSiteFiltering[this.hostname] !== false;
-            
-            // Load content version
-            const storedVersions = await chrome.storage.local.get('popupContentVersions');
-            const versions = storedVersions?.popupContentVersions || {};
-            this.contentLastModified = versions[tab.id] || 0;
-            
-            // Load metrics
-            const storedMetrics = await chrome.storage.local.get('tabMetrics');
-            const metrics = storedMetrics?.tabMetrics || {};
-            const tabMetric = metrics[tab.id] || {};
-            this.largeMediaCount = tabMetric.largeMediaCount || 0;
-            this.remoteFontCount = tabMetric.remoteFontCount || 0;
-            this.popupBlockedCount = tabMetric.popupBlockedCount || 0;
-            this.counts.blocked = tabMetric.blocked || { any: 0, frame: 0, script: 0 };
-            this.counts.allowed = tabMetric.allowed || { any: 0, frame: 0, script: 0 };
-            
-            // Load hostname details
-            const storedDetails = await chrome.storage.local.get('hostnameDetailsMap');
-            const detailsMap = storedDetails?.hostnameDetailsMap || {};
-            const tabDetails = detailsMap[tab.id] || {};
-            for (const [hostname, detail] of Object.entries(tabDetails)) {
-                this.hostnameDetailsMap.set(hostname, detail as any);
-            }
-            
-            // Load extra data
-            const storedExtraData = await chrome.storage.local.get('pageStoreExtraData');
-            const extraDataMap = storedExtraData?.pageStoreExtraData || {};
-            const tabExtraData = extraDataMap[tab.id] || {};
-            for (const [key, value] of Object.entries(tabExtraData)) {
-                this.extraData.set(key, value);
-            }
-            
-            // Load allow large media timestamp
-            const storedLargeMedia = await chrome.storage.local.get('allowLargeMediaElements');
-            const largeMediaMap = storedLargeMedia?.allowLargeMediaElements || {};
-            this.allowLargeMediaElementsUntil = largeMediaMap[tab.id] || 0;
-        } catch (e) {
-            console.log('[MV3] MV3PageStore.initialize error:', e);
-        }
-    }
-    
-    getNetFilteringSwitch(): boolean {
-        return this.netFilteringSwitch;
-    }
-    
-    getAllHostnameDetails(): Map<string, any> {
-        return this.hostnameDetailsMap;
-    }
-    
-    async toggleNetFilteringSwitch(url: string, scope: string, state: boolean): Promise<void> {
-        this.netFilteringSwitch = state;
-        
-        try {
-            const hostname = new URL(url).hostname;
-            const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
-            const perSiteFiltering = storedFiltering?.perSiteFiltering || {};
-            
-            const key = scope === 'page' ? `${hostname}:${url}` : hostname;
-            if (state) {
-                delete perSiteFiltering[key];
-            } else {
-                perSiteFiltering[key] = false;
-            }
-            
-            await chrome.storage.local.set({ perSiteFiltering });
-            
-            await syncHostnameSwitchDnrRules();
-        } catch (e) {
-            console.log('[MV3] toggleNetFilteringSwitch error:', e);
-        }
-    }
-    
-    getFrameStore(frameId: number): FrameStore | null {
-        return this.frameStores.get(frameId) || null;
-    }
-    
-    setFrameURL(details: { frameId: number; frameURL: string; parentId?: number }): void {
-        const { frameId, frameURL, parentId } = details;
-        let frameStore = this.frameStores.get(frameId);
-        if (frameStore) {
-            frameStore.updateURL(frameURL);
-            if (parentId !== undefined) {
-                frameStore.parentId = parentId;
-            }
-        } else {
-            frameStore = new FrameStore(frameURL, parentId || 0);
-            this.frameStores.set(frameId, frameStore);
-        }
-    }
-    
-    getEffectiveFrameURL(sender: { frameId?: number }): string {
-        if (!sender?.frameId) return this.rawURL;
-        const frameStore = this.frameStores.get(sender.frameId);
-        return frameStore?.frameURL || this.rawURL;
-    }
-    
-    getFrameAncestorDetails(frameId: number): { parent: string; ancestors: string[] } | null {
-        const frameStore = this.frameStores.get(frameId);
-        if (!frameStore) return null;
-        
-        const ancestors: string[] = [];
-        let currentFrameId = frameId;
-        
-        while (currentFrameId) {
-            const currentStore = this.frameStores.get(currentFrameId);
-            if (currentStore && currentStore.parentId !== 0) {
-                const parentStore = this.frameStores.get(currentStore.parentId);
-                if (parentStore) {
-                    ancestors.push(parentStore.frameURL);
-                    currentFrameId = currentStore.parentId;
-                } else {
-                    break;
-                }
-            } else {
-                break;
-            }
-        }
-        
-        return {
-            parent: frameStore.parentId.toString(),
-            ancestors: ancestors.reverse(),
-        };
-    }
-    
-    shouldApplySpecificCosmeticFilters(frameId: number): boolean {
-        const frameStore = this.frameStores.get(frameId);
-        if (frameStore) {
-            return !frameStore.clickToLoad;
-        }
-        return true;
-    }
-    
-    shouldApplyGenericCosmeticFilters(frameId: number): boolean {
-        if (this.netFilteringSwitch === false) return false;
-        const frameStore = this.frameStores.get(frameId);
-        if (frameStore) {
-            return !frameStore.clickToLoad;
-        }
-        return true;
-    }
-    
-    async clickToLoad(frameId: number, frameURL: string): Promise<void> {
-        let frameStore = this.frameStores.get(frameId);
-        if (!frameStore) {
-            frameStore = new FrameStore(frameURL, 0);
-            this.frameStores.set(frameId, frameStore);
-        }
-        frameStore.clickToLoad = true;
-        
-        // Notify content script to reload
-        try {
-            await chrome.tabs.sendMessage(this.tabId, {
-                what: 'reloadFrame',
-                frameId: frameId,
-            });
-        } catch (e) {}
-    }
-    
-    temporarilyAllowLargeMediaElements(state: boolean): void {
-        this.allowLargeMediaElementsUntil = state ? Date.now() + 5000 : 0;
-        
-        // Persist to storage
-        chrome.storage.local.get('allowLargeMediaElements').then(stored => {
-            const largeMediaMap = stored?.allowLargeMediaElements || {};
-            largeMediaMap[this.tabId] = this.allowLargeMediaElementsUntil;
-            chrome.storage.local.set({ allowLargeMediaElements: largeMediaMap });
-        }).catch(() => {});
-    }
-    
-    disposeFrameStores(): void {
-        for (const frameStore of this.frameStores.values()) {
-            frameStore.dispose();
-        }
-        this.frameStores.clear();
-    }
-    
-    filterRequest(fctxt: any): number {
-        // This is a placeholder - actual filtering is done via vAPI
-        // Return 0 = allowed, 1 = blocked
-        return 0;
-    }
-    
-    filterOnHeaders(fctxt: any, ...headers: any[]): number {
-        return 0;
-    }
-    
-    redirectBlockedRequest(fctxt: any): string | null {
-        return null;
-    }
-    
-    filterCSPReport(fctxt: any): boolean {
-        return true;
-    }
-    
-    filterFont(fctxt: any): boolean {
-        return true;
-    }
-    
-    filterScripting(fctxt: any, netFiltering: boolean): number {
-        return 0;
-    }
-    
-    filterLargeMediaElement(fctxt: any, headers: any): boolean {
-        return this.allowLargeMediaElementsUntil > Date.now();
-    }
-    
-    // extraData methods - allow storing arbitrary per-tab data
-    setExtraData(key: string, value: any): void {
-        this.extraData.set(key, value);
-        // Persist to storage
-        chrome.storage.local.get('pageStoreExtraData').then(stored => {
-            const extraDataMap = stored?.pageStoreExtraData || {};
-            if (!extraDataMap[this.tabId]) {
-                extraDataMap[this.tabId] = {};
-            }
-            extraDataMap[this.tabId][key] = value;
-            chrome.storage.local.set({ pageStoreExtraData: extraDataMap }).catch(() => {});
-        }).catch(() => {});
-    }
-    
-    getExtraData(key: string): any {
-        return this.extraData.get(key);
-    }
-    
-    getAllExtraData(): Record<string, any> {
-        const result: Record<string, any> = {};
-        for (const [key, value] of this.extraData) {
-            result[key] = value;
-        }
-        return result;
-    }
-}
-
-// Page stores map - one per tab
-const pageStores = new Map<number, MV3PageStore>();
-let pageStoresToken = 0;
-
-const pageStoreFromTabId = async (tabId: number): Promise<MV3PageStore | null> => {
-    let pageStore = pageStores.get(tabId);
-    
-    if (!pageStore) {
-        try {
-            const tab = await chrome.tabs.get(tabId);
-            pageStore = new MV3PageStore(tabId);
-            await pageStore.initialize(tab);
-            pageStores.set(tabId, pageStore);
-            pageStoresToken++;
-            if ((self as any).µb) {
-                (self as any).µb.pageStoresToken = pageStoresToken;
-            }
-        } catch (e) {
-            return null;
-        }
-    }
-    
-    return pageStore;
-};
-
-const mustLookup = async (tabId: number): Promise<MV3PageStore | null> => {
-    return pageStoreFromTabId(tabId);
-};
-
-const popupState = {
-    initialized: false,
-    initPromise: Promise.resolve(),
-    userSettings: { ...userSettingsDefault },
-    permanentFirewall: new DynamicFirewallRules(),
-    sessionFirewall: new DynamicFirewallRules(),
-    permanentHostnameSwitches: {} as HostnameSwitchState,
-    sessionHostnameSwitches: {} as HostnameSwitchState,
-    whitelist: [] as string[],
-    globalAllowedRequestCount: 0,
-    globalBlockedRequestCount: 0,
-    trustedLists: {} as Record<string, boolean>,
-    noDashboard: false,
-    inMemoryFilter: '',
-    loggerOwnerId: undefined as number | undefined,
-    uiAccentStylesheet: '',
-    tabMetrics: {} as Record<number, { blocked?: number; allowed?: number; hasUnprocessedRequest?: boolean }>,
-    supportStats: { supportPageCount: 0 },
-    pageStores,
-};
-
-type FilterListDetails = {
-    content?: string;
-    group?: string;
-    group2?: string;
-    parent?: string;
-    title?: string;
-    off?: boolean;
-    preferred?: boolean;
-    external?: boolean;
-    submitter?: string;
-    contentURL?: string | string[];
-    supportURL?: string;
-    supportName?: string;
-    instructionURL?: string;
-    isDefault?: boolean;
-    isImportant?: boolean;
-    tags?: string;
-    entryCount?: number;
-    entryUsedCount?: number;
-};
-
-type FilterListResponse = {
-    autoUpdate: boolean;
-    available: Record<string, FilterListDetails>;
-    cache: Record<string, unknown>;
-    cosmeticFilterCount: number;
-    current: Record<string, FilterListDetails>;
-    ignoreGenericCosmeticFilters: boolean;
-    isUpdating: boolean;
-    netFilterCount: number;
-    parseCosmeticFilters: boolean;
-    suspendUntilListsAreLoaded: boolean;
-    userFiltersPath: string;
-};
-
-const FILTER_LIST_USER_PATH = 'user-filters';
-const FILTER_LIST_ASSETS_URL = 'assets/assets.dev.json';
-let filterListsUpdating = false;
-
-const tabRequestStates = new Map<number, TabRequestState>();
-const pickerContextPoints = new Map<string, {
-    tabId: number;
-    frameId: number;
-    x: number;
-    y: number;
-    timestamp: number;
-    target?: { selector: string };
-}>();
-const requestStateStorage = chrome.storage.session || chrome.storage.local;
-const tabRequestStateKey = (tabId: number) => `firewallTabState:${tabId}`;
-const pickerContextPointKey = (tabId: number, frameId: number) => `${tabId}:${frameId}`;
-
-const isOwnExtensionTab = (tab?: chrome.tabs.Tab) => {
-    const url = tab?.url || '';
-    return url !== '' && url.startsWith(chrome.runtime.getURL(''));
-};
-
-const pickMostRelevantBrowsingTab = async () => {
-    const tabs = await chrome.tabs.query({});
-    const candidates = tabs.filter(tab => {
-        const url = tab.url || '';
-        if ( url === '' ) { return false; }
-        if ( isOwnExtensionTab(tab) ) { return false; }
-        return /^(https?|file):/.test(url);
-    });
-    candidates.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
-    return candidates[0];
-};
-
-const getActiveTab = async () => {
-    let [ tab ] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if ( tab && isOwnExtensionTab(tab) === false ) {
-        return tab;
-    }
-    [ tab ] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-    if ( tab && isOwnExtensionTab(tab) === false ) {
-        return tab;
-    }
-    return pickMostRelevantBrowsingTab();
-};
-
-const getTabForRequest = async (tabId?: number | null) => {
-    if ( typeof tabId === 'number' ) {
-        return chrome.tabs.get(tabId);
-    }
-    return getActiveTab();
-};
-
-const mergeCounts = (into: FirewallCounts, from: FirewallCounts) => {
-    into.allowed.any += from.allowed.any;
-    into.allowed.frame += from.allowed.frame;
-    into.allowed.script += from.allowed.script;
-    into.blocked.any += from.blocked.any;
-    into.blocked.frame += from.blocked.frame;
-    into.blocked.script += from.blocked.script;
-};
-
-const delay = (ms: number) => new Promise(resolve => {
-    self.setTimeout(resolve, ms);
-});
-
-const loadPopupState = async () => {
-    const items = await chrome.storage.local.get([
-        'userSettings',
-        'dynamicFilteringString',
-        'hostnameSwitches',
-        'hostnameSwitchesVersion',
-        'globalAllowedRequestCount',
-        'globalBlockedRequestCount',
-        'whitelist',
-    ]);
-    Object.assign(
-        popupState.userSettings,
-        userSettingsDefault,
-        items.userSettings || {},
-    );
-    popupState.permanentFirewall.fromString(items.dynamicFilteringString || '');
-    popupState.sessionFirewall.assign(popupState.permanentFirewall);
-    if ( items.hostnameSwitchesVersion === HOSTNAME_SWITCHES_SCHEMA_VERSION &&
-        items.hostnameSwitches &&
-        typeof items.hostnameSwitches === 'object'
-    ) {
-        popupState.permanentHostnameSwitches = structuredClone(items.hostnameSwitches as HostnameSwitchState);
-    } else {
-        popupState.permanentHostnameSwitches = {};
-    }
-    popupState.sessionHostnameSwitches = structuredClone(popupState.permanentHostnameSwitches);
-    popupState.globalAllowedRequestCount = typeof items.globalAllowedRequestCount === 'number'
-        ? items.globalAllowedRequestCount
-        : 0;
-    popupState.globalBlockedRequestCount = typeof items.globalBlockedRequestCount === 'number'
-        ? items.globalBlockedRequestCount
-        : 0;
-    popupState.whitelist = typeof items.whitelist === 'string' 
-        ? items.whitelist.split('\n').filter(Boolean)
-        : [];
-    
-    // Update µb.netWhitelist to match
-    if ((self as any).µb) {
-        (self as any).µb.netWhitelist = popupState.whitelist.join('\n');
-    }
-    
-    popupState.initialized = true;
-    
-    // Load filter lists on startup
-    await reloadAllFilterLists();
-    
-    // Sync all DNR rules on startup after state is loaded
-    void syncFirewallDnrRules();
-    void syncHostnameSwitchDnrRules();
-    void syncPowerSwitchDnrRules();
-    void syncWhitelistDnrRules();
-    
-    // Load element picker eprom from storage
-    const epromStored = await chrome.storage.local.get('elementPickerEprom');
-    if (epromStored?.elementPickerEprom) {
-        (self as any).µb = (self as any).µb || {};
-        (self as any).µb.epickerArgs = (self as any).µb.epickerArgs || {};
-        (self as any).µb.epickerArgs.eprom = epromStored.elementPickerEprom;
-    }
-};
-
-const ensurePopupState = async () => {
-    if ( popupState.initialized ) { return; }
-    popupState.initPromise = popupState.initPromise.then(async () => {
-        if ( popupState.initialized ) { return; }
-        await loadPopupState();
-    });
-    await popupState.initPromise;
-};
-
-const persistUserSettings = async () => {
-    await chrome.storage.local.set({ userSettings: popupState.userSettings });
-};
-
-const getModifiedSettings = (current: Record<string, unknown>, defaults: Record<string, unknown>): Record<string, unknown> => {
-    const modified: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(current)) {
-        if (value !== defaults[key]) {
-            modified[key] = value;
-        }
-    }
-    return modified;
-};
-
-const backupUserData = async () => {
-    await ensurePopupState();
-    
-    const storage = await chrome.storage.local.get(null);
-    const storageUsed = await chrome.storage.local.getBytesInUse(null);
-    
-    const manifest = chrome.runtime.getManifest();
-    const lastBackupFile = 'ublock-resurrected-backup-' + dateNowToSensibleString() + '.json';
-    const lastBackupTime = Date.now();
-    
-    // Get hidden settings for backup
-    const hiddenSettings = (await chrome.storage.local.get('hiddenSettings')).hiddenSettings || {};
-    
-    // Only include modified settings
-    const modifiedUserSettings = getModifiedSettings(popupState.userSettings, userSettingsDefault);
-    const modifiedHiddenSettings = getModifiedSettings(hiddenSettings, {});
-    
-    const userData = {
-        timeStamp: lastBackupTime,
-        version: manifest.version || '1.0.0',
-        userSettings: modifiedUserSettings,
-        hiddenSettings: modifiedHiddenSettings,
-        selectedFilterLists: storage.selectedFilterLists || [],
-        filterLists: storage.filterLists || {},
-        netWhitelist: storage.netWhitelist || '',
-        whitelist: (storage.whitelist || '').split('\n').filter(Boolean),
-        dynamicRules: storage.dynamicRules || [],
-        permanentFirewallRules: popupState.permanentFirewall.toArray(),
-        sessionFirewallRules: popupState.sessionFirewall.toArray(),
-    };
-    
-    // Save backup metadata
-    await chrome.storage.local.set({
-        localData: {
-            lastBackupFile,
-            lastBackupTime,
-            storageUsed,
-        },
-    });
-    
-    return {
-        userData,
-        localData: {
-            lastBackupFile,
-            lastBackupTime,
-            storageUsed,
-        },
-    };
-};
-
-const restoreUserData = async (request: { userData?: unknown; file?: string }) => {
-    const userData = request.userData as {
-        timeStamp?: number;
-        version?: string;
-        userSettings?: Record<string, unknown>;
-        hiddenSettings?: Record<string, unknown>;
-        selectedFilterLists?: string[];
-        filterLists?: Record<string, unknown>;
-        netWhitelist?: string;
-        whitelist?: string[];
-        dynamicRules?: unknown[];
-        permanentFirewallRules?: unknown[];
-        sessionFirewallRules?: unknown[];
-        permanentURLFiltering?: unknown[];
-        sessionURLFiltering?: unknown[];
-    } | undefined;
-    
-    if (!userData) {
-        return { error: 'No user data provided' };
-    }
-    
-    // Clear caches before restoring
-    try {
-        const cacheKeys = await chrome.storage.local.get(null);
-        const keysToRemove = Object.keys(cacheKeys).filter(k => 
-            k.startsWith('assetCache_') || k.startsWith('cachedAsset_')
-        );
-        if (keysToRemove.length > 0) {
-            await chrome.storage.local.remove(keysToRemove);
-        }
-    } catch (e) {}
-    
-    // Restore hiddenSettings
-    if (userData.hiddenSettings) {
-        const existingHidden = (await chrome.storage.local.get('hiddenSettings')).hiddenSettings || {};
-        await chrome.storage.local.set({ 
-            hiddenSettings: { ...existingHidden, ...userData.hiddenSettings } 
-        });
-    }
-    
-    // Restore userSettings
-    if (userData.userSettings) {
-        popupState.userSettings = { ...popupState.userSettings, ...userData.userSettings };
-        await persistUserSettings();
-    }
-    
-    // Restore filter lists selection
-    if (userData.selectedFilterLists) {
-        await chrome.storage.local.set({ selectedFilterLists: userData.selectedFilterLists });
-    }
-    
-    // Restore filter lists data
-    if (userData.filterLists) {
-        await chrome.storage.local.set({ filterLists: userData.filterLists });
-    }
-    
-    // Restore network whitelist
-    if (userData.netWhitelist !== undefined) {
-        await chrome.storage.local.set({ netWhitelist: userData.netWhitelist });
-    }
-    
-    // Restore whitelist
-    if (userData.whitelist) {
-        await chrome.storage.local.set({ whitelist: userData.whitelist.join('\n') });
-    }
-    
-    // Restore dynamic rules
-    if (userData.dynamicRules) {
-        await chrome.storage.local.set({ dynamicRules: userData.dynamicRules });
-    }
-    
-    const lastRestoreFile = request.file || 'imported-backup.json';
-    const lastRestoreTime = Date.now();
-    const storageUsed = await chrome.storage.local.getBytesInUse(null);
-    
-    // Update restore metadata
-    const localData = (await chrome.storage.local.get('localData')).localData || {};
-    await chrome.storage.local.set({
-        localData: {
-            ...localData,
-            lastRestoreFile,
-            lastRestoreTime,
-            storageUsed,
-        },
-    });
-    
-    // Reload filter lists to apply changes
-    await reloadAllFilterLists();
-    
-    // Restart the extension to apply all changes
-    chrome.runtime.reload();
-    
-    return {
-        localData: {
-            lastRestoreFile,
-            lastRestoreTime,
-            storageUsed,
-        },
-    };
-};
-
-const getLocalData = async () => {
-    const storageUsed = await chrome.storage.local.getBytesInUse(null);
-    const localData = (await chrome.storage.local.get('localData')).localData || {};
-    const userSettings = (await chrome.storage.local.get('userSettings')).userSettings || {};
-    
-    return {
-        storageUsed,
-        lastBackupFile: localData.lastBackupFile || '',
-        lastBackupTime: localData.lastBackupTime || 0,
-        lastRestoreFile: localData.lastRestoreFile || '',
-        lastRestoreTime: localData.lastRestoreTime || 0,
-        cloudStorageSupported: userSettings.cloudStorageEnabled === true && typeof chrome.storage.sync !== 'undefined',
-        privacySettingsSupported: typeof navigator !== 'undefined' && typeof navigator.connection !== 'undefined',
-    };
-};
-
-const resetUserData = async () => {
-    // Reset userSettings to defaults
-    popupState.userSettings = { ...userSettingsDefault };
-    await persistUserSettings();
-    
-    // Clear filter lists
-    await chrome.storage.local.set({
-        selectedFilterLists: [],
-        filterLists: {},
-        netWhitelist: '',
-        whitelist: '',
-        dynamicRules: [],
-        permanentFirewallRules: [],
-        sessionFirewallRules: [],
-    });
-    
-    // Reset localData
-    await chrome.storage.local.set({
-        localData: {
-            storageUsed: 0,
-        },
-    });
-    
-    // Reload filter lists
-    await reloadAllFilterLists();
-    
-    return { success: true };
-};
-
-const getPickerContextPoint = (tabId: number, frameId = 0) => {
-    const now = Date.now();
-    const exact = pickerContextPoints.get(pickerContextPointKey(tabId, frameId));
-    if ( exact && now - exact.timestamp < 10_000 ) {
-        return exact;
-    }
-    const topFrame = pickerContextPoints.get(pickerContextPointKey(tabId, 0));
-    if ( topFrame && now - topFrame.timestamp < 10_000 ) {
-        return topFrame;
-    }
-    return undefined;
-};
-
-const launchPickerInTab = async (
-    tabId: number,
-    frameId = 0,
-    boot: {
-        initialPoint?: { x: number; y: number };
-        target?: string;
-        exactTarget?: { selector: string };
-    } = {},
-) => {
-    if ( chrome.scripting?.executeScript === undefined ) {
-        throw new Error('chrome.scripting.executeScript is unavailable');
-    }
-    const target = frameId !== 0
-        ? { tabId, frameIds: [ frameId ] }
-        : { tabId };
-    await chrome.scripting.executeScript({
-        target,
-        func: (bootArgs: {
-            initialPoint?: { x: number; y: number };
-            target?: string;
-            exactTarget?: { selector: string };
-        }) => {
-            (self as unknown as { __ubrPickerBoot?: typeof bootArgs }).__ubrPickerBoot = bootArgs;
-        },
-        args: [ boot ],
-    });
-    await chrome.scripting.executeScript({
-        target,
-        files: [
-            '/js/scripting/tool-overlay.js',
-            '/js/scripting/picker.js',
-        ],
-    });
-};
-
-const cloneObject = <T>(value: T): T => JSON.parse(JSON.stringify(value));
-
-const normalizeImportedLists = (value: unknown): string[] => {
-    if ( Array.isArray(value) === false ) { return []; }
-    return value
-        .map(entry => typeof entry === 'string' ? entry.trim() : '')
-        .filter(entry => entry !== '');
-};
-
-const normalizeSelectedFilterLists = (value: unknown): string[] => {
-    if ( Array.isArray(value) === false ) { return []; }
-    return value
-        .map(entry => typeof entry === 'string' ? entry.trim() : '')
-        .filter(entry => entry !== '');
-};
-
-const isValidExternalList = (value: string) =>
-    /^[a-z-]+:\/\/(?:\S+\/\S*|\/\S+)/i.test(value);
-
-const extractListURLs = (text: string): string[] => text
-    .split(/\s+/)
-    .map(line => line.trim())
-    .filter(line => line !== '' && isValidExternalList(line));
-
-const listSupportNameFromURL = (value: string): string => {
-    try {
-        return new URL(value).hostname;
-    } catch {
-        return '';
-    }
-};
-
-const fetchFilterListCatalog = async (): Promise<Record<string, FilterListDetails>> => {
-    const response = await fetch(chrome.runtime.getURL(FILTER_LIST_ASSETS_URL));
-    const json = await response.json() as Record<string, FilterListDetails>;
-    return json;
-};
-
-const deriveDefaultSelectedFilterLists = (available: Record<string, FilterListDetails>): string[] => {
-    const selected = [ FILTER_LIST_USER_PATH ];
-    for ( const [ key, details ] of Object.entries(available) ) {
-        if ( key === FILTER_LIST_USER_PATH ) { continue; }
-        if ( details.content !== 'filters' ) { continue; }
-        if ( details.off === true ) { continue; }
-        selected.push(key);
-    }
-    return selected;
-};
-
-const resolveBundledFilterListPath = (asset: FilterListDetails): string | undefined => {
-    const contentURLs = Array.isArray(asset.contentURL)
-        ? asset.contentURL
-        : typeof asset.contentURL === 'string'
-            ? [ asset.contentURL ]
-            : [];
-    return contentURLs.find(url => typeof url === 'string' && url.startsWith('assets/'));
-};
-
-const resolveStockAssetKeyFromURL = (
-    catalog: Record<string, FilterListDetails>,
-    urlKey: string,
-): string => {
-    const needle = urlKey.replace(/^https?:/, '');
-    for ( const [ assetKey, asset ] of Object.entries(catalog) ) {
-        if ( asset.content !== 'filters' ) { continue; }
-        const contentURLs = Array.isArray(asset.contentURL)
-            ? asset.contentURL
-            : typeof asset.contentURL === 'string'
-                ? [ asset.contentURL ]
-                : [];
-        for ( const contentURL of contentURLs ) {
-            if ( contentURL.replace(/^https?:/, '') === needle ) {
-                return assetKey;
-            }
-        }
-    }
-    return urlKey;
-};
-
-const buildAvailableFilterLists = (
-    catalog: Record<string, FilterListDetails>,
-    importedLists: string[],
-    selectedListSet: Set<string>,
-): Record<string, FilterListDetails> => {
-    const available: Record<string, FilterListDetails> = {
-        [FILTER_LIST_USER_PATH]: {
-            content: 'filters',
-            group: 'user',
-            title: 'My filters',
-            off: selectedListSet.has(FILTER_LIST_USER_PATH) === false,
-        },
-    };
-
-    for ( const [ assetKey, asset ] of Object.entries(catalog) ) {
-        if ( asset.content !== 'filters' ) { continue; }
-        available[assetKey] = {
-            ...cloneObject(asset),
-            off: selectedListSet.has(assetKey) === false,
-        };
-    }
-
-    for ( const importedList of importedLists ) {
-        if ( available[importedList] !== undefined ) {
-            available[importedList].off = selectedListSet.has(importedList) === false;
-            continue;
-        }
-        available[importedList] = {
-            content: 'filters',
-            contentURL: importedList,
-            external: true,
-            group: 'custom',
-            submitter: 'user',
-            supportURL: importedList,
-            supportName: listSupportNameFromURL(importedList),
-            title: importedList,
-            off: selectedListSet.has(importedList) === false,
-        };
-    }
-
-    return available;
-};
-
-const estimateFilterCounts = (available: Record<string, FilterListDetails>) => {
-    let netFilterCount = 0;
-    let cosmeticFilterCount = 0;
-    for ( const details of Object.values(available) ) {
-        if ( details.off === true ) { continue; }
-        netFilterCount += details.entryCount || 0;
-        cosmeticFilterCount += details.entryUsedCount || 0;
-    }
-    return {
-        netFilterCount,
-        cosmeticFilterCount,
-    };
-};
-
-const getFilterListState = async (): Promise<FilterListResponse> => {
-    await ensurePopupState();
-    const catalog = await fetchFilterListCatalog();
-    const stored = await chrome.storage.local.get([
-        'selectedFilterLists',
-        'availableFilterLists',
-        'userSettings',
-    ]);
-    const storedUserSettings = stored.userSettings || {};
-    const importedLists = normalizeImportedLists(
-        storedUserSettings.importedLists ?? popupState.userSettings.importedLists
-    );
-    const availableFromStorage = stored.availableFilterLists as Record<string, FilterListDetails> | undefined;
-    let selectedFilterLists = normalizeSelectedFilterLists(stored.selectedFilterLists);
-
-    if ( selectedFilterLists.length === 0 ) {
-        if ( availableFromStorage && Object.keys(availableFromStorage).length !== 0 ) {
-            selectedFilterLists = Object.entries(availableFromStorage)
-                .filter(([, details]) => details?.content === 'filters' && details?.off !== true)
-                .map(([ key ]) => key);
-            if ( selectedFilterLists.includes(FILTER_LIST_USER_PATH) === false ) {
-                selectedFilterLists.unshift(FILTER_LIST_USER_PATH);
-            }
-        } else {
-            selectedFilterLists = deriveDefaultSelectedFilterLists(catalog);
-            await chrome.storage.local.set({ selectedFilterLists });
-        }
-    }
-
-    const selectedListSet = new Set(selectedFilterLists);
-    selectedListSet.add(FILTER_LIST_USER_PATH);
-    const available = buildAvailableFilterLists(catalog, importedLists, selectedListSet);
-    const counts = estimateFilterCounts(available);
-
-    await chrome.storage.local.set({
-        availableFilterLists: available,
-    });
-
-    return {
-        autoUpdate: storedUserSettings.autoUpdate ?? popupState.userSettings.autoUpdate,
-        available,
-        cache: {},
-        cosmeticFilterCount: counts.cosmeticFilterCount,
-        current: cloneObject(available),
-        ignoreGenericCosmeticFilters:
-            storedUserSettings.ignoreGenericCosmeticFilters ??
-            popupState.userSettings.ignoreGenericCosmeticFilters,
-        isUpdating: filterListsUpdating,
-        netFilterCount: counts.netFilterCount,
-        parseCosmeticFilters:
-            storedUserSettings.parseAllABPHideFilters ??
-            popupState.userSettings.parseAllABPHideFilters,
-        suspendUntilListsAreLoaded:
-            storedUserSettings.suspendUntilListsAreLoaded ??
-            popupState.userSettings.suspendUntilListsAreLoaded,
-        userFiltersPath: FILTER_LIST_USER_PATH,
-    };
-};
-
-const applyFilterListSelection = async (payload: {
-    toSelect?: string[];
-    toImport?: string;
-    toRemove?: string[];
-}) => {
-    await ensurePopupState();
-    const catalog = await fetchFilterListCatalog();
-    const stored = await chrome.storage.local.get([ 'selectedFilterLists', 'userSettings' ]);
-    const currentUserSettings = {
-        ...popupState.userSettings,
-        ...(stored.userSettings || {}),
-    };
-    const importedSet = new Set(normalizeImportedLists(currentUserSettings.importedLists));
-    const selectedSet = new Set(normalizeSelectedFilterLists(stored.selectedFilterLists));
-    selectedSet.add(FILTER_LIST_USER_PATH);
-
-    if ( Array.isArray(payload.toSelect) ) {
-        selectedSet.clear();
-        selectedSet.add(FILTER_LIST_USER_PATH);
-        for ( const key of payload.toSelect ) {
-            if ( typeof key === 'string' && key.trim() !== '' ) {
-                selectedSet.add(key.trim());
-            }
-        }
-    }
-
-    if ( typeof payload.toImport === 'string' && payload.toImport.trim() !== '' ) {
-        for ( const imported of extractListURLs(payload.toImport) ) {
-            const resolved = resolveStockAssetKeyFromURL(catalog, imported);
-            if ( resolved === imported ) {
-                importedSet.add(imported);
-            }
-            selectedSet.add(resolved);
-        }
-    }
-
-    if ( Array.isArray(payload.toRemove) ) {
-        for ( const key of payload.toRemove ) {
-            if ( typeof key !== 'string' || key.trim() === '' ) { continue; }
-            const normalized = key.trim();
-            importedSet.delete(normalized);
-            selectedSet.delete(normalized);
-        }
-    }
-
-    const nextUserSettings = {
-        ...currentUserSettings,
-        importedLists: Array.from(importedSet).sort(),
-    };
-    popupState.userSettings = nextUserSettings;
-    await chrome.storage.local.set({
-        selectedFilterLists: Array.from(selectedSet),
-        userSettings: nextUserSettings,
-    });
-
-    // Sync filter list rules to DNR
-    await syncFilterListDnrRules();
-
-    return getFilterListState();
-};
-
-const reloadAllFilterLists = async () => {
-    filterListsUpdating = true;
-    try {
-        // Sync filter list rules to DNR
-        await syncFilterListDnrRules();
-        return await getFilterListState();
-    } finally {
-        filterListsUpdating = false;
-    }
-};
-
-const updateFilterListsNow = async (payload?: { assetKeys?: string[]; preferOrigin?: boolean }) => {
-    void payload;
-    filterListsUpdating = true;
-    try {
-        // Sync filter list rules to DNR
-        await syncFilterListDnrRules();
-        return await getFilterListState();
-    } finally {
-        filterListsUpdating = false;
-    }
-};
-
-type StoredCosmeticFilterData = {
-    genericCosmeticFilters: Array<{ key?: number; selector?: string }>;
-    genericCosmeticExceptions: Array<{ key?: number; selector?: string }>;
-    specificCosmeticFilters: Array<[string, {
-        key?: number;
-        matches?: string[];
-        excludeMatches?: string[];
-        rejected?: boolean;
-    }]>;
-    scriptletFilters: Array<[string, {
-        args?: string[];
-        matches?: string[];
-        excludeMatches?: string[];
-        trustedSource?: boolean;
-    }]>;
-};
-
-const serializeCosmeticFilterData = (dnrData: any): StoredCosmeticFilterData => ({
-    genericCosmeticFilters: Array.isArray(dnrData?.genericCosmeticFilters)
-        ? dnrData.genericCosmeticFilters
-        : [],
-    genericCosmeticExceptions: Array.isArray(dnrData?.genericCosmeticExceptions)
-        ? dnrData.genericCosmeticExceptions
-        : [],
-    specificCosmeticFilters: dnrData?.specificCosmetic instanceof Map
-        ? Array.from(dnrData.specificCosmetic.entries())
-        : Array.isArray(dnrData?.specificCosmetic)
-            ? dnrData.specificCosmetic
-            : [],
-    scriptletFilters: dnrData?.scriptlet instanceof Map
-        ? Array.from(dnrData.scriptlet.entries())
-        : Array.isArray(dnrData?.scriptlet)
-            ? dnrData.scriptlet
-            : [],
-});
-
-const parseStoredCosmeticFilterData = (raw: unknown): StoredCosmeticFilterData => {
-    let parsed = raw;
-    if ( typeof parsed === 'string' && parsed !== '' ) {
-        try {
-            parsed = JSON.parse(parsed);
-        } catch {
-            parsed = {};
-        }
-    }
-    const data = parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {};
-    return {
-        genericCosmeticFilters: Array.isArray(data.genericCosmeticFilters)
-            ? data.genericCosmeticFilters as StoredCosmeticFilterData['genericCosmeticFilters']
-            : [],
-        genericCosmeticExceptions: Array.isArray(data.genericCosmeticExceptions)
-            ? data.genericCosmeticExceptions as StoredCosmeticFilterData['genericCosmeticExceptions']
-            : [],
-        specificCosmeticFilters: Array.isArray(data.specificCosmeticFilters)
-            ? data.specificCosmeticFilters as StoredCosmeticFilterData['specificCosmeticFilters']
-            : [],
-        scriptletFilters: Array.isArray(data.scriptletFilters)
-            ? data.scriptletFilters as StoredCosmeticFilterData['scriptletFilters']
-            : [],
-    };
-};
-
-const hostnameMatchesFilterScope = (pageHostname: string, scope: string): boolean => {
-    if ( scope === '*' ) { return true; }
-    if ( scope === pageHostname ) { return true; }
-    return pageHostname.endsWith(`.${scope}`);
-};
-
-const buildSpecificCosmeticPayload = (
-    pageHostname: string,
-    storedData: StoredCosmeticFilterData,
-) => {
-    const injectedSelectors: string[] = [];
-    for ( const entry of storedData.specificCosmeticFilters ) {
-        if ( Array.isArray(entry) === false || entry.length < 2 ) { continue; }
-        const [ selector, details ] = entry;
-        if ( typeof selector !== 'string' || selector === '' ) { continue; }
-        if ( selector.startsWith('{') ) { continue; }
-        if ( details?.rejected === true ) { continue; }
-        const matches = Array.isArray(details?.matches) ? details.matches : [];
-        const excludeMatches = Array.isArray(details?.excludeMatches) ? details.excludeMatches : [];
-        const included = matches.length === 0
-            ? true
-            : matches.some(scope => hostnameMatchesFilterScope(pageHostname, scope));
-        if ( included === false ) { continue; }
-        const excluded = excludeMatches.some(scope => hostnameMatchesFilterScope(pageHostname, scope));
-        if ( excluded ) { continue; }
-        injectedSelectors.push(selector);
-    }
-
-    const injectedCSS = injectedSelectors.length === 0
-        ? ''
-        : `${injectedSelectors.join(',\n')}\n{display:none!important;}`;
-
-    return {
-        ready: true,
-        injectedCSS,
-        proceduralFilters: [] as string[],
-        exceptionFilters: [] as string[],
-        exceptedFilters: [] as string[],
-        convertedProceduralFilters: [] as unknown[],
-        genericCosmeticHashes: storedData.genericCosmeticFilters
-            .map(filter => filter?.key)
-            .filter((key): key is number => typeof key === 'number'),
-        disableSurveyor: false,
-    };
-};
-
-// Sync filter list network rules to Chrome DNR
-const syncFilterListDnrRules = async (): Promise<void> => {
-    if ( chrome.declarativeNetRequest === undefined ) { 
-        console.log('[DNR] DNR not available');
-        return; 
-    }
-    
-    try {
-        // Get selected filter lists
-        const stored = await chrome.storage.local.get([
-            'selectedFilterLists',
-            'availableFilterLists',
-            'userSettings',
-        ]);
-        let selectedLists = normalizeSelectedFilterLists(stored.selectedFilterLists);
-        
-        console.log('[DNR] Selected lists:', selectedLists);
-        
-        // Always ensure we have default filter lists selected
-        if ( selectedLists.length === 0 ) {
-            const catalogForDefaults = await fetchFilterListCatalog();
-            selectedLists = deriveDefaultSelectedFilterLists(catalogForDefaults);
-            const storedUserSettings = stored.userSettings || {};
-            const importedLists = normalizeImportedLists(storedUserSettings.importedLists);
-            const selectedListSet = new Set(selectedLists);
-            selectedListSet.add(FILTER_LIST_USER_PATH);
-            const available = buildAvailableFilterLists(
-                catalogForDefaults,
-                importedLists,
-                selectedListSet,
-            );
-            await chrome.storage.local.set({
-                selectedFilterLists: selectedLists,
-                availableFilterLists: available,
-            });
-            console.log('[DNR] Bootstrapped default filter lists:', selectedLists);
-        }
-
-        // Force refresh selected lists from storage after potential bootstrap
-        const refreshedStorage = await chrome.storage.local.get('selectedFilterLists');
-        selectedLists = normalizeSelectedFilterLists(refreshedStorage.selectedFilterLists);
-        console.log('[DNR] Final selected lists:', selectedLists);
-
-        // Get catalog
-        const catalog = await fetchFilterListCatalog();
-        console.log('[DNR] Catalog keys count:', Object.keys(catalog).length);
-        
-        // For MV3 first run, generate simple blocking rules for common ad patterns
-        // This ensures we have some rules even if CDN is unreachable
-        const generateFallbackRules = (): chrome.declarativeNetRequest.Rule[] => {
-            const rules: chrome.declarativeNetRequest.Rule[] = [];
-            const baseId = 100;
-            
-            // Common ad domains to block
-            const adDomains = [
-                'doubleclick.net',
-                'googlesyndication.com',
-                'googleadservices.com',
-                'adnxs.com',
-                'adsrvr.org',
-                'criteo.com',
-                'pubmatic.com',
-                'rubiconproject.com',
-                'openx.net',
-                'advertising.com',
-            ];
-            
-            for (let i = 0; i < adDomains.length; i++) {
-                rules.push({
-                    id: baseId + i,
-                    priority: 1,
-                    action: { type: 'block' },
-                    condition: {
-                        urlFilter: `||${adDomains[i]}^`,
-                        resourceTypes: ['main_frame', 'sub_frame', 'script', 'image', 'xmlhttprequest', 'websocket', 'other'],
-                    },
-                });
-            }
-            
-            return rules;
-        };
-        
-        // Load filter list content
-        const filterLists: { key: string; text: string }[] = [];
-        for ( const listKey of selectedLists ) {
-            if ( listKey === FILTER_LIST_USER_PATH ) {
-                // Get user filters from storage
-                const userFiltersStored = await chrome.storage.local.get('userFilters');
-                const userFilters = typeof userFiltersStored.userFilters === 'string' 
-                    ? userFiltersStored.userFilters 
-                    : '';
-                if ( userFilters ) {
-                    filterLists.push({ key: FILTER_LIST_USER_PATH, text: userFilters });
-                    console.log('[DNR] Loaded user filters:', userFilters.length, 'chars');
-                }
-                continue;
-            }
-            
-            const asset = catalog[listKey];
-            if ( !asset ) { 
-                console.log('[DNR] Skipping list (missing catalog entry):', listKey);
-                continue; 
-            }
-            
-            let bundledPath = resolveBundledFilterListPath(asset);
-            let filterText = '';
-            
-            // First try bundled asset
-            if ( bundledPath !== undefined ) {
-                try {
-                    const response = await fetch(chrome.runtime.getURL(bundledPath));
-                    if ( response.ok ) {
-                        filterText = await response.text();
-                        filterLists.push({ key: listKey, text: filterText });
-                        console.log('[DNR] Loaded from bundled:', listKey, filterText.length, 'chars');
-                    } else {
-                        console.log('[DNR] Bundled load failed:', listKey, response.status);
-                    }
-                } catch ( e ) {
-                    console.warn('[DNR] Failed to load bundled:', listKey, e);
-                }
-            }
-            
-            // If no bundled text, try CDN URL as fallback
-            if ( filterText === '' && asset.cdnURLs && asset.cdnURLs.length > 0 ) {
-                console.log('[DNR] Trying CDN for:', listKey);
-                try {
-                    const response = await fetch(asset.cdnURLs[0]);
-                    if ( response.ok ) {
-                        filterText = await response.text();
-                        filterLists.push({ key: listKey, text: filterText });
-                        console.log('[DNR] Loaded from CDN:', listKey, filterText.length, 'chars');
-                    } else {
-                        console.log('[DNR] CDN load failed:', listKey, response.status);
-                    }
-                } catch ( e ) {
-                    console.warn('[DNR] Failed to load from CDN:', listKey, e);
-                }
-            }
-            
-            if ( filterText === '' ) {
-                console.log('[DNR] Skipping list (no content loaded):', listKey);
-            }
-        }
-
-        console.log('[DNR] Total lists loaded:', filterLists.length);
-        
-        let dnrData: any = null;
-        
-        if ( filterLists.length === 0 ) {
-            console.log('[DNR] No filter lists loaded, using fallback rules');
-            // Use fallback rules when no lists can be loaded
-        } else {
-            console.log('[DNR] Compiling', filterLists.length, 'filter lists to DNR rules...');
-
-            // Import the DNR conversion function (from built JS)
-            const { dnrRulesetFromRawLists } = await import('../static-dnr-filtering.js');
-            
-            console.log('[DNR] Input lists:', filterLists.map(f => ({ key: f.key, textLen: f.text.length })));
-            
-            // Compile to DNR rules
-            dnrData = await dnrRulesetFromRawLists(
-                filterLists.map(f => ({ text: f.text })),
-                { env: [] }
-            );
-            
-            console.log('[DNR] Raw result keys:', Object.keys(dnrData || {}));
-            console.log('[DNR] genericCosmeticFilters:', dnrData?.genericCosmeticFilters?.length);
-            console.log('[DNR] specificCosmetic (Map):', dnrData?.specificCosmetic instanceof Map);
-            if (dnrData?.specificCosmetic instanceof Map) {
-                console.log('[DNR] specificCosmetic size:', dnrData.specificCosmetic.size);
-                console.log('[DNR] specificCosmetic sample:', Array.from(dnrData.specificCosmetic.entries()).slice(0, 3));
-            }
-
-            console.log('[DNR] Result:', dnrData);
-        }
-        
-        let addRules: chrome.declarativeNetRequest.Rule[] = [];
-        
-        if ( dnrData?.network?.ruleset && dnrData.network.ruleset.length > 0 ) {
-            console.log('[DNR] Generated rules:', dnrData.network.ruleset.length);
-
-            // Get existing rules and remove old filter list rules (ID range 100-9999)
-            const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-            const removeRuleIds = existingRules
-                .map(rule => rule.id)
-                .filter(id => id >= 100 && id < 10000);
-
-            // Assign IDs to new rules (start at 100 to avoid conflicts with firewall rules)
-            addRules = dnrData.network.ruleset.map((rule: any, index: number) => ({
-                ...rule,
-                id: 100 + index,
-            })).slice(0, 3000); // Chrome DNR limit is 3000 dynamic rules
-            
-            // Update DNR
-            await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
-            console.log('[DNR] Installed', addRules.length, 'filter list rules');
-            
-            // Store cosmetic filters for content script access
-            const cosmeticFiltersData = serializeCosmeticFilterData(dnrData);
-            await chrome.storage.local.set({ cosmeticFiltersData: JSON.stringify(cosmeticFiltersData) });
-            console.log('[DNR] Stored cosmetic filters:', 
-                cosmeticFiltersData.genericCosmeticFilters.length, 'generic,',
-                cosmeticFiltersData.specificCosmeticFilters.length, 'specific');
-        } else {
-            // Fallback: Install basic blocking rules even if filter lists couldn't load
-            console.log('[DNR] No rules from filter lists, installing fallback blocking rules');
-            const fallbackRules = generateFallbackRules();
-            const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-            const removeRuleIds = existingRules
-                .map(rule => rule.id)
-                .filter(id => id >= 100 && id < 10000);
-            
-            if (removeRuleIds.length > 0) {
-                await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeRuleIds });
-            }
-            
-            await chrome.declarativeNetRequest.updateDynamicRules({ addRules: fallbackRules });
-            console.log('[DNR] Installed', fallbackRules.length, 'fallback rules');
-        }
-        
-    } catch ( e ) {
-        console.error('[DNR] Failed to sync filter list rules:', e);
-    }
-};
-
-const persistPermanentFirewall = async () => {
-    await chrome.storage.local.set({
-        dynamicFilteringString: popupState.permanentFirewall.toString(),
-    });
-};
-
-const firewallRuleResourceTypes = (type: string) => {
-    switch ( type ) {
-    case 'image':
-        return [ 'image' ];
-    case '3p-script':
-    case '1p-script':
-        return [ 'script' ];
-    case '3p-frame':
-        return [ 'sub_frame' ];
-    case '3p':
-        return [ 'image', 'script', 'sub_frame' ];
-    case '*':
-        return [ 'image', 'script', 'sub_frame', 'xmlhttprequest', 'media', 'font', 'object', 'other' ];
-    default:
-        return [];
-    }
-};
-
-const compileFirewallRulesToDnr = (firewall: DynamicFirewallRules) => {
-    const addRules: chrome.declarativeNetRequest.Rule[] = [];
-    let nextRuleId = FIREWALL_RULE_ID_MIN;
-
-    for ( const rule of firewall.toArray() ) {
-        const [ srcHostname, desHostname, type, actionName ] = rule.split(' ');
-        const resourceTypes = firewallRuleResourceTypes(type);
-        if ( type === 'inline-script' ) {
-            if ( nextRuleId > FIREWALL_RULE_ID_MAX ) { break; }
-            const condition: chrome.declarativeNetRequest.RuleCondition = {
-                resourceTypes: [
-                    'main_frame' as chrome.declarativeNetRequest.ResourceType,
-                    'sub_frame' as chrome.declarativeNetRequest.ResourceType,
-                ],
-            };
-            if ( srcHostname !== '*' ) {
-                condition.requestDomains = [ srcHostname ];
-            }
-            addRules.push({
-                id: nextRuleId++,
-                priority: 2_000_000 +
-                    ((actionName === 'allow' || actionName === 'noop') ? 10_000 : 0) +
-                    (srcHostname !== '*' ? 1_000 : 0),
-                action: {
-                    type: 'modifyHeaders',
-                    responseHeaders: [{
-                        header: 'content-security-policy',
-                        operation: 'set',
-                        value: actionName === 'block'
-                            ? "script-src 'self' 'unsafe-eval' http: https: data: blob:; object-src 'none'; base-uri 'self'"
-                            : "script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; object-src 'none'; base-uri 'self'",
-                    }],
-                },
-                condition,
-            });
-            continue;
-        }
-        for ( const resourceType of resourceTypes ) {
-            if ( nextRuleId > FIREWALL_RULE_ID_MAX ) { break; }
-            const condition: chrome.declarativeNetRequest.RuleCondition = {
-                resourceTypes: [ resourceType as chrome.declarativeNetRequest.ResourceType ],
-            };
-            if ( srcHostname !== '*' ) {
-                condition.initiatorDomains = [ srcHostname ];
-            }
-            if ( desHostname !== '*' ) {
-                condition.requestDomains = [ desHostname ];
-            }
-            if ( type === '3p' || type === '3p-script' || type === '3p-frame' ) {
-                condition.domainType = 'thirdParty';
-            } else if ( type === '1p-script' ) {
-                condition.domainType = 'firstParty';
-            }
-
-            addRules.push({
-                id: nextRuleId++,
-                priority: 2_000_000 +
-                    ((actionName === 'allow' || actionName === 'noop') ? 10_000 : 0) +
-                    (srcHostname !== '*' ? 1_000 : 0),
-                action: {
-                    // MV3 DNR has no direct noop equivalent; treat it as a
-                    // higher-priority allow so it cancels broader firewall blocks.
-                    type: (actionName === 'allow' || actionName === 'noop') ? 'allow' : 'block',
-                },
-                condition,
-            });
-        }
-    }
-
-    return addRules;
-};
-
-const syncFirewallDnrRules = async () => {
-    if ( chrome.declarativeNetRequest === undefined ) { return; }
-    
-    // Validate addRules before updating
-    const addRules = compileFirewallRulesToDnr(popupState.sessionFirewall);
-    if (!Array.isArray(addRules)) {
-        console.warn('[MV3] syncFirewallDnrRules: invalid addRules');
-        return;
-    }
-    for (const rule of addRules) {
-        if (!rule.id || !rule.action?.type || !rule.condition) {
-            console.warn('[MV3] syncFirewallDnrRules: invalid rule', rule);
-            return;
-        }
-    }
-    
-    // Check rule count limit (Chrome max is 30000 rules)
-    const MAX_DNR_RULES = 30000;
-    if (addRules.length > MAX_DNR_RULES) {
-        console.warn('[MV3] syncFirewallDnrRules: rule count exceeds limit', addRules.length);
-        // Truncate rules to fit limit
-        addRules.length = MAX_DNR_RULES;
-    }
-    
-    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-    const removeRuleIds = existingRules
-        .map(rule => rule.id)
-        .filter(id => id >= FIREWALL_RULE_ID_MIN && id <= FIREWALL_RULE_ID_MAX);
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
-};
-
-const compileWhitelistRulesToDnr = (whitelist: string[]): chrome.declarativeNetRequest.Rule[] => {
-    const escapeRegex = (value: string) => value.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
-    const rules: chrome.declarativeNetRequest.Rule[] = [];
-    let nextRuleId = WHITELIST_RULE_ID_MIN;
-
-    for ( const pattern of whitelist ) {
-        if ( nextRuleId > WHITELIST_RULE_ID_MAX ) { break; }
-        if ( typeof pattern !== 'string' || pattern.length === 0 ) { continue; }
-        if ( pattern.startsWith('#') ) { continue; }
-
-        let regex = pattern;
-        if ( regex.startsWith('||') ) {
-            regex = '^https?://([^/]+\\.)?' + regex.slice(2);
-        } else if ( regex.startsWith('|') ) {
-            regex = '^' + regex.slice(1);
-        } else if ( regex.endsWith('|') ) {
-            regex = regex.slice(0, -1) + '$';
-        }
-        regex = escapeRegex(regex).replace(/\\\*/g, '.*');
-
-        rules.push({
-            id: nextRuleId++,
-            priority: 3,
-            action: { type: 'allow' },
-            condition: {
-                urlFilter: regex || '.*',
-                domainType: 'thirdParty',
-            },
-        });
-    }
-
-    return rules;
-};
-
-const syncWhitelistDnrRules = async () => {
-    if ( chrome.declarativeNetRequest === undefined ) { return; }
-    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-    const removeRuleIds = existingRules
-        .map(rule => rule.id)
-        .filter(id => id >= WHITELIST_RULE_ID_MIN && id <= WHITELIST_RULE_ID_MAX);
-    const addRules = compileWhitelistRulesToDnr(popupState.whitelist || []);
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
-};
-
-const compilePowerSwitchDnrRules = (perSiteFiltering: Record<string, boolean>) => {
-    const addRules: chrome.declarativeNetRequest.Rule[] = [];
-    let nextRuleId = POWER_RULE_ID_MIN;
-    const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-    for ( const [ scopeKey, enabled ] of Object.entries(perSiteFiltering).sort(([ a ], [ b ]) => a.localeCompare(b)) ) {
-        if ( enabled !== false ) { continue; }
-        if ( nextRuleId > POWER_RULE_ID_MAX ) { break; }
-
-        const separator = scopeKey.indexOf(':http');
-        const isPageScoped = separator !== -1;
-        const hostname = isPageScoped ? scopeKey.slice(0, separator) : scopeKey;
-        const scopedURL = isPageScoped ? scopeKey.slice(separator + 1) : '';
-
-        const condition: chrome.declarativeNetRequest.RuleCondition = {
-            resourceTypes: [
-                'main_frame' as chrome.declarativeNetRequest.ResourceType,
-                'sub_frame' as chrome.declarativeNetRequest.ResourceType,
-            ],
-        };
-
-        if ( isPageScoped ) {
-            condition.regexFilter = `^${escapeRegex(scopedURL)}$`;
-        } else if ( hostname !== '' ) {
-            condition.requestDomains = [ hostname ];
-        } else {
-            continue;
-        }
-
-        addRules.push({
-            id: nextRuleId++,
-            priority: 3_000_000,
-            action: { type: 'allowAllRequests' },
-            condition,
-        });
-    }
-
-    return addRules;
-};
-
-const syncPowerSwitchDnrRules = async () => {
-    if ( chrome.declarativeNetRequest === undefined ) { return; }
-    const stored = await chrome.storage.local.get('perSiteFiltering');
-    const perSiteFiltering: Record<string, boolean> = stored?.perSiteFiltering || {};
-    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-    const removeRuleIds = existingRules
-        .map(rule => rule.id)
-        .filter(id => id >= POWER_RULE_ID_MIN && id <= POWER_RULE_ID_MAX);
-    const addRules = compilePowerSwitchDnrRules(perSiteFiltering);
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
-};
-
-const getHostnameSwitchState = async (): Promise<HostnameSwitchState> => {
-    const stored = await chrome.storage.local.get([
-        'hostnameSwitches',
-        'hostnameSwitchesVersion',
-    ]);
-    if ( stored?.hostnameSwitchesVersion !== HOSTNAME_SWITCHES_SCHEMA_VERSION ) {
-        // Older builds wrote unstable hostname-switch state. Reset it once so
-        // the controls start from a clean default and then persist correctly.
-        await chrome.storage.local.set({
-            hostnameSwitches: {},
-            hostnameSwitchesVersion: HOSTNAME_SWITCHES_SCHEMA_VERSION,
-        });
-        return {};
-    }
-    const hostnameSwitches = stored?.hostnameSwitches;
-    return hostnameSwitches && typeof hostnameSwitches === 'object'
-        ? hostnameSwitches as HostnameSwitchState
-        : {};
-};
-
-const cloneHostnameSwitchState = (state: HostnameSwitchState): HostnameSwitchState =>
-    structuredClone(state);
-
-const hostnameSwitchesEqual = (a: HostnameSwitchState, b: HostnameSwitchState, hostname: string) => {
-    const names = Array.from(hostnameSwitchNames);
-    return names.every(name => (a[hostname]?.[name] === true) === (b[hostname]?.[name] === true));
-};
-
-const persistPermanentHostnameSwitches = async () => {
-    await chrome.storage.local.set({
-        hostnameSwitches: popupState.permanentHostnameSwitches,
-        hostnameSwitchesVersion: HOSTNAME_SWITCHES_SCHEMA_VERSION,
-    });
-};
-
-const persistURLFilteringRules = async () => {
-    const stored = await chrome.storage.local.get('urlFilteringRules');
-    const rules = stored?.urlFilteringRules || [];
-    await chrome.storage.local.set({ permanentURLFiltering: rules });
-};
-
-const compileHostnameSwitchDnrRules = (hostnameSwitches: HostnameSwitchState) => {
-    const addRules: chrome.declarativeNetRequest.Rule[] = [];
-    let nextRuleId = HOSTNAME_SWITCH_RULE_ID_MIN;
-
-    for ( const hostname of Object.keys(hostnameSwitches).sort() ) {
-        const switches = hostnameSwitches[hostname];
-        if ( switches?.['no-scripting'] === true && nextRuleId <= HOSTNAME_SWITCH_RULE_ID_MAX ) {
-            addRules.push({
-                id: nextRuleId++,
-                priority: 2_100_000,
-                action: { type: 'block' },
-                condition: {
-                    initiatorDomains: [ hostname ],
-                    resourceTypes: [ 'script' ],
-                },
-            });
-            if ( nextRuleId <= HOSTNAME_SWITCH_RULE_ID_MAX ) {
-                addRules.push({
-                    id: nextRuleId++,
-                    priority: 2_100_001,
-                    action: {
-                        type: 'modifyHeaders',
-                        responseHeaders: [{
-                            header: 'content-security-policy',
-                            operation: 'set',
-                            value: "script-src 'none'; object-src 'none'; base-uri 'self'",
-                        }],
-                    },
-                    condition: {
-                        requestDomains: [ hostname ],
-                        resourceTypes: [
-                            'main_frame' as chrome.declarativeNetRequest.ResourceType,
-                            'sub_frame' as chrome.declarativeNetRequest.ResourceType,
-                        ],
-                    },
-                });
-            }
-        }
-        if ( switches?.['no-remote-fonts'] === true && nextRuleId <= HOSTNAME_SWITCH_RULE_ID_MAX ) {
-            addRules.push({
-                id: nextRuleId++,
-                priority: 2_100_010,
-                action: { type: 'block' },
-                condition: {
-                    initiatorDomains: [ hostname ],
-                    resourceTypes: [ 'font' ],
-                },
-            });
-        }
-        if ( switches?.['no-large-media'] === true && nextRuleId <= HOSTNAME_SWITCH_RULE_ID_MAX ) {
-            addRules.push({
-                id: nextRuleId++,
-                priority: 2_100_020,
-                action: { type: 'block' },
-                condition: {
-                    initiatorDomains: [ hostname ],
-                    resourceTypes: [ 'media' ],
-                },
-            });
-        }
-    }
-
-    return addRules;
-};
-
-const syncHostnameSwitchDnrRules = async () => {
-    if ( chrome.declarativeNetRequest === undefined ) { return; }
-    
-    const addRules = compileHostnameSwitchDnrRules(popupState.sessionHostnameSwitches);
-    if (!Array.isArray(addRules)) {
-        console.warn('[MV3] syncHostnameSwitchDnrRules: invalid addRules');
-        return;
-    }
-    
-    // Check rule count limit (Chrome max is 30000 rules)
-    const MAX_DNR_RULES = 30000;
-    if (addRules.length > MAX_DNR_RULES) {
-        console.warn('[MV3] syncHostnameSwitchDnrRules: rule count exceeds limit', addRules.length);
-        addRules.length = MAX_DNR_RULES;
-    }
-    
-    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-    const removeRuleIds = existingRules
-        .map(rule => rule.id)
-        .filter(id => id >= HOSTNAME_SWITCH_RULE_ID_MIN && id <= HOSTNAME_SWITCH_RULE_ID_MAX);
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
-};
-
-const applyMainWorldPopupBlock = async (tabId: number, enabled: boolean) => {
-    try {
-        await chrome.scripting.executeScript({
-            target: { tabId, allFrames: true },
-            world: 'MAIN',
-            func: (isEnabled: boolean) => {
-                const key = '__ubrOriginalWindowOpen';
-                const clickKey = '__ubrPopupClickBlocker';
-                const countKey = '__ubrPopupBlockedCount';
-                const win = window as Window & Record<string, any>;
-                if ( isEnabled ) {
-                    if ( typeof win[countKey] !== 'number' ) {
-                        win[countKey] = 0;
-                    }
-                    if ( typeof win[key] !== 'function' ) {
-                        win[key] = window.open.bind(window);
-                    }
-                    window.open = function() {
-                        win[countKey] += 1;
-                        return null;
-                    } as typeof window.open;
-                    if ( typeof win[clickKey] !== 'function' ) {
-                        win[clickKey] = (event: MouseEvent) => {
-                            const target = event.target as Element | null;
-                            const anchor = target?.closest?.('a[target]:not([target="_self"])') as HTMLAnchorElement | null;
-                            if ( anchor === null ) { return; }
-                            win[countKey] += 1;
-                            event.preventDefault();
-                            event.stopImmediatePropagation();
-                        };
-                        document.addEventListener('click', win[clickKey], true);
-                    }
-                    return;
-                }
-                if ( typeof win[key] === 'function' ) {
-                    window.open = win[key];
-                    delete win[key];
-                }
-                if ( typeof win[clickKey] === 'function' ) {
-                    document.removeEventListener('click', win[clickKey], true);
-                    delete win[clickKey];
-                }
-            },
-            args: [ enabled ],
-        });
-    } catch {
-    }
-};
-
-const getTabSwitchMetrics = async (tabId: number): Promise<TabSwitchMetrics> => {
-    if ( chrome.scripting?.executeScript === undefined ) {
-        return {
-            popupBlockedCount: 0,
-            largeMediaCount: 0,
-            remoteFontCount: 0,
-            scriptCount: 0,
-        };
-    }
-    try {
-        const [ result ] = await chrome.scripting.executeScript({
-            target: { tabId },
-            world: 'MAIN',
-            func: () => {
-                const win = window as Window & Record<string, any>;
-                const popupBlockedCount = typeof win.__ubrPopupBlockedCount === 'number'
-                    ? win.__ubrPopupBlockedCount
-                    : 0;
-                const largeMediaCount = document.querySelectorAll('video, audio').length;
-                const scriptCount = document.scripts.length;
-                const remoteFontCount = performance
-                    .getEntriesByType('resource')
-                    .filter(entry => {
-                        const name = entry.name || '';
-                        return (
-                            entry.initiatorType === 'font' ||
-                            /\.(woff2?|ttf|otf|eot)(?:$|[?#])/i.test(name) ||
-                            /fonts\.(gstatic|googleapis)\.com/i.test(name)
-                        );
-                    })
-                    .length;
-                return {
-                    popupBlockedCount,
-                    largeMediaCount,
-                    remoteFontCount,
-                    scriptCount,
-                };
-            },
-        });
-        return (result?.result as TabSwitchMetrics | undefined) || {
-            popupBlockedCount: 0,
-            largeMediaCount: 0,
-            remoteFontCount: 0,
-            scriptCount: 0,
-        };
-    } catch {
-        return {
-            popupBlockedCount: 0,
-            largeMediaCount: 0,
-            remoteFontCount: 0,
-            scriptCount: 0,
-        };
-    }
-};
-
-const getHiddenElementCountForTab = async (tabId: number): Promise<number> => {
-    if ( chrome.scripting?.executeScript === undefined ) { return 0; }
-    try {
-        const [ result ] = await chrome.scripting.executeScript({
-            target: { tabId },
-            func: () => Array.from(document.querySelectorAll('body *'))
-                .reduce((count, element) => {
-                    const style = getComputedStyle(element);
-                    return (
-                        style.display === 'none' ||
-                        style.visibility === 'hidden' ||
-                        (element as HTMLElement).hidden
-                    )
-                        ? count + 1
-                        : count;
-                }, 0),
-        });
-        return typeof result?.result === 'number' ? result.result : 0;
-    } catch {
-        return 0;
-    }
-};
-
-const applyPersistedHostnameSwitchesForTab = async (tabId: number, url?: string) => {
-    let hostname = '';
-    try {
-        if ( typeof url === 'string' && url !== '' ) {
-            hostname = new URL(url).hostname;
-        } else {
-            const tab = await chrome.tabs.get(tabId);
-            hostname = tab.url ? new URL(tab.url).hostname : '';
-        }
-    } catch {
-        hostname = '';
-    }
-    if ( hostname === '' ) { return; }
-    const hostnameSwitches = await getHostnameSwitchState();
-    const switches = hostnameSwitches[hostname];
-    if ( switches === undefined ) { return; }
-    for ( const name of hostnameSwitchNames ) {
-        if ( switches[name] === true ) {
-            await applyImmediateHostnameSwitchEffects(tabId, name, true);
-        }
-    }
-};
-
-const applyImmediateHostnameSwitchEffects = async (tabId: number, name: string, enabled: boolean) => {
-    try {
-        const result = chrome.tabs.sendMessage(tabId, {
-            topic: 'uBlockHostnameSwitch',
-            payload: { name, enabled },
-        }) as Promise<unknown> | undefined;
-        result?.catch(() => {});
-    } catch {
-    }
-
-    if ( name === 'no-popups' ) {
-        await applyMainWorldPopupBlock(tabId, enabled);
-        return;
-    }
-
-    if ( name === 'no-remote-fonts' ) {
-        const css = 'html, body, body * { font-family: system-ui, sans-serif !important; }';
-        try {
-            if ( enabled ) {
-                await chrome.scripting.insertCSS({ target: { tabId, allFrames: true }, css });
-            } else {
-                await chrome.scripting.removeCSS({ target: { tabId, allFrames: true }, css });
-            }
-        } catch {
-        }
-        return;
-    }
-
-    if ( name === 'no-large-media' ) {
-        const css = 'video, audio { display: none !important; }';
-        try {
-            if ( enabled ) {
-                await chrome.scripting.insertCSS({ target: { tabId, allFrames: true }, css });
-            } else {
-                await chrome.scripting.removeCSS({ target: { tabId, allFrames: true }, css });
-            }
-        } catch {
-        }
-    }
-};
-
-const zeroHostnameDetails = (hostname: string): HostnameDetails => ({
-    domain: domainFromHostname(hostname),
-    counts: createCounts(),
-});
-
-const cloneHostnameDetails = (details: HostnameDetails): HostnameDetails => ({
-    domain: details.domain,
-    counts: {
-        allowed: { ...details.counts.allowed },
-        blocked: { ...details.counts.blocked },
-    },
-});
-
-const ensureTabRequestState = (tabId: number, pageHostname = ''): TabRequestState => {
-    let state = tabRequestStates.get(tabId);
-    if ( state !== undefined ) { return state; }
-    state = {
-        startedAt: Date.now(),
-        pageHostname,
-        pageCounts: createCounts(),
-        hostnameDict: {},
-    };
-    if ( pageHostname !== '' ) {
-        state.hostnameDict[pageHostname] = zeroHostnameDetails(pageHostname);
-    }
-    tabRequestStates.set(tabId, state);
-    return state;
-};
-
-const persistTabRequestState = async (tabId: number) => {
-    const state = tabRequestStates.get(tabId);
-    if ( state === undefined ) { return; }
-    await requestStateStorage.set({
-        [tabRequestStateKey(tabId)]: state,
-    });
-};
-
-const loadTabRequestState = async (tabId: number) => {
-    const inMemory = tabRequestStates.get(tabId);
-    if ( inMemory !== undefined ) { return inMemory; }
-    const items = await requestStateStorage.get(tabRequestStateKey(tabId));
-    const state = items[tabRequestStateKey(tabId)] as TabRequestState | undefined;
-    if ( state !== undefined ) {
-        tabRequestStates.set(tabId, state);
-    }
-    return state;
-};
-
-const loadTabRequestStateWithRetry = async (tabId: number, attempts = 3) => {
-    for ( let i = 0; i < attempts; i++ ) {
-        const state = await loadTabRequestState(tabId);
-        if ( state !== undefined && Object.keys(state.hostnameDict).length > 1 ) {
-            return state;
-        }
-        if ( i + 1 < attempts ) {
-            await delay(100);
-        }
-    }
-    return loadTabRequestState(tabId);
-};
-
-const clearTabRequestState = async (tabId: number) => {
-    tabRequestStates.delete(tabId);
-    await requestStateStorage.remove(tabRequestStateKey(tabId));
-};
-
-const persistGlobalRequestCounts = async () => {
-    await chrome.storage.local.set({
-        globalAllowedRequestCount: popupState.globalAllowedRequestCount,
-        globalBlockedRequestCount: popupState.globalBlockedRequestCount,
-    });
-    void updateBadge();
-};
-
-const updateBadge = async () => {
-    if ( chrome.action === undefined ) { return; }
-    const count = popupState.globalBlockedRequestCount;
-    if ( count > 0 ) {
-        const displayCount = count > 999 ? '999+' : count.toString();
-        await chrome.action.setBadgeText({ text: displayCount });
-        await chrome.action.setBadgeBackgroundColor({ color: '#cc0000' });
-    } else {
-        await chrome.action.setBadgeText({ text: '' });
-    }
-};
-
-const updateToolbarIcon = async (tabId: number, options: { filtering?: boolean; clickToLoad?: string }): Promise<void> => {
-    try {
-        // Get current state from storage
-        const stored = await chrome.storage.local.get('tabIdToDetails');
-        let currentParts = stored?.tabIdToDetails?.[tabId] || 0b0111;
-        
-        if (options.filtering === false) {
-            currentParts = 0b0100; // hide badge = true, color = 0, text = 0
-        } else if (options.filtering === true) {
-            currentParts = 0b0111; // show all
-        }
-        
-        // Store updated state
-        const tabDetails = stored?.tabIdToDetails || {};
-        tabDetails[tabId] = currentParts;
-        await chrome.storage.local.set({ tabIdToDetails: tabDetails });
-        
-        // Get per-site filtering state for this tab
-        const tab = await chrome.tabs.get(tabId);
-        if (!tab?.url) return;
-        
-        const hostname = new URL(tab.url).hostname;
-        const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
-        const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
-        
-        // Check if filtering is enabled for this site
-        const isFilteringEnabled = perSiteFiltering[hostname] !== false;
-        
-        // Update badge to reflect filtering state
-        if (isFilteringEnabled && (currentParts & 0b001)) {
-            const blockedCount = popupState.tabMetrics?.[tabId]?.blocked || 0;
-            if (blockedCount > 0) {
-                await chrome.action.setBadgeText({ text: blockedCount > 999 ? '999+' : String(blockedCount) });
-                await chrome.action.setBadgeBackgroundColor({ color: '#cc0000' });
-            } else {
-                await chrome.action.setBadgeText({ text: '' });
-            }
-        } else if (!isFilteringEnabled) {
-            await chrome.action.setBadgeText({ text: 'off', tabId });
-            await chrome.action.setBadgeBackgroundColor({ color: '#888888', tabId });
-        } else {
-            await chrome.action.setBadgeText({ text: '' });
-        }
-        
-        // Store click-to-load allowance
-        if (options.clickToLoad) {
-            const stored = await chrome.storage.local.get('clickToLoadAllowances');
-            const allowances = stored?.clickToLoadAllowances || {};
-            if (!allowances[tabId]) allowances[tabId] = [];
-            if (!allowances[tabId].includes(options.clickToLoad)) {
-                allowances[tabId].push(options.clickToLoad);
-                await chrome.storage.local.set({ clickToLoadAllowances: allowances });
-            }
-        }
-    } catch (e) {
-        console.log('[MV3] updateToolbarIcon error:', e);
-    }
-};
-
-const incrementCounts = (
-    counts: FirewallCounts,
-    resourceType: chrome.webRequest.ResourceType,
-    blocked: boolean = false,
-) => {
-    if (blocked) {
-        counts.blocked.any += 1;
-        if ( resourceType === 'script' ) {
-            counts.blocked.script += 1;
-        } else if ( resourceType === 'sub_frame' ) {
-            counts.blocked.frame += 1;
-        }
-    } else {
-        counts.allowed.any += 1;
-        if ( resourceType === 'script' ) {
-            counts.allowed.script += 1;
-        } else if ( resourceType === 'sub_frame' ) {
-            counts.allowed.frame += 1;
-        }
-    }
-};
-
-const recordTabRequest = (details: chrome.webRequest.WebRequestBodyDetails) => {
-    if ( details.tabId < 0 ) { return; }
-    let hostname = '';
-    try {
-        hostname = new URL(details.url).hostname;
-    } catch {
-        return;
-    }
-
-    if ( details.type === 'main_frame' ) {
-        const state: TabRequestState = {
-            startedAt: typeof (details as { timeStamp?: number }).timeStamp === 'number'
-                ? (details as { timeStamp?: number }).timeStamp as number
-                : Date.now(),
-            pageHostname: hostname,
-            pageCounts: createCounts(),
-            hostnameDict: {},
-        };
-        state.hostnameDict[hostname] = zeroHostnameDetails(hostname);
-        incrementCounts(state.pageCounts, details.type);
-        incrementCounts(state.hostnameDict[hostname].counts, details.type);
-        tabRequestStates.set(details.tabId, state);
-        popupState.globalAllowedRequestCount += 1;
-        void Promise.all([
-            persistTabRequestState(details.tabId),
-            persistGlobalRequestCounts(),
-        ]);
-        return;
-    }
-
-    const state = ensureTabRequestState(details.tabId);
-    if ( state.hostnameDict[hostname] === undefined ) {
-        state.hostnameDict[hostname] = zeroHostnameDetails(hostname);
-    }
-    incrementCounts(state.pageCounts, details.type);
-    incrementCounts(state.hostnameDict[hostname].counts, details.type);
-    void persistTabRequestState(details.tabId);
-};
-
-const trackPendingRequest = (details: chrome.webRequest.WebRequestBodyDetails) => {
-    if ( details.tabId < 0 ) { return; }
-    if ( details.type === 'main_frame' ) {
-        recordTabRequest(details);
-    }
-};
-
-const finalizeTrackedRequest = async (
-    details: chrome.webRequest.WebResponseCacheDetails | chrome.webRequest.WebResponseErrorDetails,
-    blocked: boolean,
-) => {
-    if ( details.tabId < 0 || details.type === 'main_frame' ) { return; }
-    if (
-        blocked &&
-        details.error !== 'net::ERR_BLOCKED_BY_CLIENT' &&
-        details.error !== 'ERR_BLOCKED_BY_CLIENT'
-    ) {
-        return;
-    }
-
-    let hostname = '';
-    try {
-        hostname = new URL(details.url).hostname;
-    } catch {
-        return;
-    }
-
-    const state = ensureTabRequestState(details.tabId);
-    if ( state.hostnameDict[hostname] === undefined ) {
-        state.hostnameDict[hostname] = zeroHostnameDetails(hostname);
-    }
-    incrementCounts(state.pageCounts, details.type, blocked);
-    incrementCounts(state.hostnameDict[hostname].counts, details.type, blocked);
-    if ( blocked ) {
-        popupState.globalBlockedRequestCount += 1;
-    } else {
-        popupState.globalAllowedRequestCount += 1;
-    }
-    await Promise.all([
-        persistTabRequestState(details.tabId),
-        persistGlobalRequestCounts(),
-    ]);
-};
-
-const collectTabHostnameData = async (
-    tabId: number,
-    pageHostname: string,
-): Promise<CollectedHostnameData | undefined> => {
-    if ( chrome.scripting?.executeScript === undefined ) { return; }
-    try {
-        const [ result ] = await chrome.scripting.executeScript({
-            target: { tabId },
-            world: 'MAIN',
-            func: (currentPageHostname: string) => {
-                const createCounts = () => ({
-                    allowed: { any: 0, frame: 0, script: 0 },
-                    blocked: { any: 0, frame: 0, script: 0 },
-                });
-                const isIPAddress = hostname =>
-                    /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname) || hostname.includes(':');
-                const domainFromHostname = hostname => {
-                    if ( hostname === '' || hostname === '*' ) { return hostname; }
-                    if ( hostname === 'localhost' || isIPAddress(hostname) ) { return hostname; }
-                    const parts = hostname.split('.').filter(Boolean);
-                    if ( parts.length <= 2 ) { return hostname; }
-                    return parts.slice(-2).join('.');
-                };
-                const hostnameDict = Object.create(null);
-                const ensureHostname = hostname => {
-                    if ( hostnameDict[hostname] !== undefined ) { return hostnameDict[hostname]; }
-                    hostnameDict[hostname] = {
-                        domain: domainFromHostname(hostname),
-                        counts: createCounts(),
-                    };
-                    return hostnameDict[hostname];
-                };
-                ensureHostname(currentPageHostname);
-                const pageCounts = createCounts();
-                const addResource = (hostname, kind) => {
-                    if ( hostname === '' || hostname === currentPageHostname ) { return; }
-                    const entry = ensureHostname(hostname);
-                    entry.counts.allowed.any += 1;
-                    pageCounts.allowed.any += 1;
-                    if ( kind === 'script' ) {
-                        entry.counts.allowed.script += 1;
-                        pageCounts.allowed.script += 1;
-                    } else if ( kind === 'frame' ) {
-                        entry.counts.allowed.frame += 1;
-                        pageCounts.allowed.frame += 1;
-                    }
-                };
-
-                const scanElements = (selector, attribute, kind) => {
-                    for ( const element of document.querySelectorAll(selector) ) {
-                        const raw = element.getAttribute(attribute);
-                        if ( !raw ) { continue; }
-                        try {
-                            const url = new URL(raw, location.href);
-                            addResource(url.hostname, kind);
-                        } catch {
-                        }
-                    }
-                };
-
-                // DOM-scanning is more deterministic than relying only on
-                // performance entries, especially in MV3 when the popup opens
-                // after the page has already settled.
-                scanElements('img[src]', 'src', 'other');
-                scanElements('script[src]', 'src', 'script');
-                scanElements('iframe[src]', 'src', 'frame');
-                scanElements('link[href]', 'href', 'other');
-                scanElements('video[src]', 'src', 'other');
-                scanElements('audio[src]', 'src', 'other');
-                scanElements('source[src]', 'src', 'other');
-                scanElements('embed[src]', 'src', 'other');
-                scanElements('object[data]', 'data', 'other');
-
-                for ( const resource of performance.getEntriesByType('resource') ) {
-                    try {
-                        const url = new URL(resource.name, location.href);
-                        let kind = 'other';
-                        if ( resource.initiatorType === 'script' ) {
-                            kind = 'script';
-                        } else if ( resource.initiatorType === 'iframe' ) {
-                            kind = 'frame';
-                        }
-                        addResource(url.hostname, kind);
-                    } catch {
-                    }
-                }
-
-                return { pageCounts, hostnameDict };
-            },
-            args: [ pageHostname ],
-        });
-        return result?.result as CollectedHostnameData | undefined;
-    } catch {
-    }
-};
-
-const getMatchedBlockedRequestCountForTab = async (
-    tabId: number,
-    minTimeStamp = 0,
-): Promise<number | undefined> => {
-    if ( chrome.declarativeNetRequest?.getMatchedRules === undefined ) {
-        return;
-    }
-    try {
-        const result = await chrome.declarativeNetRequest.getMatchedRules({
-            tabId,
-            minTimeStamp,
-        });
-        const rulesMatchedInfo = Array.isArray(result?.rulesMatchedInfo)
-            ? result.rulesMatchedInfo
-            : [];
-        return rulesMatchedInfo.length;
-    } catch {
-    }
-};
-
-const getFirewallRulesForPopup = (srcHostname: string, hostnameDict: Record<string, HostnameDetails>) => {
-    const firewallRules: Record<string, string> = {};
-
-    for ( const type of firewallRuleTypes ) {
-        const globalRule = popupState.sessionFirewall.lookupRuleData('*', '*', type);
-        if ( globalRule !== undefined ) {
-            firewallRules[`/ * ${type}`] = globalRule;
-        }
-        const localRule = popupState.sessionFirewall.lookupRuleData(srcHostname, '*', type);
-        if ( localRule !== undefined ) {
-            firewallRules[`. * ${type}`] = localRule;
-        }
-    }
-
-    for ( const desHostname of Object.keys(hostnameDict) ) {
-        const globalRule = popupState.sessionFirewall.lookupRuleData('*', desHostname, '*');
-        if ( globalRule !== undefined ) {
-            firewallRules[`/ ${desHostname} *`] = globalRule;
-        }
-        const localRule = popupState.sessionFirewall.lookupRuleData(srcHostname, desHostname, '*');
-        if ( localRule !== undefined ) {
-            firewallRules[`. ${desHostname} *`] = localRule;
-        }
-    }
-
-    return firewallRules;
-};
-
-const getPopupData = async (request: PopupRequest) => {
-    await ensurePopupState();
-    const tab = await getTabForRequest(request.tabId);
-    const tabId = tab?.id ?? 0;
-    const pageURL = tab?.url || '';
-    const pageTitle = tab?.title || '';
-    const pageHostname = (() => {
-        try {
-            return pageURL ? new URL(pageURL).hostname : '';
-        } catch {
-            return '';
-        }
-    })();
-    const pageDomain = domainFromHostname(pageHostname);
-
-    const pageStore = tabId > 0 ? await pageStoreFromTabId(tabId) : null;
-
-    const trackedState = typeof tabId === 'number'
-        ? await loadTabRequestStateWithRetry(tabId)
-        : undefined;
-    const liveState = typeof tabId === 'number' && pageHostname !== ''
-        ? await collectTabHostnameData(tabId, pageHostname)
-        : undefined;
-
-    const hostnameDict: Record<string, HostnameDetails> = {};
-    if ( pageHostname !== '' ) {
-        hostnameDict[pageHostname] = zeroHostnameDetails(pageHostname);
-    }
-    if ( pageStore ) {
-        const hostnameDetailsMap = pageStore.getAllHostnameDetails();
-        if ( hostnameDetailsMap ) {
-            for ( const [ hostname, details ] of hostnameDetailsMap ) {
-                hostnameDict[hostname] = cloneHostnameDetails({
-                    domain: (details as any).domain || hostname,
-                    counts: (details as any).counts || createCounts(),
-                    cname: (details as any).cname,
-                });
-            }
-        }
-    }
-    if ( trackedState?.hostnameDict ) {
-        for ( const [ hostname, details ] of Object.entries(trackedState.hostnameDict) ) {
-            if ( hostnameDict[hostname] === undefined ) {
-                hostnameDict[hostname] = cloneHostnameDetails(details);
-            }
-        }
-    }
-    if ( liveState?.hostnameDict ) {
-        for ( const [ hostname, details ] of Object.entries(liveState.hostnameDict) ) {
-            if ( hostnameDict[hostname] === undefined ) {
-                hostnameDict[hostname] = cloneHostnameDetails(details);
-                continue;
-            }
-            if ( trackedState === undefined ) {
-                mergeCounts(hostnameDict[hostname].counts, details.counts);
-            }
-        }
-    }
-
-    let pageCounts = pageStore?.counts 
-        ? { blocked: { ...pageStore.counts.blocked }, allowed: { ...pageStore.counts.allowed } }
-        : createCounts();
-    if ( trackedState?.pageCounts ) {
-        mergeCounts(pageCounts, trackedState.pageCounts);
-    }
-    if ( trackedState === undefined && liveState?.pageCounts ) {
-        mergeCounts(pageCounts, liveState.pageCounts);
-    }
-    if ( tabId > 0 ) {
-        const matchedBlockedCount = await getMatchedBlockedRequestCountForTab(
-            tabId,
-            trackedState?.startedAt || 0,
-        );
-        if ( typeof matchedBlockedCount === 'number' && matchedBlockedCount > pageCounts.blocked.any ) {
-            pageCounts.blocked.any = matchedBlockedCount;
-        }
-    }
-
-    const netFilteringSwitch = pageStore 
-        ? pageStore.getNetFilteringSwitch()
-        : true;
-
-    const hostnameSwitches = popupState.sessionHostnameSwitches;
-    const noPopups = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-popups'] === true;
-    const noCosmeticFiltering = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-cosmetic-filtering'] === true;
-    const noLargeMedia = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-large-media'] === true;
-    const noRemoteFonts = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-remote-fonts'] === true;
-    const noScripting = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-scripting'] === true;
-    const switchMetrics = tabId > 0
-        ? await getTabSwitchMetrics(tabId)
-        : {
-            popupBlockedCount: 0,
-            largeMediaCount: 0,
-            remoteFontCount: 0,
-            scriptCount: 0,
-        };
-
-    // Get content last modified time from pageStore
-    const contentLastModified = pageStore?.contentLastModified || 0;
-
-    // Use pageStore metrics if available
-    const largeMediaCount = pageStore?.largeMediaCount ?? switchMetrics.largeMediaCount;
-    const remoteFontCount = pageStore?.remoteFontCount ?? switchMetrics.remoteFontCount;
-    const popupBlockedCount = pageStore?.popupBlockedCount ?? switchMetrics.popupBlockedCount;
-
-    return {
-        advancedUserEnabled: popupState.userSettings.advancedUserEnabled,
-        appName: chrome.runtime.getManifest().name,
-        appVersion: chrome.runtime.getManifest().version,
-        colorBlindFriendly: popupState.userSettings.colorBlindFriendly,
-        contentLastModified,
-        cosmeticFilteringSwitch: noCosmeticFiltering !== true,
-        firewallPaneMinimized: popupState.userSettings.firewallPaneMinimized,
-        firewallRules: getFirewallRulesForPopup(pageHostname, hostnameDict),
-        godMode: popupState.userSettings.filterAuthorMode === true,
-        globalAllowedRequestCount: popupState.globalAllowedRequestCount,
-        globalBlockedRequestCount: popupState.globalBlockedRequestCount,
-        hasUnprocessedRequest: (() => {
-            const vAPINet = (globalThis as any).vAPI?.net;
-            if (vAPINet?.hasUnprocessedRequest) {
-                return vAPINet.hasUnprocessedRequest(tabId) === true;
-            }
-            return popupState.tabMetrics?.[tabId]?.hasUnprocessedRequest === true;
-        })(),
-        hostnameDict,
-        pageCounts,
-        pageDomain,
-        pageHostname,
-        pageURL,
-        popupBlockedCount,
-        popupPanelDisabledSections: 0,
-        popupPanelHeightMode: 0,
-        popupPanelLockedSections: 0,
-        popupPanelOrientation: '',
-        popupPanelSections: popupState.userSettings.popupPanelSections,
-        rawURL: pageURL,
-        tabId,
-        tabTitle: pageTitle,
-        tooltipsDisabled: popupState.userSettings.tooltipsDisabled,
-        userFiltersAreEnabled: popupState.userSettings.filteringEnabled !== false,
-        netFilteringSwitch: netFilteringSwitch,
-        canElementPicker: /^https?:/.test(pageURL),
-        noPopups,
-        noCosmeticFiltering,
-        noLargeMedia,
-        largeMediaCount,
-        noRemoteFonts,
-        remoteFontCount,
-        noScripting,
-        matrixIsDirty: (
-            popupState.sessionFirewall.hasSameRules(
-            popupState.permanentFirewall,
-            pageHostname,
-            hostnameDict,
-        ) === false ) || (
-            pageHostname !== '' &&
-            hostnameSwitchesEqual(
-                popupState.sessionHostnameSwitches,
-                popupState.permanentHostnameSwitches,
-                pageHostname,
-            ) === false
-        ),
-    };
-};
-
-const toggleFirewallRule = async (request: PopupRequest) => {
-    await ensurePopupState();
-    const srcHostname = request.srcHostname || '*';
-    const desHostname = request.desHostname || '*';
-    const requestType = request.requestType || '*';
-    const action = Number(request.action) || 0;
-
-    if ( action !== 0 ) {
-        popupState.sessionFirewall.setCell(srcHostname, desHostname, requestType, action);
-    } else {
-        popupState.sessionFirewall.unsetCell(srcHostname, desHostname, requestType);
-    }
-
-    if ( request.persist ) {
-        if ( action !== 0 ) {
-            popupState.permanentFirewall.setCell(srcHostname, desHostname, requestType, action);
-        } else {
-            popupState.permanentFirewall.unsetCell(srcHostname, desHostname, requestType);
-        }
-        await persistPermanentFirewall();
-    }
-
-    await syncFirewallDnrRules();
-
-    return getPopupData(request);
-};
-
-const saveFirewallRules = async (request: PopupRequest) => {
-    await ensurePopupState();
-    popupState.permanentFirewall.copyRules(
-        popupState.sessionFirewall,
-        request.srcHostname || '',
-        request.desHostnames || {},
-    );
-    
-    // Clear cosmetic selector cache after saving rules
-    if (cosmeticFilteringEngine?.removeFromSelectorCache) {
-        cosmeticFilteringEngine.removeFromSelectorCache(request.srcHostname || '*', 'net');
-    }
-    
-    await persistPermanentFirewall();
-    popupState.permanentHostnameSwitches = cloneHostnameSwitchState(popupState.sessionHostnameSwitches);
-    await persistPermanentHostnameSwitches();
-    await syncFirewallDnrRules();
-    await syncHostnameSwitchDnrRules();
-    return getPopupData(request);
-};
-
-const revertFirewallRules = async (request: PopupRequest) => {
-    await ensurePopupState();
-    popupState.sessionFirewall.copyRules(
-        popupState.permanentFirewall,
-        request.srcHostname || '',
-        request.desHostnames || {},
-    );
-    
-    // Clear cosmetic selector cache after reverting rules
-    if (cosmeticFilteringEngine?.removeFromSelectorCache) {
-        cosmeticFilteringEngine.removeFromSelectorCache(request.srcHostname || '*', 'net');
-    }
-    
-    popupState.sessionHostnameSwitches = cloneHostnameSwitchState(popupState.permanentHostnameSwitches);
-    await syncFirewallDnrRules();
-    await syncHostnameSwitchDnrRules();
-    if ( typeof request.tabId === 'number' ) {
-        const hostname = request.srcHostname || '';
-        const sessionSwitches = popupState.sessionHostnameSwitches[hostname] || {};
-        for ( const name of hostnameSwitchNames ) {
-            await applyImmediateHostnameSwitchEffects(
-                request.tabId,
-                name,
-                sessionSwitches[name] === true,
-            );
-        }
-    }
-    return getPopupData(request);
-};
-
-const getDashboardRules = async () => {
-    await ensurePopupState();
-    return {
-        permanentRules: popupState.permanentFirewall.toArray(),
-        sessionRules: popupState.sessionFirewall.toArray(),
-        pslSelfie: publicSuffixList.toSelfie(),
-    };
-};
+// Duplicate regexes - now imported from sw-types.ts
 
 const applyRuleTextDelta = (
     ruleset: DynamicFirewallRules,
@@ -3793,6 +766,155 @@ const toggleNetFiltering = async (request: PopupRequest) => {
     return getPopupData(request);
 };
 
+const getPopupData = async (request: PopupRequest) => {
+    await ensurePopupState();
+    const tab = await getTabForRequest(request.tabId);
+    const tabId = tab?.id ?? 0;
+    const pageURL = tab?.url || '';
+    const pageTitle = tab?.title || '';
+    const pageHostname = (() => {
+        try {
+            return pageURL ? new URL(pageURL).hostname : '';
+        } catch {
+            return '';
+        }
+    })();
+    const pageDomain = domainFromHostname(pageHostname);
+
+    const pageStore = tabId > 0 ? await pageStoreFromTabId(tabId) : null;
+
+    const trackedState = typeof tabId === 'number'
+        ? await loadTabRequestStateWithRetry(tabId)
+        : undefined;
+    const liveState = typeof tabId === 'number' && pageHostname !== ''
+        ? await collectTabHostnameData(tabId, pageHostname)
+        : undefined;
+
+    const hostnameDict: Record<string, HostnameDetails> = {};
+    if ( pageHostname !== '' ) {
+        hostnameDict[pageHostname] = zeroHostnameDetails(pageHostname);
+    }
+    if ( pageStore ) {
+        const hostnameDetailsMap = pageStore.getAllHostnameDetails();
+        if ( hostnameDetailsMap ) {
+            for ( const [ hostname, details ] of hostnameDetailsMap ) {
+                hostnameDict[hostname] = cloneHostnameDetails({
+                    domain: (details as any).domain || hostname,
+                    counts: (details as any).counts || createCounts(),
+                    cname: (details as any).cname,
+                });
+            }
+        }
+    }
+    if ( trackedState?.hostnameDict ) {
+        for ( const [ hostname, details ] of Object.entries(trackedState.hostnameDict) ) {
+            if ( hostnameDict[hostname] === undefined ) {
+                hostnameDict[hostname] = cloneHostnameDetails(details);
+            }
+        }
+    }
+    if ( liveState?.hostnameDict ) {
+        for ( const [ hostname, details ] of Object.entries(liveState.hostnameDict) ) {
+            if ( hostnameDict[hostname] === undefined ) {
+                hostnameDict[hostname] = cloneHostnameDetails(details);
+                continue;
+            }
+            if ( trackedState === undefined ) {
+                mergeCounts(hostnameDict[hostname].counts, details.counts);
+            }
+        }
+    }
+
+    let pageCounts = pageStore?.counts 
+        ? { blocked: { ...pageStore.counts.blocked }, allowed: { ...pageStore.counts.allowed } }
+        : createCounts();
+    if ( trackedState?.pageCounts ) {
+        mergeCounts(pageCounts, trackedState.pageCounts);
+    }
+    if ( trackedState === undefined && liveState?.pageCounts ) {
+        mergeCounts(pageCounts, liveState.pageCounts);
+    }
+    if ( tabId > 0 ) {
+        const matchedBlockedCount = await getMatchedBlockedRequestCountForTab(
+            tabId,
+            trackedState?.startedAt || 0,
+        );
+        if ( typeof matchedBlockedCount === 'number' && matchedBlockedCount > pageCounts.blocked.any ) {
+            pageCounts.blocked.any = matchedBlockedCount;
+        }
+    }
+
+    const netFilteringSwitch = pageStore 
+        ? pageStore.getNetFilteringSwitch()
+        : true;
+
+    const hostnameSwitches = popupState.sessionHostnameSwitches;
+    const noPopups = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-popups'] === true;
+    const noCosmeticFiltering = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-cosmetic-filtering'] === true;
+    const noLargeMedia = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-large-media'] === true;
+    const noRemoteFonts = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-remote-fonts'] === true;
+    const noScripting = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-scripting'] === true;
+    const switchMetrics = tabId > 0
+        ? await getTabSwitchMetrics(tabId)
+        : {
+            popupBlockedCount: 0,
+            largeMediaCount: 0,
+            remoteFontCount: 0,
+            scriptCount: 0,
+        };
+
+    const contentLastModified = pageStore?.contentLastModified || 0;
+    const largeMediaCount = pageStore?.largeMediaCount ?? switchMetrics.largeMediaCount;
+    const remoteFontCount = pageStore?.remoteFontCount ?? switchMetrics.remoteFontCount;
+    const popupBlockedCount = pageStore?.popupBlockedCount ?? switchMetrics.popupBlockedCount;
+
+    return {
+        advancedUserEnabled: popupState.userSettings.advancedUserEnabled,
+        appName: chrome.runtime.getManifest().name,
+        appVersion: chrome.runtime.getManifest().version,
+        colorBlindFriendly: popupState.userSettings.colorBlindFriendly,
+        contentLastModified,
+        cosmeticFilteringSwitch: noCosmeticFiltering !== true,
+        firewallPaneMinimized: popupState.userSettings.firewallPaneMinimized,
+        firewallRules: getFirewallRulesForPopup(pageHostname, hostnameDict),
+        godMode: popupState.userSettings.filterAuthorMode === true,
+        globalAllowedRequestCount: popupState.globalAllowedRequestCount,
+        globalBlockedRequestCount: popupState.globalBlockedRequestCount,
+        hasUnprocessedRequest: (() => {
+            const vAPINet = (globalThis as any).vAPI?.net;
+            if (vAPINet?.hasUnprocessedRequest) {
+                return vAPINet.hasUnprocessedRequest(tabId) === true;
+            }
+            return popupState.tabMetrics?.[tabId]?.hasUnprocessedRequest === true;
+        })(),
+        hostnameDict,
+        pageCounts,
+        pageDomain,
+        pageHostname,
+        pageURL,
+        popupBlockedCount,
+        popupPanelDisabledSections: 0,
+        popupPanelHeightMode: 0,
+        popupPanelLockedSections: 0,
+        popupPanelOrientation: '',
+        popupPanelSections: popupState.userSettings.popupPanelSections,
+        rawURL: pageURL,
+        tabId,
+        tabTitle: pageTitle,
+        tooltipsDisabled: popupState.userSettings.tooltipsDisabled,
+        netFilteringSwitch,
+        largeMediaCount,
+        remoteFontCount,
+        noPopups,
+        noLargeMedia,
+        noRemoteFonts,
+        noScripting,
+        userSettings: popupState.userSettings,
+        whitelist: popupState.whitelist,
+        whitelistDefault: popupState.userSettings.netWhitelistDefault || [],
+    };
+};
+
 const handlePopupPanelMessage = async (request: PopupRequest) => {
     switch ( request.what ) {
     case 'getPopupData':
@@ -3835,19 +957,19 @@ const handlePopupPanelMessage = async (request: PopupRequest) => {
 const handleDashboardMessage = async (request: PopupRequest) => {
     switch ( request.what ) {
     case 'getLists':
-        return getFilterListState();
+        return getFilterListState(popupState, ensurePopupState);
     case 'applyFilterListSelection':
         return applyFilterListSelection(request as {
             toSelect?: string[];
             toImport?: string;
             toRemove?: string[];
-        });
+        }, popupState, ensurePopupState);
     case 'reloadAllFilters':
-        return reloadAllFilterLists();
+        return reloadAllFilterLists(popupState, ensurePopupState);
     case 'updateNow':
-        return updateFilterListsNow();
+        return updateFilterListsNow(undefined, popupState, ensurePopupState);
     case 'listsUpdateNow':
-        return updateFilterListsNow(request as { assetKeys?: string[]; preferOrigin?: boolean });
+        return updateFilterListsNow(request as { assetKeys?: string[]; preferOrigin?: boolean }, popupState, ensurePopupState);
     case 'userSettings':
         return setUserSetting(request);
     case 'getLocalData':
@@ -3887,7 +1009,7 @@ const handleDashboardMessage = async (request: PopupRequest) => {
             if (typeof enabled === 'boolean') {
                 await chrome.storage.local.set({ userFiltersEnabled: enabled });
             }
-            await reloadAllFilterLists();
+            await reloadAllFilterLists(popupState, ensurePopupState);
             return { success: true };
         }
         return { success: false, error: 'Invalid userFilters' };
@@ -4365,7 +1487,7 @@ const handleDashboardMessage = async (request: PopupRequest) => {
         return { notFound: true };
     }
     case 'reloadAllFilters':
-        return reloadAllFilterLists();
+        return reloadAllFilterLists(popupState, ensurePopupState);
     case 'scriptlet': {
         const tabId = request.tabId as number;
         const scriptletName = request.scriptlet as string;
@@ -4710,876 +1832,12 @@ const handleDashboardMessage = async (request: PopupRequest) => {
 // Sync DNR rules based on per-site filtering state - existing function handles this
 // The syncPowerSwitchDnrRules function already exists and is called below
 
-const Messaging = (() => {
-    const portMap = new Map<string, chrome.runtime.Port>();
-    const handlers = new Map<string, (payload: any, sendResponse?: (response: any) => void) => any>();
-    const tabListeners = new Map<number, Set<(topic: string, payload: any) => void>>();
-
-    function onPortConnected(port: chrome.runtime.Port) {
-        portMap.set(port.name || 'unknown', port);
-
-        port.onMessage.addListener((message) => {
-            void handlePortMessage(port, message);
-        });
-
-        port.onDisconnect.addListener(() => {
-            portMap.delete(port.name || 'unknown');
-            const legacyMessaging = getLegacyMessaging();
-            legacyMessaging?.onPortDisconnect?.(port);
-        });
-    }
-
-    async function handlePortMessage(port: chrome.runtime.Port, message: any) {
-        if ( message && typeof message.channel === 'string' ) {
-            await handleLegacyPortMessage(port, message as LegacyMessage);
-            return;
-        }
-        if (!message || !message.topic) return;
-
-        const { topic, payload, seq } = message;
-
-        if ( topic === 'popupPanel' || topic === 'dashboard' ) {
-            try {
-                const response = topic === 'popupPanel'
-                    ? await handlePopupPanelMessage(payload || {})
-                    : await handleDashboardMessage(payload || {});
-                if ( seq !== undefined ) {
-                    port.postMessage({ seq, payload: response });
-                }
-            } catch (error) {
-                if ( seq !== undefined ) {
-                    port.postMessage({
-                        seq,
-                        payload: { error: (error as Error).message },
-                    });
-                }
-            }
-            return;
-        }
-
-        const handler = handlers.get(topic);
-
-        if (handler) {
-            try {
-                const result = handler(payload, (response: any) => {
-                    if (seq !== undefined) {
-                        port.postMessage({ seq, payload: response });
-                    }
-                });
-
-                if (result instanceof Promise) {
-                    result.then((response) => {
-                        if (seq !== undefined && response !== undefined) {
-                            port.postMessage({ seq, payload: response });
-                        }
-                    }).catch((error) => {
-                        if (seq !== undefined) {
-                            port.postMessage({ seq, payload: { error: error.message } });
-                        }
-                    });
-                }
-            } catch (e) {
-                console.error('Handler error:', e);
-                if (seq !== undefined) {
-                    port.postMessage({ seq, payload: { error: (e as Error).message } });
-                }
-            }
-        } else {
-            broadcastToTabs(topic, payload);
-        }
-    }
-
-    async function handleLegacyPortMessage(port: chrome.runtime.Port, message: LegacyMessage) {
-        const { channel, msgId, msg } = message;
-        const respond = (response: any) => {
-            if ( msgId === undefined ) { return; }
-            port.postMessage({ msgId, msg: response });
-        };
-
-        // Handle dashboard and popupPanel natively without legacy backend
-        if ( channel === 'dashboard' || channel === 'popupPanel' ) {
-            try {
-                const response = channel === 'popupPanel'
-                    ? await handlePopupPanelMessage(msg || {})
-                    : await handleDashboardMessage(msg || {});
-                respond(response);
-            } catch (error) {
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        // Handle contentscript channel for MV3 content script communication
-        if ( channel === 'contentscript' ) {
-            try {
-                const response = await handleContentScriptRequest(msg || {}, port.sender);
-                respond(response);
-            } catch (error) {
-                console.error('[MV3] contentscript error:', error);
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        // Handle scriptlets channel
-        if ( channel === 'scriptlets' ) {
-            try {
-                const response = await handleScriptletsMessage(msg || {}, port.sender);
-                respond(response);
-            } catch (error) {
-                console.error('[MV3] scriptlets error:', error);
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        // Handle vapi channel for userCSS and other vAPI functions
-        if ( channel === 'vapi' ) {
-            try {
-                const response = await handleVapiMessage(msg || {}, port.sender);
-                respond(response);
-            } catch (error) {
-                console.error('[MV3] vapi error:', error);
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        // Handle elementPicker channel
-        if ( channel === 'elementPicker' ) {
-            try {
-                const response = await handleElementPickerMessage(msg || {}, port.sender);
-                respond(response);
-            } catch (error) {
-                console.error('[MV3] elementPicker error:', error);
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        // Handle cloudWidget channel
-        if ( channel === 'cloudWidget' ) {
-            try {
-                const response = await handleCloudWidgetMessage(msg || {}, port.sender);
-                respond(response);
-            } catch (error) {
-                console.error('[MV3] cloudWidget error:', error);
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        // Handle loggerUI channel
-        if ( channel === 'loggerUI' ) {
-            try {
-                const response = await handleLoggerUIMessage(msg || {}, port.sender);
-                respond(response);
-            } catch (error) {
-                console.error('[MV3] loggerUI error:', error);
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        // Handle domInspectorContent channel
-        if ( channel === 'domInspectorContent' ) {
-            try {
-                const response = await handleDomInspectorContentMessage(msg || {}, port.sender);
-                respond(response);
-            } catch (error) {
-                console.error('[MV3] domInspectorContent error:', error);
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        // Handle documentBlocked channel
-        if ( channel === 'documentBlocked' ) {
-            try {
-                const response = await handleDocumentBlockedMessage(msg || {}, port.sender);
-                respond(response);
-            } catch (error) {
-                console.error('[MV3] documentBlocked error:', error);
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        // Handle devTools channel
-        if ( channel === 'devTools' ) {
-            try {
-                const response = await handleDevToolsMessage(msg || {}, port.sender);
-                respond(response);
-            } catch (error) {
-                console.error('[MV3] devTools error:', error);
-                respond({ error: (error as Error).message });
-            }
-            return;
-        }
-
-        console.log(`MV3: ${channel} channel - legacy not supported, returning empty response`);
-        respond(null);
-    }
-
-    // Handle content script requests from the contentscript messaging channel
-    async function handleContentScriptRequest(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
-        const { what, ...payload } = request;
-        let response: any = null;
-        const tabId = sender?.tab?.id;
-        
-        switch (what) {
-            case 'retrieveContentScriptParameters':
-                // Handled by Messaging.on handler above, just return null here
-                return null;
-            case 'retrieveGenericCosmeticSelectors':
-                // Handled by Messaging.on handler above, just return null here
-                return null;
-            case 'getTabId':
-                return new Promise(resolve => {
-                    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-                        resolve({ tabId: tabs[0]?.id ?? null });
-                    });
-                });
-            case 'setFrameURL':
-                // Track frame URL in pageStore
-                if (tabId !== undefined && request.frameId !== undefined && request.frameURL) {
-                    const pageStore = await pageStoreFromTabId(tabId);
-                    if (pageStore) {
-                        pageStore.setFrameURL({
-                            frameId: request.frameId,
-                            frameURL: request.frameURL,
-                            parentId: request.parentId,
-                        });
-                    }
-                }
-                return { success: true };
-            case 'cosmeticFiltersInjected':
-                // Store cosmetic filter injection state in pageStoreMap
-                if (tabId !== undefined) {
-                    try {
-                        const stored = await chrome.storage.local.get('pageStoreMap');
-                        const pageStoreMap = stored?.pageStoreMap || {};
-                        if (!pageStoreMap[tabId]) pageStoreMap[tabId] = {};
-                        pageStoreMap[tabId].cosmeticFiltersInjected = request.filters || [];
-                        pageStoreMap[tabId].lastCosmeticInjectTime = Date.now();
-                        await chrome.storage.local.set({ pageStoreMap });
-                    } catch (e) {}
-                }
-                if (cosmeticFilteringEngine?.addToSelectorCache) {
-                    cosmeticFilteringEngine.addToSelectorCache(request);
-                }
-                response = { success: true };
-                break;
-            case 'disableGenericCosmeticFilteringSurveyor':
-                if (cosmeticFilteringEngine?.disableSurveyor) {
-                    cosmeticFilteringEngine.disableSurveyor(request);
-                }
-                // Store surveyor disabled state
-                if (tabId !== undefined) {
-                    try {
-                        const stored = await chrome.storage.local.get('pageStoreMap');
-                        const pageStoreMap = stored?.pageStoreMap || {};
-                        if (!pageStoreMap[tabId]) pageStoreMap[tabId] = {};
-                        pageStoreMap[tabId].genericSurveyorDisabled = true;
-                        await chrome.storage.local.set({ pageStoreMap });
-                    } catch (e) {}
-                }
-                response = { success: true };
-                break;
-            case 'getCollapsibleBlockedRequests':
-                // Get actual blocked element count from pageStore or calculate
-                const storedCollapsible = await chrome.storage.local.get('pageStoreMap');
-                const pageStoreData = storedCollapsible?.pageStoreMap?.[tabId];
-                const blockedCount = pageStoreData?.blockedElementCount || 0;
-                response = {
-                    id: request.id,
-                    hash: request.hash,
-                    netSelectorCacheCountMax: cosmeticFilteringEngine?.netSelectorCacheCountMax || 0,
-                    blockedCount,
-                    collapsible: blockedCount > 0,
-                };
-                break;
-            case 'maybeGoodPopup':
-                // Mark popup as potentially good for future allow
-                if (tabId !== undefined && request.url) {
-                    try {
-                        const stored = await chrome.storage.local.get('goodPopups');
-                        const goodPopups = stored?.goodPopups || {};
-                        if (!goodPopups[tabId]) goodPopups[tabId] = [];
-                        const popupHost = new URL(request.url).hostname;
-                        if (!goodPopups[tabId].includes(popupHost)) {
-                            goodPopups[tabId].push(popupHost);
-                            await chrome.storage.local.set({ goodPopups });
-                        }
-                    } catch (e) {}
-                }
-                if (µb?.maybeGoodPopup) {
-                    µb.maybeGoodPopup.tabId = tabId;
-                    µb.maybeGoodPopup.url = request.url;
-                }
-                response = { success: true };
-                break;
-            case 'messageToLogger':
-                if (logger?.enabled === true && tabId !== undefined) {
-                    logger.writeOne({
-                        tabId,
-                        realm: 'message',
-                        type: request.type || 'info',
-                        keywords: [ 'scriptlet' ],
-                        text: request.text,
-                    });
-                }
-                response = { success: true };
-                break;
-            case 'shouldRenderNoscriptTags':
-                if (tabId !== undefined && filteringContext && µb) {
-                    try {
-                        const fctxt = filteringContext.fromTabId(tabId);
-                        const stored = await chrome.storage.local.get('pageStoreMap');
-                        const pageStoreData = stored?.pageStoreMap?.[tabId];
-                        if (pageStoreData?.netFilteringSwitch !== false) {
-                            await chrome.tabs.executeScript(tabId, {
-                                file: '/js/scriptlets/noscript-spoof.js',
-                                frameId: sender?.frameId,
-                                runAt: 'document_end',
-                            });
-                        }
-                    } catch (e) {
-                        console.log('[MV3] shouldRenderNoscriptTags error:', e);
-                    }
-                }
-                response = { success: true };
-                break;
-            default:
-                console.log('[MV3] Unknown content script request:', what);
-                return null;
-        }
-        
-        return response;
-    }
-
-    // Handle scriptlets channel messages
-    async function handleScriptletsMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
-        const { what, ...payload } = request;
-        let response: any = null;
-        const tabId = sender?.tab?.id;
-        
-        switch (what) {
-            case 'inlinescriptFound':
-                if (logger?.enabled === true && tabId !== undefined && filteringContext && µb) {
-                    try {
-                        const fctxt = filteringContext.duplicate();
-                        fctxt.fromTabId(tabId)
-                            .setType('inline-script')
-                            .setURL(request.docURL)
-                            .setDocOriginFromURL(request.docURL);
-                        // Would need pageStore to check filterRequest
-                    } catch (e) {
-                        console.log('[MV3] inlinescriptFound error:', e);
-                    }
-                }
-                break;
-            case 'logCosmeticFilteringData':
-                if (tabId !== undefined) {
-                    try {
-                        // Log cosmetic filtering data to logger if enabled
-                        if (logger?.enabled) {
-                            logger.writeOne({
-                                tabId,
-                                realm: 'cosmetic',
-                                type: 'filter',
-                                text: request.target || '',
-                                selector: request.selector || '',
-                            });
-                        }
-                    } catch (e) {
-                        console.log('[MV3] logCosmeticFilteringData error:', e);
-                    }
-                }
-                break;
-            case 'securityPolicyViolation':
-                if (tabId !== undefined && logger?.enabled) {
-                    try {
-                        // Log CSP violation to logger
-                        logger.writeOne({
-                            tabId,
-                            realm: 'network',
-                            type: 'csp',
-                            text: request['violated-directive'] || 'default',
-                            url: request.documentURL || '',
-                        });
-                    } catch (e) {
-                        console.log('[MV3] securityPolicyViolation error:', e);
-                    }
-                }
-                break;
-            case 'temporarilyAllowLargeMediaElement':
-                if (tabId !== undefined) {
-                    try {
-                        const stored = await chrome.storage.local.get('pageStoreMap');
-                        if (stored?.pageStoreMap?.[tabId]) {
-                            stored.pageStoreMap[tabId].allowLargeMediaElementsUntil = Date.now() + 5000;
-                            await chrome.storage.local.set({ pageStoreMap: stored.pageStoreMap });
-                        }
-                    } catch (e) {
-                        console.log('[MV3] temporarilyAllowLargeMediaElement error:', e);
-                    }
-                }
-                break;
-            case 'subscribeTo':
-                if (request.location && /^(file|https?):\/\//.test(request.location)) {
-                    const url = encodeURIComponent(request.location);
-                    const title = encodeURIComponent(request.title || 'Filter List');
-                    chrome.tabs.create({
-                        url: `/asset-viewer.html?url=${url}&title=${title}&subscribe=1`,
-                        active: true,
-                    });
-                }
-                break;
-            case 'updateLists':
-                const listkeys = (request.listkeys || '').split(',').filter((s: string) => s !== '');
-                if (listkeys.length > 0) {
-                    try {
-                        if (io) {
-                            if (listkeys.includes('all')) {
-                                io.purge(/./, 'public_suffix_list.dat');
-                            } else {
-                                for (const listkey of listkeys) {
-                                    io.purge(listkey);
-                                }
-                            }
-                        }
-                        chrome.tabs.create({
-                            url: 'dashboard.html#3p-filters.html',
-                            active: true,
-                        });
-                        // Schedule asset updater
-                        const stored = await chrome.storage.local.get('assetUpdaterScheduled');
-                        if (!stored?.assetUpdaterScheduled) {
-                            await chrome.storage.local.set({ assetUpdaterScheduled: true });
-                            setTimeout(async () => {
-                                await chrome.storage.local.set({ assetUpdaterScheduled: false });
-                            }, 100);
-                        }
-                    } catch (e) {
-                        console.log('[MV3] updateLists error:', e);
-                    }
-                }
-                break;
-            default:
-                console.log('[MV3] Unknown scriptlets request:', what);
-                return vAPI?.messaging?.UNHANDLED || null;
-        }
-        
-        return response;
-    }
-
-    // Handle vapi channel messages (userCSS, etc.)
-    async function handleVapiMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
-        const { what, ...payload } = request;
-        const tabId = sender?.tab?.id;
-        
-        switch (what) {
-            case 'userCSS': {
-                if (!tabId) return { error: 'No tab ID' };
-                const add = payload.add as string[] || [];
-                const remove = payload.remove as string[] || [];
-                
-                try {
-                    // Remove old CSS
-                    if (remove.length > 0) {
-                        for (const css of remove) {
-                            try {
-                                await chrome.scripting.removeCSS({
-                                    target: { tabId },
-                                    css: css,
-                                });
-                            } catch (e) {}
-                        }
-                    }
-                    
-                    // Add new CSS
-                    if (add.length > 0) {
-                        for (const css of add) {
-                            try {
-                                await chrome.scripting.insertCSS({
-                                    target: { tabId },
-                                    css: css,
-                                });
-                            } catch (e) {}
-                        }
-                    }
-                    
-                    return { success: true };
-                } catch (e) {
-                    return { error: (e as Error).message };
-                }
-            }
-            case 'getClientId': {
-                return { clientId: 'mv3-' + Date.now() };
-            }
-            case 'getSessionId': {
-                return { sessionId: (globalThis as any).vAPI?.sessionId || 'mv3' };
-            }
-            default:
-                console.log('[MV3] Unknown vapi request:', what);
-                return { error: 'Unknown request' };
-        }
-    }
-
-    async function handleElementPickerMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
-        const { what, ...payload } = request;
-        
-        switch (what) {
-            case 'elementPickerArguments': {
-                return {
-                    target: (self as any).µb?.epickerArgs?.target || '',
-                    mouse: (self as any).µb?.epickerArgs?.mouse || false,
-                    zap: (self as any).µb?.epickerArgs?.zap || false,
-                    eprom: (self as any).µb?.epickerArgs?.eprom || null,
-                };
-            }
-            case 'elementPickerEprom': {
-                const eprom = payload.eprom;
-                if (eprom) {
-                    (self as any).µb = (self as any).µb || {};
-                    (self as any).µb.epickerArgs = (self as any).µb.epickerArgs || {};
-                    (self as any).µb.epickerArgs.eprom = eprom;
-                    await chrome.storage.local.set({ elementPickerEprom: eprom }).catch(() => {});
-                }
-                return { success: true };
-            }
-            default:
-                return { error: 'Unknown elementPicker request' };
-        }
-    }
-
-    async function handleCloudWidgetMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
-        const { what, ...payload } = request;
-        const tabId = sender?.tab?.id;
-        const useSync = typeof chrome.storage.sync !== 'undefined';
-        const cloudKey = 'cloudData';
-        
-        switch (what) {
-            case 'cloudPull': {
-                const stored = useSync 
-                    ? await chrome.storage.sync.get(cloudKey)
-                    : await chrome.storage.local.get(cloudKey);
-                const cloudData = stored?.[cloudKey];
-                if (!cloudData) return { error: 'No cloud data' };
-                try {
-                    const decoded = await decodeCloudData(cloudData);
-                    return { 
-                        data: decoded, 
-                        clientId: decoded.clientId, 
-                        lastModified: decoded.lastModified,
-                        serverTime: decoded.serverTime,
-                    };
-                } catch (e) {
-                    return { error: (e as Error).message };
-                }
-            }
-            case 'cloudPush': {
-                const cloudData = payload.data;
-                if (!cloudData) return { error: 'No data to push' };
-                try {
-                    const dataToPush = {
-                        ...cloudData,
-                        serverTime: Date.now(),
-                        clientTime: Date.now(),
-                    };
-                    const encoded = await encodeCloudData(dataToPush);
-                    if (useSync) {
-                        await chrome.storage.sync.set({ cloudData: encoded });
-                    } else {
-                        await chrome.storage.local.set({ cloudData: encoded });
-                    }
-                    const storageUsed = useSync 
-                        ? await chrome.storage.sync.getBytesInUse()
-                        : await chrome.storage.local.getBytesInUse();
-                    if (useSync) {
-                        await chrome.storage.sync.set({ 
-                            cloudStorageUsed: storageUsed,
-                            lastCloudSync: Date.now() 
-                        });
-                    } else {
-                        await chrome.storage.local.set({ 
-                            cloudStorageUsed: storageUsed,
-                            lastCloudSync: Date.now() 
-                        });
-                    }
-                    return { success: true };
-                } catch (e) {
-                    return { error: (e as Error).message };
-                }
-            }
-            case 'cloudUsed': {
-                const used = await chrome.storage.local.getBytesInUse();
-                return { used };
-            }
-            case 'cloudGetOptions': {
-                const options = (await chrome.storage.local.get('cloudOptions'))?.cloudOptions || {};
-                const userSettings = (await chrome.storage.local.get('userSettings'))?.userSettings || {};
-                const syncStorageAvailable = typeof chrome.storage.sync !== 'undefined';
-                return {
-                    deviceName: options.deviceName || await getDeviceName(),
-                    syncEnabled: options.syncEnabled !== false,
-                    enabled: userSettings.cloudStorageEnabled === true,
-                    cloudStorageSupported: syncStorageAvailable,
-                };
-            }
-            case 'cloudSetOptions': {
-                const options = payload as { deviceName?: string; syncEnabled?: boolean };
-                const stored = (await chrome.storage.local.get('cloudOptions'))?.cloudOptions || {};
-                if (options.deviceName) stored.deviceName = options.deviceName;
-                if (typeof options.syncEnabled === 'boolean') stored.syncEnabled = options.syncEnabled;
-                await chrome.storage.local.set({ cloudOptions: stored });
-                return { success: true };
-            }
-            default:
-                return { error: 'Unknown cloudWidget request' };
-        }
-    }
-
-    async function handleLoggerUIMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
-        const { what, ...payload } = request;
-        
-        switch (what) {
-            case 'loggerElementPicker':
-            case 'loggerPing':
-            case 'loggerOpen':
-            case 'loggerUpdate':
-                return { success: true };
-            default:
-                return { error: 'Unknown loggerUI request' };
-        }
-    }
-
-    async function handleDomInspectorContentMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
-        const { what, ...payload } = request;
-        
-        switch (what) {
-            case 'domInspectorStart':
-            case 'domInspectorStop':
-                return { success: true };
-            default:
-                return { error: 'Unknown domInspectorContent request' };
-        }
-    }
-
-    async function handleDocumentBlockedMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
-        const { what, ...payload } = request;
-        
-        switch (what) {
-            case 'getBlockedURL':
-                return { url: '', type: '' };
-            case 'temporarilyWhitelistDocument': {
-                const tabId = sender?.tab?.id;
-                if (tabId) {
-                    try {
-                        await chrome.tabs.reload(tabId);
-                    } catch (e) {}
-                }
-                return { success: true };
-            }
-            default:
-                return { error: 'Unknown documentBlocked request' };
-        }
-    }
-
-    async function handleDevToolsMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
-        const { what, ...payload } = request;
-        
-        switch (what) {
-            case 'getInspectorArgs': {
-                return {
-                    autoCollapse: true,
-                    tabId: sender?.tab?.id,
-                };
-            }
-            default:
-                return { error: 'Unknown devTools request' };
-        }
-    }
-
-    function handleRuntimeMessage(
-        message: any,
-        sender: chrome.runtime.MessageSender,
-        sendResponse: (response?: any) => void
-    ): boolean {
-        console.log('[MV3] handleRuntimeMessage received:', message.topic, message);
-        if (!message || !message.topic) return false;
-
-        const { topic, payload, seq } = message;
-
-        if (message.ch === 'content-script') {
-            return handleContentScriptMessage(message, sender, sendResponse);
-        }
-
-        if ( topic === 'popupPanel' || topic === 'dashboard' ) {
-            Promise.resolve(
-                topic === 'popupPanel'
-                    ? handlePopupPanelMessage(payload || {})
-                    : handleDashboardMessage(payload || {}),
-            ).then(response => {
-                if ( seq !== undefined ) {
-                    sendResponse({ seq, payload: response });
-                } else {
-                    sendResponse(response);
-                }
-            }).catch(error => {
-                sendResponse({ error: (error as Error).message });
-            });
-            return true;
-        }
-
-        const handler = handlers.get(topic);
-        console.log('[MV3] Handler for', topic, ':', handler ? 'found' : 'not found');
-        if (handler) {
-            try {
-                const result = handler(payload, (response: any) => {
-                    if (seq !== undefined) {
-                        sendResponse({ seq, payload: response });
-                    } else {
-                        sendResponse(response);
-                    }
-                });
-
-                if (result instanceof Promise) {
-                    result.then((response) => {
-                        sendResponse(response);
-                    }).catch((error) => {
-                        sendResponse({ error: error.message });
-                    });
-                    return true;
-                }
-
-                return result !== undefined;
-            } catch (e) {
-                console.error('Handler error:', e);
-                sendResponse({ error: (e as Error).message });
-            }
-        }
-
-        return false;
-    }
-
-    function handleContentScriptMessage(
-        message: any,
-        sender: chrome.runtime.MessageSender,
-        sendResponse: (response?: any) => void
-    ): boolean {
-        const fn = message.fn;
-        const args = message.args || [];
-        const tabId = sender.tab?.id ?? null;
-
-        const handler = handlers.get(fn);
-        if (handler) {
-            try {
-                const payload = args[0] || {};
-                (payload as any)._tabId = tabId;
-                (payload as any)._sender = sender;
-
-                const result = handler(payload, (response: any) => {
-                    sendResponse(response);
-                });
-
-                if (result instanceof Promise) {
-                    result.then((response) => {
-                        sendResponse(response);
-                    }).catch((error) => {
-                        sendResponse({ error: error.message });
-                    });
-                    return true;
-                }
-
-                return result !== undefined;
-            } catch (e) {
-                console.error('Content script handler error:', e);
-                sendResponse({ error: (e as Error).message });
-            }
-        }
-
-        return false;
-    }
-
-    function broadcastToTabs(topic: string, payload: any) {
-        chrome.tabs.query({}, (tabs) => {
-            for (const tab of tabs) {
-                if (tab.id) {
-                    try {
-                        chrome.tabs.sendMessage(tab.id, { topic, payload }, () => {
-                            void chrome.runtime?.lastError;
-                        });
-                    } catch (e) {
-                    }
-                }
-            }
-        });
-    }
-
-    function on(topic: string, handler: (payload: any, sendResponse?: (response: any) => void) => any) {
-        handlers.set(topic, handler);
-    }
-
-    function off(topic: string) {
-        handlers.delete(topic);
-    }
-
-    function sendToTab(tabId: number, topic: string, payload?: any, callback?: (response: any) => void) {
-        chrome.tabs.sendMessage(tabId, { topic, payload }, (response) => {
-            if ( chrome.runtime?.lastError ) {
-                if ( typeof callback === 'function' ) {
-                    callback(undefined);
-                }
-                return;
-            }
-            if ( typeof callback === 'function' ) {
-                callback(response);
-            }
-        });
-    }
-
-    function sendToAllTabs(topic: string, payload?: any) {
-        chrome.tabs.query({}, (tabs) => {
-            for (const tab of tabs) {
-                if (tab.id) {
-                    chrome.tabs.sendMessage(tab.id, { topic, payload }, () => {
-                        void chrome.runtime?.lastError;
-                    });
-                }
-            }
-        });
-    }
-
-    function getPort(name: string): chrome.runtime.Port | undefined {
-        return portMap.get(name);
-    }
-
-    function addTabListener(tabId: number, listener: (topic: string, payload: any) => void) {
-        if (!tabListeners.has(tabId)) {
-            tabListeners.set(tabId, new Set());
-        }
-        tabListeners.get(tabId)!.add(listener);
-    }
-
-    function removeTabListener(tabId: number, listener: (topic: string, payload: any) => void) {
-        tabListeners.get(tabId)?.delete(listener);
-    }
-
-    chrome.runtime.onConnect.addListener(onPortConnected);
-    chrome.runtime.onMessage.addListener(handleRuntimeMessage);
-
-    return {
-        on,
-        off,
-        sendToTab,
-        sendToAllTabs,
-        getPort,
-        addTabListener,
-        removeTabListener,
-    };
-})();
+// Messaging router - core messaging infrastructure extracted to sw-message-router.ts
+const Messaging = createMessagingRouter({
+    getLegacyMessaging,
+    handlePopupPanelMessage,
+    handleDashboardMessage,
+});
 
 const Zapper = (() => {
     let active = false;
@@ -5647,24 +1905,6 @@ const Zapper = (() => {
         chrome.tabs.sendMessage(tabId, { topic: 'zapperClick', payload: details }, callback);
     }
 
-    Messaging.on('zapperLaunch', (payload, callback) => {
-        activate(payload?.tabId ?? null, callback);
-    });
-
-    Messaging.on('zapperQuery', (_, callback) => {
-        if (callback) {
-            callback({ active: isActive(), sessionId: getSessionId() });
-        }
-    });
-
-    Messaging.on('zapperHighlight', (payload, callback) => {
-        highlight(payload, callback);
-    });
-
-    Messaging.on('zapperClick', (payload, callback) => {
-        click(payload, callback);
-    });
-
     return {
         activate,
         deactivate,
@@ -5675,6 +1915,24 @@ const Zapper = (() => {
         click,
     };
 })();
+
+Messaging.on('zapperLaunch', (payload, callback) => {
+    Zapper.activate(payload?.tabId ?? null, callback);
+});
+
+Messaging.on('zapperQuery', (_, callback) => {
+    if (callback) {
+        callback({ active: Zapper.isActive(), sessionId: Zapper.getSessionId() });
+    }
+});
+
+Messaging.on('zapperHighlight', (payload, callback) => {
+    Zapper.highlight(payload, callback);
+});
+
+Messaging.on('zapperClick', (payload, callback) => {
+    Zapper.click(payload, callback);
+});
 
 const Picker = (() => {
     let active = false;
@@ -6313,14 +2571,14 @@ Messaging.on('scriptlets', async (request, callback) => {
             toSelect?: string[];
             toImport?: string;
             toRemove?: string[];
-        });
+        }, popupState, ensurePopupState);
         if ( callback ) {
             callback(result);
         }
         return result;
     }
     if ( request.what === 'reloadAllFilters' ) {
-        const result = await reloadAllFilterLists();
+        const result = await reloadAllFilterLists(popupState, ensurePopupState);
         if ( callback ) {
             callback(result);
         }
@@ -6351,7 +2609,7 @@ Messaging.on('scriptlets', async (request, callback) => {
             const currentFilters = items.userFilters || '';
             const newFilters = currentFilters ? `${currentFilters}\n${filter}` : filter;
             await chrome.storage.local.set({ userFilters: newFilters });
-            await reloadAllFilterLists();
+            await reloadAllFilterLists(popupState, ensurePopupState);
         }
         if ( callback ) {
             callback({ success: true });
@@ -6610,7 +2868,7 @@ Messaging.on('default', async (request, callback) => {
         return { success: true };
     }
     if ( request.what === 'updateLists' ) {
-        await reloadAllFilterLists();
+        await reloadAllFilterLists(popupState, ensurePopupState);
         if ( callback ) { callback({ success: true }); }
         return { success: true };
     }
@@ -6651,7 +2909,7 @@ Messaging.on('default', async (request, callback) => {
                 const userFilters = stored?.userFilters || '';
                 const newFilters = userFilters + '\n' + filter;
                 await chrome.storage.local.set({ userFilters: newFilters });
-                await reloadAllFilterLists();
+                await reloadAllFilterLists(popupState, ensurePopupState);
             } catch (e) {
                 console.log('[MV3] createUserFilter error:', e);
             }
@@ -7660,6 +3918,7 @@ console.log('uBlock Origin MV3 Service Worker started');
 ensurePopupState()
     .then(() => {
         syncFirewallDnrRules();
+        // syncFilterListDnrRules is already imported from sw-policies
         syncFilterListDnrRules();
         syncPowerSwitchDnrRules();
         syncHostnameSwitchDnrRules();
@@ -7743,7 +4002,7 @@ ensurePopupState()
         return modified;
     },
     getAvailableLists: () => {
-        return getFilterListState();
+        return getFilterListState(popupState, ensurePopupState);
     },
     dateNowToSensibleString: () => {
         const now = new Date();
@@ -7761,7 +4020,7 @@ ensurePopupState()
     },
     saveUserFilters: async (filters: string) => {
         await chrome.storage.local.set({ userFilters: filters });
-        await reloadAllFilterLists();
+        await reloadAllFilterLists(popupState, ensurePopupState);
     },
     loadUserFilters: async () => {
         const stored = await chrome.storage.local.get('userFilters');
@@ -7780,14 +4039,14 @@ ensurePopupState()
         await persistURLFilteringRules();
     },
     loadFilterLists: async () => {
-        await reloadAllFilterLists();
+        await reloadAllFilterLists(popupState, ensurePopupState);
     },
     applyFilterListSelection: async (request: any) => {
-        return applyFilterListSelection(request);
+        return applyFilterListSelection(request, popupState, ensurePopupState);
     },
     createUserFilters: async (request: any) => {
         await chrome.storage.local.set({ userFilters: request.filters || '' });
-        await reloadAllFilterLists();
+        await reloadAllFilterLists(popupState, ensurePopupState);
         return { success: true };
     },
     updateToolbarIcon: async (tabId: number, state: number | { filtering?: boolean; largeMedia?: boolean; noPopups?: boolean }) => {
