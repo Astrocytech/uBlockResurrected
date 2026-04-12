@@ -1,5 +1,5 @@
 (() => {
-  // dom.ts
+  // src/js/dom.ts
   var normalizeTarget = (target) => {
     if (typeof target === "string") {
       return Array.from(qsa$(target));
@@ -198,7 +198,7 @@
   dom.head = document.head;
   dom.body = document.body;
 
-  // i18n.ts
+  // src/js/i18n.ts
   var i18n = null;
   if (typeof self.browser !== "undefined" && self.browser instanceof Object && !(self.browser instanceof Element)) {
     i18n = self.browser.i18n;
@@ -572,7 +572,7 @@
     i18n.render();
   }
 
-  // broadcast.ts
+  // src/js/broadcast.ts
   var broadcastChannel;
   function broadcast(message) {
     if (broadcastChannel === void 0) {
@@ -591,7 +591,7 @@
     }
     broadcast(Object.assign({ what: "filteringBehaviorChanged" }, details));
   }
-  filteringBehaviorChanged.throttle = vAPI.defer?.create?.(() => {
+  filteringBehaviorChanged.throttle = vAPI.defer.create(() => {
     const { history, max } = filteringBehaviorChanged;
     const now = Date.now() / 1e3 | 0;
     if (history.length >= max) {
@@ -605,11 +605,18 @@
   });
   filteringBehaviorChanged.history = [];
   filteringBehaviorChanged.max = Math.min(
-    (typeof browser !== "undefined" ? browser : {}).webRequest.MAX_HANDLER_BEHAVIOR_CHANGED_CALLS_PER_10_MINUTES - 1,
+    browser.webRequest.MAX_HANDLER_BEHAVIOR_CHANGED_CALLS_PER_10_MINUTES - 1,
     19
   );
 
-  // 3p-filters.ts
+  // src/js/3p-filters.ts
+  self.cloud = self.cloud || {
+    options: {},
+    datakey: "",
+    data: void 0,
+    onPush: null,
+    onPull: null
+  };
   var lastUpdateTemplateString = i18n$("3pLastUpdate");
   var obsoleteTemplateString = i18n$("3pExternalListObsolete");
   var reValidExternalList = /^[a-z-]+:\/\/(?:\S+\/\S*|\/\S+)/m;
@@ -770,7 +777,7 @@
       const listEntries = dom.clone("#templates .listEntries");
       const treeEntries = Object.entries(listTree);
       if (depth !== 0) {
-        const reEmojis = new RegExp("\\p{Emoji}+", "gu");
+        const reEmojis = /\p{Emoji}+/gu;
         treeEntries.sort((a, b) => {
           const ap = a[1].preferred === true;
           const bp = b[1].preferred === true;
@@ -845,7 +852,7 @@
           groupkey = "unknown";
         }
         const groupDetails = listTree[groupkey];
-        if (listDetails.parent !== void 0) {
+        if (typeof listDetails.parent === "string" && listDetails.parent !== "") {
           let lists = groupDetails.lists;
           for (const parent of listDetails.parent.split("|")) {
             if (lists[parent] === void 0) {
@@ -879,7 +886,7 @@
       }
       const autoUpdateElem = qs$("#autoUpdate");
       if (autoUpdateElem) {
-        autoUpdateElem.checked = listsetDetails?.autoUpdate === true;
+        autoUpdateElem.checked = listsetDetails.autoUpdate === true;
       }
       dom.text(
         "#listsOfBlockedHostsPrompt",
@@ -900,9 +907,9 @@
       dom.cl.toggle(dom.body, "updating", listsetDetails.isUpdating);
       renderWidgets();
     };
-    return vAPI.messaging?.send("dashboard", {
+    return vAPI.messaging.send("dashboard", {
       what: "getLists"
-    })?.then((response) => {
+    }).then((response) => {
       onListsReceived(response);
     });
   };
@@ -947,12 +954,9 @@
   };
   var filteringSettingsHash = "";
   var hashFromListsetDetails = () => {
-    if (!listsetDetails || !listsetDetails.available) {
-      return;
-    }
     const hashParts = [
-      listsetDetails?.parseCosmeticFilters === true,
-      listsetDetails?.ignoreGenericCosmeticFilters === true
+      listsetDetails.parseCosmeticFilters === true,
+      listsetDetails.ignoreGenericCosmeticFilters === true
     ];
     const listHashes = [];
     for (const [listkey, listDetails] of Object.entries(listsetDetails.available)) {
@@ -1207,7 +1211,8 @@
           if (list.contentURL === void 0) {
             continue;
           }
-          if (list.contentURL.includes(line) === false) {
+          const contentURLs = Array.isArray(list.contentURL) ? list.contentURL : typeof list.contentURL === "string" ? [list.contentURL] : [];
+          if (contentURLs.includes(line) === false) {
             continue;
           }
           const groupkey = list.group2 || list.group;
@@ -1467,47 +1472,41 @@
     toggleListExpansion(listkey);
     ev.preventDefault();
   });
-  vAPI.localStorage?.getItemAsync?.("expandedListSet")?.then((listkeys) => {
+  vAPI.localStorage.getItemAsync("expandedListSet").then((listkeys) => {
     if (Array.isArray(listkeys) === false) {
       return;
     }
     applyListExpansion(listkeys);
   });
-  (window.cloud = window.cloud || {
-    options: {},
-    datakey: '',
-    data: undefined,
-    onPush: null,
-    onPull: null
-  }).onPush = function toCloudData() {
-      const bin = {
-        parseCosmeticFilters: qs$("#parseCosmeticFilters")?.checked ?? false,
-        ignoreGenericCosmeticFilters: qs$("#ignoreGenericCosmeticFilters")?.checked ?? false,
-        selectedLists: []
-      };
-      const liEntries = qsa$('#lists .listEntry.checked[data-role="leaf"]');
-      for (const liEntry of liEntries) {
-        bin.selectedLists.push(liEntry.dataset.key);
-      }
-      return bin;
+  self.cloud.onPush = function toCloudData() {
+    const bin = {
+      parseCosmeticFilters: qs$("#parseCosmeticFilters")?.checked ?? false,
+      ignoreGenericCosmeticFilters: qs$("#ignoreGenericCosmeticFilters")?.checked ?? false,
+      selectedLists: []
     };
-    window.cloud.onPull = function fromCloudData(data, append) {
+    const liEntries = qsa$('#lists .listEntry.checked[data-role="leaf"]');
+    for (const liEntry of liEntries) {
+      bin.selectedLists.push(liEntry.dataset.key);
+    }
+    return bin;
+  };
+  self.cloud.onPull = function fromCloudData(data, append) {
     if (typeof data !== "object" || data === null) {
       return;
     }
     let elem = qs$("#parseCosmeticFilters");
-    let checked = data.parseCosmeticFilters === true || append && elem.checked;
+    let checked = data?.parseCosmeticFilters === true || append && elem?.checked === true;
     if (elem) {
       elem.checked = checked;
       listsetDetails && (listsetDetails.parseCosmeticFilters = checked);
     }
     elem = qs$("#ignoreGenericCosmeticFilters");
-    checked = data.ignoreGenericCosmeticFilters === true || append && elem.checked;
+    checked = data?.ignoreGenericCosmeticFilters === true || append && elem?.checked === true;
     if (elem) {
       elem.checked = checked;
       listsetDetails && (listsetDetails.ignoreGenericCosmeticFilters = checked);
     }
-    const selectedSet = new Set(data.selectedLists);
+    const selectedSet = new Set(Array.isArray(data?.selectedLists) ? data.selectedLists : []);
     for (const listEntry of qsa$('#lists .listEntry[data-role="leaf"]')) {
       const listkey = listEntry.dataset.key;
       if (!listkey) {
@@ -1559,7 +1558,7 @@
     if (dom.cl.has(buttonUpdate, "disabled")) {
       return;
     }
-    if (listsetDetails?.autoUpdate !== true) {
+    if (listsetDetails.autoUpdate !== true) {
       return;
     }
     buttonUpdateHandler();

@@ -92,6 +92,30 @@ cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
 npx esbuild src/js/whitelist.ts --bundle --format=iife --outfile=$DES/js/whitelist-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 cd $DES/js
 
+# Bundle document-blocked.ts
+echo "*** Bundling document-blocked.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/document-blocked.ts --bundle --format=iife --outfile=$DES/js/document-blocked-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
+
+# Bundle asset-viewer.ts
+echo "*** Bundling asset-viewer.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/asset-viewer.ts --bundle --format=iife --outfile=$DES/js/asset-viewer-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
+
+# Bundle devtools.ts
+echo "*** Bundling devtools.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/devtools.ts --bundle --format=iife --outfile=$DES/js/devtools-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
+
+# Bundle advanced-settings.ts
+echo "*** Bundling advanced-settings.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/advanced-settings.ts --bundle --format=iife --outfile=$DES/js/advanced-settings-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
+
 # Bundle static-dnr-filtering.ts (required for filter list DNR rules)
 echo "*** Bundling static-dnr-filtering.ts"
 cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected

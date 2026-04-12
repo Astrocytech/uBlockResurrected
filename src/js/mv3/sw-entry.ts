@@ -30,9 +30,15 @@ type PopupRequest = {
     persist?: boolean;
 };
 
+type FirewallCount = {
+    any: number;
+    frame: number;
+    script: number;
+};
+
 type FirewallCounts = {
-    allowed: { any: number; frame: number; script: number };
-    blocked: { any: number; frame: number; script: number };
+    allowed: FirewallCount;
+    blocked: FirewallCount;
 };
 
 type HostnameDetails = {
@@ -90,6 +96,174 @@ type LegacyPortDetails = {
     tabURL?: string;
 };
 
+let cosmeticFilteringEngine: any = null;
+let staticNetFilteringEngine: any = null;
+let staticExtFilteringEngine: any = null;
+let logger: any = null;
+let pageStore: any = null;
+let µb: any = null;
+let filteringContext: any = null;
+let filteringEngines: any = null;
+let io: any = null;
+let publicSuffixList: any = null;
+
+const setEngineReferences = () => {
+    try {
+        cosmeticFilteringEngine = (globalThis as any).vAPI?.cosmeticFilteringEngine || (globalThis as any).cosmeticFilteringEngine;
+        staticNetFilteringEngine = (globalThis as any).vAPI?.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
+        staticExtFilteringEngine = (globalThis as any).vAPI?.staticExtFilteringEngine || (globalThis as any).staticExtFilteringEngine;
+        logger = (globalThis as any).vAPI?.logger || (globalThis as any).logger;
+        µb = (globalThis as any).vAPI?.µb || (globalThis as any).µb;
+        filteringContext = (globalThis as any).vAPI?.filteringContext || (globalThis as any).filteringContext;
+        filteringEngines = (globalThis as any).vAPI?.filteringEngines || (globalThis as any).filteringEngines;
+        io = (globalThis as any).vAPI?.io || (globalThis as any).io;
+        publicSuffixList = (globalThis as any).vAPI?.publicSuffixList || (globalThis as any).publicSuffixList;
+        
+        // Additional engine references for full emulation
+        const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
+        const staticFilteringReverseLookup = (globalThis as any).vAPI?.staticFilteringReverseLookup;
+        const scriptletFilteringEngine = (globalThis as any).vAPI?.scriptletFilteringEngine;
+        const htmlFilteringEngine = (globalThis as any).vAPI?.htmlFilteringEngine;
+        const permanentURLFiltering = (globalThis as any).vAPI?.permanentURLFiltering;
+        const sessionURLFiltering = (globalThis as any).vAPI?.sessionURLFiltering;
+        const webRequest = (globalThis as any).vAPI?.webRequest;
+        
+        // Expose these engines to globalThis.vAPI for handlers to use
+        (globalThis as any).vAPI.redirectEngine = redirectEngine;
+        (globalThis as any).vAPI.staticFilteringReverseLookup = staticFilteringReverseLookup;
+        (globalThis as any).vAPI.scriptletFilteringEngine = scriptletFilteringEngine;
+        (globalThis as any).vAPI.htmlFilteringEngine = htmlFilteringEngine;
+        (globalThis as any).vAPI.permanentURLFiltering = permanentURLFiltering;
+        (globalThis as any).vAPI.sessionURLFiltering = sessionURLFiltering;
+        (globalThis as any).vAPI.webRequest = webRequest;
+        
+        // Create a simple filteringContext wrapper if not available
+        if (!filteringContext) {
+            const createFilterContext = (init?: Partial<{
+                hostname: string; url: string; origin: string; type: string; realm: string; filter: unknown;
+            }>) => {
+                const state = init || {};
+                const ctx = {
+                    duplicate: () => createFilterContext(state),
+                    fromTabId: async (tabId: number) => {
+                        try {
+                            const tab = await chrome.tabs.get(tabId);
+                            if (tab?.url) {
+                                const url = new URL(tab.url);
+                                const newState = { ...state, hostname: url.hostname, url: url.href, origin: url.origin };
+                                return createFilterContext(newState);
+                            }
+                        } catch (e) {}
+                        return createFilterContext({});
+                    },
+                    setType: (type: string) => {
+                        return createFilterContext({ ...state, type });
+                    },
+                    setURL: (url: string) => {
+                        try {
+                            const parsed = new URL(url);
+                            return createFilterContext({ ...state, url: parsed.href, hostname: parsed.hostname, origin: parsed.origin });
+                        } catch {
+                            return ctx;
+                        }
+                    },
+                    setDocOriginFromURL: (url: string) => {
+                        try {
+                            const parsed = new URL(url);
+                            return createFilterContext({ ...state, origin: parsed.origin });
+                        } catch {
+                            return ctx;
+                        }
+                    },
+                    setRealm: (realm: string) => {
+                        return createFilterContext({ ...state, realm });
+                    },
+                    setFilter: (filter: unknown) => {
+                        return createFilterContext({ ...state, filter });
+                    },
+                    toLogger: () => {
+                        if (logger?.enabled) {
+                            logger.writeOne({
+                                tabId: 0,
+                                realm: state.realm || 'network',
+                                type: 'filter',
+                                text: state.url || '',
+                                filter: state.filter,
+                            });
+                        }
+                    },
+                    // Accessors
+                    get hostname() { return state.hostname || ''; },
+                    get url() { return state.url || ''; },
+                    get origin() { return state.origin || ''; },
+                    get type() { return state.type || ''; },
+                    get realm() { return state.realm || 'network'; },
+                    get filter() { return state.filter; },
+                };
+                return ctx;
+            };
+            
+            const createRootFilterContext = () => {
+                const state: any = {};
+                
+                const ctx = {
+                    duplicate: () => createFilterContext({ ...state }),
+                    fromTabId: async (tabId: number) => {
+                        try {
+                            const tab = await chrome.tabs.get(tabId);
+                            if (tab?.url) {
+                                const url = new URL(tab.url);
+                                return createFilterContext({ hostname: url.hostname, url: url.href, origin: url.origin });
+                            }
+                        } catch (e) {}
+                        return createFilterContext({});
+                    },
+                    setRealm: function(this: any, realm: string) {
+                        state.realm = realm;
+                        return this;
+                    },
+                    setType: function(this: any, type: string) {
+                        state.type = type;
+                        return this;
+                    },
+                    setURL: function(this: any, url: string) {
+                        state.url = url;
+                        try {
+                            const parsed = new URL(url);
+                            state.hostname = parsed.hostname;
+                            state.origin = parsed.origin;
+                        } catch (e) {}
+                        return this;
+                    },
+                    setDocOriginFromURL: function(this: any, url: string) {
+                        try {
+                            const parsed = new URL(url);
+                            state.docOrigin = parsed.origin;
+                        } catch (e) {}
+                        return this;
+                    },
+                toLogger: function() {
+                    if (logger?.log) {
+                        logger.log(state);
+                    }
+                },
+                    get hostname() { return state.hostname || ''; },
+                    get url() { return state.url || ''; },
+                    get origin() { return state.origin || ''; },
+                    get type() { return state.type || ''; },
+                    get realm() { return state.realm || 'network'; },
+                    get filter() { return state.filter; },
+                };
+                return ctx;
+            };
+            
+            filteringContext = createRootFilterContext();
+        }
+    } catch (e) {
+        console.log('[MV3] Could not get engine references:', e);
+    }
+};
+
 const legacyBackendState = {
     initializing: null as Promise<void> | null,
     initialized: false,
@@ -104,8 +278,110 @@ const hostnameSwitchNames = new Set([
 ]);
 const HOSTNAME_SWITCHES_SCHEMA_VERSION = 2;
 
+// Element picker state
+const epickerArgs = {
+    target: '',
+    mouse: '',
+    zap: false,
+    eprom: null as any,
+};
+
+// Helper function to adjust color brightness
+const adjustColor = (color: string, percent: number): string => {
+    // Handle hex colors
+    if (color.startsWith('#')) {
+        const hex = color.slice(1);
+        const num = parseInt(hex, 16);
+        const r = Math.min(255, Math.max(0, (num >> 16) + percent));
+        const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + percent));
+        const b = Math.min(255, Math.max(0, (num & 0x0000FF) + percent));
+        return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1)}`;
+    }
+    return color;
+};
+
 const getLegacyMessaging = (): LegacyMessagingAPI | undefined => {
     return (globalThis as any).vAPI?.messaging;
+};
+
+// Cloud data encoding/decoding helpers
+const getDeviceName = async (): Promise<string> => {
+    const stored = await chrome.storage.local.get('cloudOptions');
+    const name = stored?.cloudOptions?.deviceName;
+    if (name) return name;
+    
+    // Generate default device name
+    const info = await chrome.runtime.getPlatformInfo();
+    const os = info.os || 'unknown';
+    const deviceName = `${os}-device-${Date.now().toString(36).slice(-6)}`;
+    await chrome.storage.local.set({ cloudOptions: { deviceName } });
+    return deviceName;
+};
+
+const encodeCloudData = async (data: any): Promise<string> => {
+    const json = JSON.stringify(data);
+    const stored = await chrome.storage.local.get('hiddenSettings');
+    const hiddenSettings = stored?.hiddenSettings || {};
+    
+    // s14e format with compression support if enabled
+    const useCompression = hiddenSettings.cloudStorageCompression === true;
+    
+    let encoded = json;
+    if (useCompression) {
+        // Simple compression using encodeURIComponent
+        // In a full implementation, this would use lz4 or similar
+        encoded = btoa(unescape(encodeURIComponent(json)));
+        // Mark as compressed version
+        return '2:' + encoded;
+    }
+    
+    encoded = btoa(unescape(encodeURIComponent(json)));
+    // Add s14e version marker
+    return '1:' + encoded;
+};
+
+const decodeCloudData = async (encoded: string): Promise<any> => {
+    try {
+        // Handle s14e format
+        let dataStr = encoded;
+        let isCompressed = false;
+        
+        if (encoded.startsWith('2:')) {
+            dataStr = encoded.substring(2);
+            isCompressed = true;
+        } else if (encoded.startsWith('1:')) {
+            dataStr = encoded.substring(2);
+        }
+        
+        const json = decodeURIComponent(escape(atob(dataStr)));
+        const parsed = JSON.parse(json);
+        
+        // Check for merge conflict markers and handle appropriately
+        if (parsed._mergeConflict) {
+            // Return data with conflict info
+            return parsed;
+        }
+        
+        return parsed;
+    } catch (e) {
+        throw new Error('Failed to decode cloud data: ' + (e as Error).message);
+    }
+};
+
+// Broadcast filtering behavior change to all tabs
+const broadcastFilteringBehaviorChanged = async (): Promise<void> => {
+    try {
+        const tabs = await chrome.tabs.query({});
+        for (const tab of tabs) {
+            if (tab.id) {
+                try {
+                    await chrome.tabs.sendMessage(tab.id, { what: 'filteringBehaviorChanged' });
+                } catch {
+                    // Tab may not have content script
+                }
+            }
+        }
+    } catch (e) {}
 };
 
 const withDisabledRuntimeOnConnect = async <T>(callback: () => Promise<T>): Promise<T> => {
@@ -266,6 +542,7 @@ const ensureLegacyBackend = async (): Promise<void> => {
             await legacyBackground.isReadyPromise.catch(() => {});
         }
         legacyBackendState.initialized = true;
+        setEngineReferences();
     });
 
     try {
@@ -375,6 +652,8 @@ const POWER_RULE_ID_MIN = 9_100_000;
 const POWER_RULE_ID_MAX = 9_199_999;
 const HOSTNAME_SWITCH_RULE_ID_MIN = 9_200_000;
 const HOSTNAME_SWITCH_RULE_ID_MAX = 9_299_999;
+const WHITELIST_RULE_ID_MIN = 9_300_000;
+const WHITELIST_RULE_ID_MAX = 9_399_999;
 
 const createCounts = (): FirewallCounts => ({
     allowed: { any: 0, frame: 0, script: 0 },
@@ -391,6 +670,70 @@ const domainFromHostname = (hostname: string): string => {
     const parts = hostname.split('.').filter(Boolean);
     if ( parts.length <= 2 ) { return hostname; }
     return parts.slice(-2).join('.');
+};
+
+const domainFromURI = (uri: string): string => {
+    try {
+        const url = new URL(uri);
+        return domainFromHostname(url.hostname);
+    } catch {
+        return '';
+    }
+};
+
+const hostnameFromURI = (uri: string): string => {
+    try {
+        const url = new URL(uri);
+        return url.hostname;
+    } catch {
+        return '';
+    }
+};
+
+const isNetworkURI = (url: string): boolean => {
+    try {
+        const parsed = new URL(url);
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+    } catch {
+        return false;
+    }
+};
+
+const formatCount = (count: number): string => {
+    if (count >= 1000000) return (count / 1000000).toFixed(1) + 'M';
+    if (count >= 1000) return (count / 1000).toFixed(1) + 'K';
+    return String(count);
+};
+
+const dateNowToSensibleString = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hour = String(now.getHours()).padStart(2, '0');
+    const minute = String(now.getMinutes()).padStart(2, '0');
+    return `${year}${month}${day}-${hour}${minute}`;
+};
+
+const generateAccentStylesheet = (accent: string, dark: boolean): string => {
+    const baseColor = accent.replace('#', '');
+    const r = parseInt(baseColor.substring(0, 2), 16);
+    const g = parseInt(baseColor.substring(2, 4), 16);
+    const b = parseInt(baseColor.substring(4, 6), 16);
+    
+    const lighter = `rgba(${Math.min(255, r + 30)}, ${Math.min(255, g + 30)}, ${Math.min(255, b + 30)}, 0.5)`;
+    const darker = `rgba(${Math.max(0, r - 30)}, ${Math.max(0, g - 30)}, ${Math.max(0, b - 30)}, 0.5)`;
+    
+    return `
+:root {
+    --accent: ${accent};
+    --accent-light: ${lighter};
+    --accent-dark: ${darker};
+}
+::-webkit-scrollbar-thumb { background: var(--accent); }
+::-webkit-scrollbar-thumb:hover { background: var(--accent-dark); }
+::-webkit-scrollbar-corner { background: var(--accent-light); }
+`;
 };
 
 const decomposeHostname = (hostname: string): string[] => {
@@ -634,6 +977,388 @@ class DynamicFirewallRules {
     }
 }
 
+type FirewallCount = {
+    any: number;
+    frame: number;
+    script: number;
+};
+
+type FirewallCounts = {
+    allowed: FirewallCount;
+    blocked: FirewallCount;
+};
+
+class FrameStore {
+    frameURL: string;
+    parentId: number;
+    clickToLoad: boolean;
+    type: number;
+    timestamp: number;
+    
+    constructor(frameURL: string, parentId: number) {
+        this.frameURL = frameURL;
+        this.parentId = parentId;
+        this.clickToLoad = false;
+        this.type = 0;
+        this.timestamp = Date.now();
+    }
+    
+    init(frameURL: string, parentId: number): void {
+        this.frameURL = frameURL;
+        this.parentId = parentId;
+        this.clickToLoad = false;
+        this.type = 0;
+        this.timestamp = Date.now();
+    }
+    
+    dispose(): void {
+        this.frameURL = '';
+        this.parentId = 0;
+        this.clickToLoad = false;
+    }
+    
+    updateURL(url: string): void {
+        this.frameURL = url;
+        this.timestamp = Date.now();
+    }
+    
+    getCosmeticFilteringBits(tabId: number): number {
+        return 0;
+    }
+    
+    shouldApplySpecificCosmeticFilters(tabId: number): boolean {
+        return true;
+    }
+    
+    shouldApplyGenericCosmeticFilters(tabId: number): boolean {
+        return true;
+    }
+}
+
+class MV3PageStore {
+    tabId: number;
+    rawURL: string;
+    hostname: string;
+    rootHostname: string;
+    rootDomain: string;
+    netFilteringSwitch: boolean;
+    contentLastModified: number;
+    largeMediaCount: number;
+    remoteFontCount: number;
+    popupBlockedCount: number;
+    counts: { blocked: FirewallCounts; allowed: FirewallCounts };
+    hostnameDetailsMap: Map<string, { domain: string; counts: FirewallCounts; cname?: string }>;
+    frameStores: Map<number, FrameStore>;
+    extraData: Map<string, any>;
+    allowLargeMediaElementsUntil: number;
+    
+    constructor(tabId: number) {
+        this.tabId = tabId;
+        this.rawURL = '';
+        this.hostname = '';
+        this.rootHostname = '';
+        this.rootDomain = '';
+        this.netFilteringSwitch = true;
+        this.contentLastModified = 0;
+        this.largeMediaCount = 0;
+        this.remoteFontCount = 0;
+        this.popupBlockedCount = 0;
+        this.counts = {
+            blocked: { any: 0, frame: 0, script: 0 },
+            allowed: { any: 0, frame: 0, script: 0 },
+        };
+        this.hostnameDetailsMap = new Map();
+        this.frameStores = new Map();
+        this.extraData = new Map();
+        this.allowLargeMediaElementsUntil = 0;
+    }
+    
+    async initialize(tab: chrome.tabs.Tab): Promise<void> {
+        if (!tab?.url) return;
+        
+        try {
+            const url = new URL(tab.url);
+            this.rawURL = url.href;
+            this.hostname = url.hostname;
+            
+            // Extract root hostname and root domain
+            const parts = this.hostname.split('.');
+            if (parts.length >= 2) {
+                // Root hostname is second-level domain (e.g., "example" from "sub.example.com")
+                this.rootHostname = parts.slice(-2)[0];
+                // Root domain is second-level domain with TLD (e.g., "example.com")
+                this.rootDomain = parts.slice(-2).join('.');
+            } else {
+                this.rootHostname = this.hostname;
+                this.rootDomain = this.hostname;
+            }
+            
+            // Load per-site filtering state
+            const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
+            const perSiteFiltering = storedFiltering?.perSiteFiltering || {};
+            this.netFilteringSwitch = perSiteFiltering[this.hostname] !== false;
+            
+            // Load content version
+            const storedVersions = await chrome.storage.local.get('popupContentVersions');
+            const versions = storedVersions?.popupContentVersions || {};
+            this.contentLastModified = versions[tab.id] || 0;
+            
+            // Load metrics
+            const storedMetrics = await chrome.storage.local.get('tabMetrics');
+            const metrics = storedMetrics?.tabMetrics || {};
+            const tabMetric = metrics[tab.id] || {};
+            this.largeMediaCount = tabMetric.largeMediaCount || 0;
+            this.remoteFontCount = tabMetric.remoteFontCount || 0;
+            this.popupBlockedCount = tabMetric.popupBlockedCount || 0;
+            this.counts.blocked = tabMetric.blocked || { any: 0, frame: 0, script: 0 };
+            this.counts.allowed = tabMetric.allowed || { any: 0, frame: 0, script: 0 };
+            
+            // Load hostname details
+            const storedDetails = await chrome.storage.local.get('hostnameDetailsMap');
+            const detailsMap = storedDetails?.hostnameDetailsMap || {};
+            const tabDetails = detailsMap[tab.id] || {};
+            for (const [hostname, detail] of Object.entries(tabDetails)) {
+                this.hostnameDetailsMap.set(hostname, detail as any);
+            }
+            
+            // Load extra data
+            const storedExtraData = await chrome.storage.local.get('pageStoreExtraData');
+            const extraDataMap = storedExtraData?.pageStoreExtraData || {};
+            const tabExtraData = extraDataMap[tab.id] || {};
+            for (const [key, value] of Object.entries(tabExtraData)) {
+                this.extraData.set(key, value);
+            }
+            
+            // Load allow large media timestamp
+            const storedLargeMedia = await chrome.storage.local.get('allowLargeMediaElements');
+            const largeMediaMap = storedLargeMedia?.allowLargeMediaElements || {};
+            this.allowLargeMediaElementsUntil = largeMediaMap[tab.id] || 0;
+        } catch (e) {
+            console.log('[MV3] MV3PageStore.initialize error:', e);
+        }
+    }
+    
+    getNetFilteringSwitch(): boolean {
+        return this.netFilteringSwitch;
+    }
+    
+    getAllHostnameDetails(): Map<string, any> {
+        return this.hostnameDetailsMap;
+    }
+    
+    async toggleNetFilteringSwitch(url: string, scope: string, state: boolean): Promise<void> {
+        this.netFilteringSwitch = state;
+        
+        try {
+            const hostname = new URL(url).hostname;
+            const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
+            const perSiteFiltering = storedFiltering?.perSiteFiltering || {};
+            
+            const key = scope === 'page' ? `${hostname}:${url}` : hostname;
+            if (state) {
+                delete perSiteFiltering[key];
+            } else {
+                perSiteFiltering[key] = false;
+            }
+            
+            await chrome.storage.local.set({ perSiteFiltering });
+            
+            await syncHostnameSwitchDnrRules();
+        } catch (e) {
+            console.log('[MV3] toggleNetFilteringSwitch error:', e);
+        }
+    }
+    
+    getFrameStore(frameId: number): FrameStore | null {
+        return this.frameStores.get(frameId) || null;
+    }
+    
+    setFrameURL(details: { frameId: number; frameURL: string; parentId?: number }): void {
+        const { frameId, frameURL, parentId } = details;
+        let frameStore = this.frameStores.get(frameId);
+        if (frameStore) {
+            frameStore.updateURL(frameURL);
+            if (parentId !== undefined) {
+                frameStore.parentId = parentId;
+            }
+        } else {
+            frameStore = new FrameStore(frameURL, parentId || 0);
+            this.frameStores.set(frameId, frameStore);
+        }
+    }
+    
+    getEffectiveFrameURL(sender: { frameId?: number }): string {
+        if (!sender?.frameId) return this.rawURL;
+        const frameStore = this.frameStores.get(sender.frameId);
+        return frameStore?.frameURL || this.rawURL;
+    }
+    
+    getFrameAncestorDetails(frameId: number): { parent: string; ancestors: string[] } | null {
+        const frameStore = this.frameStores.get(frameId);
+        if (!frameStore) return null;
+        
+        const ancestors: string[] = [];
+        let currentFrameId = frameId;
+        
+        while (currentFrameId) {
+            const currentStore = this.frameStores.get(currentFrameId);
+            if (currentStore && currentStore.parentId !== 0) {
+                const parentStore = this.frameStores.get(currentStore.parentId);
+                if (parentStore) {
+                    ancestors.push(parentStore.frameURL);
+                    currentFrameId = currentStore.parentId;
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        
+        return {
+            parent: frameStore.parentId.toString(),
+            ancestors: ancestors.reverse(),
+        };
+    }
+    
+    shouldApplySpecificCosmeticFilters(frameId: number): boolean {
+        const frameStore = this.frameStores.get(frameId);
+        if (frameStore) {
+            return !frameStore.clickToLoad;
+        }
+        return true;
+    }
+    
+    shouldApplyGenericCosmeticFilters(frameId: number): boolean {
+        if (this.netFilteringSwitch === false) return false;
+        const frameStore = this.frameStores.get(frameId);
+        if (frameStore) {
+            return !frameStore.clickToLoad;
+        }
+        return true;
+    }
+    
+    async clickToLoad(frameId: number, frameURL: string): Promise<void> {
+        let frameStore = this.frameStores.get(frameId);
+        if (!frameStore) {
+            frameStore = new FrameStore(frameURL, 0);
+            this.frameStores.set(frameId, frameStore);
+        }
+        frameStore.clickToLoad = true;
+        
+        // Notify content script to reload
+        try {
+            await chrome.tabs.sendMessage(this.tabId, {
+                what: 'reloadFrame',
+                frameId: frameId,
+            });
+        } catch (e) {}
+    }
+    
+    temporarilyAllowLargeMediaElements(state: boolean): void {
+        this.allowLargeMediaElementsUntil = state ? Date.now() + 5000 : 0;
+        
+        // Persist to storage
+        chrome.storage.local.get('allowLargeMediaElements').then(stored => {
+            const largeMediaMap = stored?.allowLargeMediaElements || {};
+            largeMediaMap[this.tabId] = this.allowLargeMediaElementsUntil;
+            chrome.storage.local.set({ allowLargeMediaElements: largeMediaMap });
+        }).catch(() => {});
+    }
+    
+    disposeFrameStores(): void {
+        for (const frameStore of this.frameStores.values()) {
+            frameStore.dispose();
+        }
+        this.frameStores.clear();
+    }
+    
+    filterRequest(fctxt: any): number {
+        // This is a placeholder - actual filtering is done via vAPI
+        // Return 0 = allowed, 1 = blocked
+        return 0;
+    }
+    
+    filterOnHeaders(fctxt: any, ...headers: any[]): number {
+        return 0;
+    }
+    
+    redirectBlockedRequest(fctxt: any): string | null {
+        return null;
+    }
+    
+    filterCSPReport(fctxt: any): boolean {
+        return true;
+    }
+    
+    filterFont(fctxt: any): boolean {
+        return true;
+    }
+    
+    filterScripting(fctxt: any, netFiltering: boolean): number {
+        return 0;
+    }
+    
+    filterLargeMediaElement(fctxt: any, headers: any): boolean {
+        return this.allowLargeMediaElementsUntil > Date.now();
+    }
+    
+    // extraData methods - allow storing arbitrary per-tab data
+    setExtraData(key: string, value: any): void {
+        this.extraData.set(key, value);
+        // Persist to storage
+        chrome.storage.local.get('pageStoreExtraData').then(stored => {
+            const extraDataMap = stored?.pageStoreExtraData || {};
+            if (!extraDataMap[this.tabId]) {
+                extraDataMap[this.tabId] = {};
+            }
+            extraDataMap[this.tabId][key] = value;
+            chrome.storage.local.set({ pageStoreExtraData: extraDataMap }).catch(() => {});
+        }).catch(() => {});
+    }
+    
+    getExtraData(key: string): any {
+        return this.extraData.get(key);
+    }
+    
+    getAllExtraData(): Record<string, any> {
+        const result: Record<string, any> = {};
+        for (const [key, value] of this.extraData) {
+            result[key] = value;
+        }
+        return result;
+    }
+}
+
+// Page stores map - one per tab
+const pageStores = new Map<number, MV3PageStore>();
+let pageStoresToken = 0;
+
+const pageStoreFromTabId = async (tabId: number): Promise<MV3PageStore | null> => {
+    let pageStore = pageStores.get(tabId);
+    
+    if (!pageStore) {
+        try {
+            const tab = await chrome.tabs.get(tabId);
+            pageStore = new MV3PageStore(tabId);
+            await pageStore.initialize(tab);
+            pageStores.set(tabId, pageStore);
+            pageStoresToken++;
+            if ((self as any).µb) {
+                (self as any).µb.pageStoresToken = pageStoresToken;
+            }
+        } catch (e) {
+            return null;
+        }
+    }
+    
+    return pageStore;
+};
+
+const mustLookup = async (tabId: number): Promise<MV3PageStore | null> => {
+    return pageStoreFromTabId(tabId);
+};
+
 const popupState = {
     initialized: false,
     initPromise: Promise.resolve(),
@@ -645,6 +1370,14 @@ const popupState = {
     whitelist: [] as string[],
     globalAllowedRequestCount: 0,
     globalBlockedRequestCount: 0,
+    trustedLists: {} as Record<string, boolean>,
+    noDashboard: false,
+    inMemoryFilter: '',
+    loggerOwnerId: undefined as number | undefined,
+    uiAccentStylesheet: '',
+    tabMetrics: {} as Record<number, { blocked?: number; allowed?: number; hasUnprocessedRequest?: boolean }>,
+    supportStats: { supportPageCount: 0 },
+    pageStores,
 };
 
 type FilterListDetails = {
@@ -783,7 +1516,27 @@ const loadPopupState = async () => {
     popupState.whitelist = typeof items.whitelist === 'string' 
         ? items.whitelist.split('\n').filter(Boolean)
         : [];
+    
+    // Update µb.netWhitelist to match
+    if ((self as any).µb) {
+        (self as any).µb.netWhitelist = popupState.whitelist.join('\n');
+    }
+    
     popupState.initialized = true;
+    
+    // Sync all DNR rules on startup after state is loaded
+    void syncFirewallDnrRules();
+    void syncHostnameSwitchDnrRules();
+    void syncPowerSwitchDnrRules();
+    void syncWhitelistDnrRules();
+    
+    // Load element picker eprom from storage
+    const epromStored = await chrome.storage.local.get('elementPickerEprom');
+    if (epromStored?.elementPickerEprom) {
+        (self as any).µb = (self as any).µb || {};
+        (self as any).µb.epickerArgs = (self as any).µb.epickerArgs || {};
+        (self as any).µb.epickerArgs.eprom = epromStored.elementPickerEprom;
+    }
 };
 
 const ensurePopupState = async () => {
@@ -799,18 +1552,38 @@ const persistUserSettings = async () => {
     await chrome.storage.local.set({ userSettings: popupState.userSettings });
 };
 
+const getModifiedSettings = (current: Record<string, unknown>, defaults: Record<string, unknown>): Record<string, unknown> => {
+    const modified: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(current)) {
+        if (value !== defaults[key]) {
+            modified[key] = value;
+        }
+    }
+    return modified;
+};
+
 const backupUserData = async () => {
     await ensurePopupState();
     
     const storage = await chrome.storage.local.get(null);
     const storageUsed = await chrome.storage.local.getBytesInUse(null);
     
-    const lastBackupFile = 'ublock-resurrected-backup-' + Date.now() + '.json';
+    const manifest = chrome.runtime.getManifest();
+    const lastBackupFile = 'ublock-resurrected-backup-' + dateNowToSensibleString() + '.json';
     const lastBackupTime = Date.now();
+    
+    // Get hidden settings for backup
+    const hiddenSettings = (await chrome.storage.local.get('hiddenSettings')).hiddenSettings || {};
+    
+    // Only include modified settings
+    const modifiedUserSettings = getModifiedSettings(popupState.userSettings, userSettingsDefault);
+    const modifiedHiddenSettings = getModifiedSettings(hiddenSettings, {});
     
     const userData = {
         timeStamp: lastBackupTime,
-        userSettings: popupState.userSettings,
+        version: manifest.version || '1.0.0',
+        userSettings: modifiedUserSettings,
+        hiddenSettings: modifiedHiddenSettings,
         selectedFilterLists: storage.selectedFilterLists || [],
         filterLists: storage.filterLists || {},
         netWhitelist: storage.netWhitelist || '',
@@ -842,7 +1615,9 @@ const backupUserData = async () => {
 const restoreUserData = async (request: { userData?: unknown; file?: string }) => {
     const userData = request.userData as {
         timeStamp?: number;
+        version?: string;
         userSettings?: Record<string, unknown>;
+        hiddenSettings?: Record<string, unknown>;
         selectedFilterLists?: string[];
         filterLists?: Record<string, unknown>;
         netWhitelist?: string;
@@ -850,10 +1625,31 @@ const restoreUserData = async (request: { userData?: unknown; file?: string }) =
         dynamicRules?: unknown[];
         permanentFirewallRules?: unknown[];
         sessionFirewallRules?: unknown[];
+        permanentURLFiltering?: unknown[];
+        sessionURLFiltering?: unknown[];
     } | undefined;
     
     if (!userData) {
         return { error: 'No user data provided' };
+    }
+    
+    // Clear caches before restoring
+    try {
+        const cacheKeys = await chrome.storage.local.get(null);
+        const keysToRemove = Object.keys(cacheKeys).filter(k => 
+            k.startsWith('assetCache_') || k.startsWith('cachedAsset_')
+        );
+        if (keysToRemove.length > 0) {
+            await chrome.storage.local.remove(keysToRemove);
+        }
+    } catch (e) {}
+    
+    // Restore hiddenSettings
+    if (userData.hiddenSettings) {
+        const existingHidden = (await chrome.storage.local.get('hiddenSettings')).hiddenSettings || {};
+        await chrome.storage.local.set({ 
+            hiddenSettings: { ...existingHidden, ...userData.hiddenSettings } 
+        });
     }
     
     // Restore userSettings
@@ -905,6 +1701,9 @@ const restoreUserData = async (request: { userData?: unknown; file?: string }) =
     // Reload filter lists to apply changes
     await reloadAllFilterLists();
     
+    // Restart the extension to apply all changes
+    chrome.runtime.reload();
+    
     return {
         localData: {
             lastRestoreFile,
@@ -917,6 +1716,7 @@ const restoreUserData = async (request: { userData?: unknown; file?: string }) =
 const getLocalData = async () => {
     const storageUsed = await chrome.storage.local.getBytesInUse(null);
     const localData = (await chrome.storage.local.get('localData')).localData || {};
+    const userSettings = (await chrome.storage.local.get('userSettings')).userSettings || {};
     
     return {
         storageUsed,
@@ -924,7 +1724,7 @@ const getLocalData = async () => {
         lastBackupTime: localData.lastBackupTime || 0,
         lastRestoreFile: localData.lastRestoreFile || '',
         lastRestoreTime: localData.lastRestoreTime || 0,
-        cloudStorageSupported: typeof chrome.storage.sync !== 'undefined',
+        cloudStorageSupported: userSettings.cloudStorageEnabled === true && typeof chrome.storage.sync !== 'undefined',
         privacySettingsSupported: typeof navigator !== 'undefined' && typeof navigator.connection !== 'undefined',
     };
 };
@@ -1394,7 +2194,7 @@ const buildSpecificCosmeticPayload = (
 };
 
 // Sync filter list network rules to Chrome DNR
-const syncFilterListDnrRules = async () => {
+const syncFilterListDnrRules = async (): Promise<void> => {
     if ( chrome.declarativeNetRequest === undefined ) { 
         console.log('[DNR] DNR not available');
         return; 
@@ -1411,6 +2211,7 @@ const syncFilterListDnrRules = async () => {
         
         console.log('[DNR] Selected lists:', selectedLists);
         
+        // Always ensure we have default filter lists selected
         if ( selectedLists.length === 0 ) {
             const catalogForDefaults = await fetchFilterListCatalog();
             selectedLists = deriveDefaultSelectedFilterLists(catalogForDefaults);
@@ -1430,9 +2231,49 @@ const syncFilterListDnrRules = async () => {
             console.log('[DNR] Bootstrapped default filter lists:', selectedLists);
         }
 
+        // Force refresh selected lists from storage after potential bootstrap
+        const refreshedStorage = await chrome.storage.local.get('selectedFilterLists');
+        selectedLists = normalizeSelectedFilterLists(refreshedStorage.selectedFilterLists);
+        console.log('[DNR] Final selected lists:', selectedLists);
+
         // Get catalog
         const catalog = await fetchFilterListCatalog();
-        console.log('[DNR] Catalog keys:', Object.keys(catalog).slice(0, 5));
+        console.log('[DNR] Catalog keys count:', Object.keys(catalog).length);
+        
+        // For MV3 first run, generate simple blocking rules for common ad patterns
+        // This ensures we have some rules even if CDN is unreachable
+        const generateFallbackRules = (): chrome.declarativeNetRequest.Rule[] => {
+            const rules: chrome.declarativeNetRequest.Rule[] = [];
+            const baseId = 100;
+            
+            // Common ad domains to block
+            const adDomains = [
+                'doubleclick.net',
+                'googlesyndication.com',
+                'googleadservices.com',
+                'adnxs.com',
+                'adsrvr.org',
+                'criteo.com',
+                'pubmatic.com',
+                'rubiconproject.com',
+                'openx.net',
+                'advertising.com',
+            ];
+            
+            for (let i = 0; i < adDomains.length; i++) {
+                rules.push({
+                    id: baseId + i,
+                    priority: 1,
+                    action: { type: 'block' },
+                    condition: {
+                        urlFilter: `||${adDomains[i]}^`,
+                        resourceTypes: ['main_frame', 'sub_frame', 'script', 'image', 'xmlhttprequest', 'websocket', 'other'],
+                    },
+                });
+            }
+            
+            return rules;
+        };
         
         // Load filter list content
         const filterLists: { key: string; text: string }[] = [];
@@ -1456,78 +2297,122 @@ const syncFilterListDnrRules = async () => {
                 continue; 
             }
             
-            const bundledPath = resolveBundledFilterListPath(asset);
-            if ( bundledPath === undefined ) {
-                console.log('[DNR] Skipping list (no bundled local asset):', listKey);
-                continue;
-            }
-
-            // Load from bundled asset
-            const assetPath = bundledPath;
-            console.log('[DNR] Loading:', assetPath);
-            try {
-                const response = await fetch(chrome.runtime.getURL(assetPath));
-                if ( response.ok ) {
-                    const text = await response.text();
-                    filterLists.push({ key: listKey, text });
-                    console.log('[DNR] Loaded:', listKey, text.length, 'chars');
-                } else {
-                    console.log('[DNR] Failed to load:', listKey, response.status);
+            let bundledPath = resolveBundledFilterListPath(asset);
+            let filterText = '';
+            
+            // First try bundled asset
+            if ( bundledPath !== undefined ) {
+                try {
+                    const response = await fetch(chrome.runtime.getURL(bundledPath));
+                    if ( response.ok ) {
+                        filterText = await response.text();
+                        filterLists.push({ key: listKey, text: filterText });
+                        console.log('[DNR] Loaded from bundled:', listKey, filterText.length, 'chars');
+                    } else {
+                        console.log('[DNR] Bundled load failed:', listKey, response.status);
+                    }
+                } catch ( e ) {
+                    console.warn('[DNR] Failed to load bundled:', listKey, e);
                 }
-            } catch ( e ) {
-                console.warn('[DNR] Failed to load filter list:', listKey, e);
+            }
+            
+            // If no bundled text, try CDN URL as fallback
+            if ( filterText === '' && asset.cdnURLs && asset.cdnURLs.length > 0 ) {
+                console.log('[DNR] Trying CDN for:', listKey);
+                try {
+                    const response = await fetch(asset.cdnURLs[0]);
+                    if ( response.ok ) {
+                        filterText = await response.text();
+                        filterLists.push({ key: listKey, text: filterText });
+                        console.log('[DNR] Loaded from CDN:', listKey, filterText.length, 'chars');
+                    } else {
+                        console.log('[DNR] CDN load failed:', listKey, response.status);
+                    }
+                } catch ( e ) {
+                    console.warn('[DNR] Failed to load from CDN:', listKey, e);
+                }
+            }
+            
+            if ( filterText === '' ) {
+                console.log('[DNR] Skipping list (no content loaded):', listKey);
             }
         }
 
         console.log('[DNR] Total lists loaded:', filterLists.length);
         
+        let dnrData: any = null;
+        
         if ( filterLists.length === 0 ) {
-            console.log('[DNR] No filter lists loaded');
-            return;
+            console.log('[DNR] No filter lists loaded, using fallback rules');
+            // Use fallback rules when no lists can be loaded
+        } else {
+            console.log('[DNR] Compiling', filterLists.length, 'filter lists to DNR rules...');
+
+            // Import the DNR conversion function (from built JS)
+            const { dnrRulesetFromRawLists } = await import('../static-dnr-filtering.js');
+            
+            console.log('[DNR] Input lists:', filterLists.map(f => ({ key: f.key, textLen: f.text.length })));
+            
+            // Compile to DNR rules
+            dnrData = await dnrRulesetFromRawLists(
+                filterLists.map(f => ({ text: f.text })),
+                { env: [] }
+            );
+            
+            console.log('[DNR] Raw result keys:', Object.keys(dnrData || {}));
+            console.log('[DNR] genericCosmeticFilters:', dnrData?.genericCosmeticFilters?.length);
+            console.log('[DNR] specificCosmetic (Map):', dnrData?.specificCosmetic instanceof Map);
+            if (dnrData?.specificCosmetic instanceof Map) {
+                console.log('[DNR] specificCosmetic size:', dnrData.specificCosmetic.size);
+                console.log('[DNR] specificCosmetic sample:', Array.from(dnrData.specificCosmetic.entries()).slice(0, 3));
+            }
+
+            console.log('[DNR] Result:', dnrData);
         }
-
-        console.log('[DNR] Compiling', filterLists.length, 'filter lists to DNR rules...');
-
-        // Import the DNR conversion function (from built JS)
-        const { dnrRulesetFromRawLists } = await import('../static-dnr-filtering.js');
         
-        // Compile to DNR rules
-        const dnrData = await dnrRulesetFromRawLists(
-            filterLists.map(f => ({ text: f.text })),
-            { env: [] }
-        );
-
-        console.log('[DNR] Result:', dnrData);
+        let addRules: chrome.declarativeNetRequest.Rule[] = [];
         
-        if ( !dnrData?.network?.ruleset ) {
-            console.log('[DNR] No network rules from filter lists');
-            return;
+        if ( dnrData?.network?.ruleset && dnrData.network.ruleset.length > 0 ) {
+            console.log('[DNR] Generated rules:', dnrData.network.ruleset.length);
+
+            // Get existing rules and remove old filter list rules (ID range 100-9999)
+            const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+            const removeRuleIds = existingRules
+                .map(rule => rule.id)
+                .filter(id => id >= 100 && id < 10000);
+
+            // Assign IDs to new rules (start at 100 to avoid conflicts with firewall rules)
+            addRules = dnrData.network.ruleset.map((rule: any, index: number) => ({
+                ...rule,
+                id: 100 + index,
+            })).slice(0, 3000); // Chrome DNR limit is 3000 dynamic rules
+            
+            // Update DNR
+            await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+            console.log('[DNR] Installed', addRules.length, 'filter list rules');
+            
+            // Store cosmetic filters for content script access
+            const cosmeticFiltersData = serializeCosmeticFilterData(dnrData);
+            await chrome.storage.local.set({ cosmeticFiltersData: JSON.stringify(cosmeticFiltersData) });
+            console.log('[DNR] Stored cosmetic filters:', 
+                cosmeticFiltersData.genericCosmeticFilters.length, 'generic,',
+                cosmeticFiltersData.specificCosmeticFilters.length, 'specific');
+        } else {
+            // Fallback: Install basic blocking rules even if filter lists couldn't load
+            console.log('[DNR] No rules from filter lists, installing fallback blocking rules');
+            const fallbackRules = generateFallbackRules();
+            const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+            const removeRuleIds = existingRules
+                .map(rule => rule.id)
+                .filter(id => id >= 100 && id < 10000);
+            
+            if (removeRuleIds.length > 0) {
+                await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeRuleIds });
+            }
+            
+            await chrome.declarativeNetRequest.updateDynamicRules({ addRules: fallbackRules });
+            console.log('[DNR] Installed', fallbackRules.length, 'fallback rules');
         }
-
-        console.log('[DNR] Generated rules:', dnrData.network.ruleset.length);
-
-        // Get existing rules and remove old filter list rules (ID range 100-9999)
-        const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-        const removeRuleIds = existingRules
-            .map(rule => rule.id)
-            .filter(id => id >= 100 && id < 10000);
-
-        // Assign IDs to new rules (start at 100 to avoid conflicts with firewall rules)
-        const addRules = dnrData.network.ruleset.map((rule: any, index: number) => ({
-            ...rule,
-            id: 100 + index,
-        })).slice(0, 3000); // Chrome DNR limit is 3000 dynamic rules
-
-        // Update DNR
-        await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
-        console.log('[DNR] Installed', addRules.length, 'filter list rules');
-        
-        // Store cosmetic filters for content script access
-        const cosmeticFiltersData = serializeCosmeticFilterData(dnrData);
-        await chrome.storage.local.set({ cosmeticFiltersData: JSON.stringify(cosmeticFiltersData) });
-        console.log('[DNR] Stored cosmetic filters:', 
-            cosmeticFiltersData.genericCosmeticFilters.length, 'generic,',
-            cosmeticFiltersData.specificCosmeticFilters.length, 'specific');
         
     } catch ( e ) {
         console.error('[DNR] Failed to sync filter list rules:', e);
@@ -1632,11 +2517,76 @@ const compileFirewallRulesToDnr = (firewall: DynamicFirewallRules) => {
 
 const syncFirewallDnrRules = async () => {
     if ( chrome.declarativeNetRequest === undefined ) { return; }
+    
+    // Validate addRules before updating
+    const addRules = compileFirewallRulesToDnr(popupState.sessionFirewall);
+    if (!Array.isArray(addRules)) {
+        console.warn('[MV3] syncFirewallDnrRules: invalid addRules');
+        return;
+    }
+    for (const rule of addRules) {
+        if (!rule.id || !rule.action?.type || !rule.condition) {
+            console.warn('[MV3] syncFirewallDnrRules: invalid rule', rule);
+            return;
+        }
+    }
+    
+    // Check rule count limit (Chrome max is 30000 rules)
+    const MAX_DNR_RULES = 30000;
+    if (addRules.length > MAX_DNR_RULES) {
+        console.warn('[MV3] syncFirewallDnrRules: rule count exceeds limit', addRules.length);
+        // Truncate rules to fit limit
+        addRules.length = MAX_DNR_RULES;
+    }
+    
     const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
     const removeRuleIds = existingRules
         .map(rule => rule.id)
         .filter(id => id >= FIREWALL_RULE_ID_MIN && id <= FIREWALL_RULE_ID_MAX);
-    const addRules = compileFirewallRulesToDnr(popupState.sessionFirewall);
+    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+};
+
+const compileWhitelistRulesToDnr = (whitelist: string[]): chrome.declarativeNetRequest.Rule[] => {
+    const escapeRegex = (value: string) => value.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+    const rules: chrome.declarativeNetRequest.Rule[] = [];
+    let nextRuleId = WHITELIST_RULE_ID_MIN;
+
+    for ( const pattern of whitelist ) {
+        if ( nextRuleId > WHITELIST_RULE_ID_MAX ) { break; }
+        if ( typeof pattern !== 'string' || pattern.length === 0 ) { continue; }
+        if ( pattern.startsWith('#') ) { continue; }
+
+        let regex = pattern;
+        if ( regex.startsWith('||') ) {
+            regex = '^https?://([^/]+\\.)?' + regex.slice(2);
+        } else if ( regex.startsWith('|') ) {
+            regex = '^' + regex.slice(1);
+        } else if ( regex.endsWith('|') ) {
+            regex = regex.slice(0, -1) + '$';
+        }
+        regex = escapeRegex(regex).replace(/\\\*/g, '.*');
+
+        rules.push({
+            id: nextRuleId++,
+            priority: 3,
+            action: { type: 'allow' },
+            condition: {
+                urlFilter: regex || '.*',
+                domainType: 'thirdParty',
+            },
+        });
+    }
+
+    return rules;
+};
+
+const syncWhitelistDnrRules = async () => {
+    if ( chrome.declarativeNetRequest === undefined ) { return; }
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeRuleIds = existingRules
+        .map(rule => rule.id)
+        .filter(id => id >= WHITELIST_RULE_ID_MIN && id <= WHITELIST_RULE_ID_MAX);
+    const addRules = compileWhitelistRulesToDnr(popupState.whitelist || []);
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
 };
 
@@ -1727,6 +2677,12 @@ const persistPermanentHostnameSwitches = async () => {
     });
 };
 
+const persistURLFilteringRules = async () => {
+    const stored = await chrome.storage.local.get('urlFilteringRules');
+    const rules = stored?.urlFilteringRules || [];
+    await chrome.storage.local.set({ permanentURLFiltering: rules });
+};
+
 const compileHostnameSwitchDnrRules = (hostnameSwitches: HostnameSwitchState) => {
     const addRules: chrome.declarativeNetRequest.Rule[] = [];
     let nextRuleId = HOSTNAME_SWITCH_RULE_ID_MIN;
@@ -1794,11 +2750,24 @@ const compileHostnameSwitchDnrRules = (hostnameSwitches: HostnameSwitchState) =>
 
 const syncHostnameSwitchDnrRules = async () => {
     if ( chrome.declarativeNetRequest === undefined ) { return; }
+    
+    const addRules = compileHostnameSwitchDnrRules(popupState.sessionHostnameSwitches);
+    if (!Array.isArray(addRules)) {
+        console.warn('[MV3] syncHostnameSwitchDnrRules: invalid addRules');
+        return;
+    }
+    
+    // Check rule count limit (Chrome max is 30000 rules)
+    const MAX_DNR_RULES = 30000;
+    if (addRules.length > MAX_DNR_RULES) {
+        console.warn('[MV3] syncHostnameSwitchDnrRules: rule count exceeds limit', addRules.length);
+        addRules.length = MAX_DNR_RULES;
+    }
+    
     const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
     const removeRuleIds = existingRules
         .map(rule => rule.id)
         .filter(id => id >= HOSTNAME_SWITCH_RULE_ID_MIN && id <= HOSTNAME_SWITCH_RULE_ID_MAX);
-    const addRules = compileHostnameSwitchDnrRules(popupState.sessionHostnameSwitches);
     await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
 };
 
@@ -2064,6 +3033,78 @@ const persistGlobalRequestCounts = async () => {
         globalAllowedRequestCount: popupState.globalAllowedRequestCount,
         globalBlockedRequestCount: popupState.globalBlockedRequestCount,
     });
+    void updateBadge();
+};
+
+const updateBadge = async () => {
+    if ( chrome.action === undefined ) { return; }
+    const count = popupState.globalBlockedRequestCount;
+    if ( count > 0 ) {
+        const displayCount = count > 999 ? '999+' : count.toString();
+        await chrome.action.setBadgeText({ text: displayCount });
+        await chrome.action.setBadgeBackgroundColor({ color: '#cc0000' });
+    } else {
+        await chrome.action.setBadgeText({ text: '' });
+    }
+};
+
+const updateToolbarIcon = async (tabId: number, options: { filtering?: boolean; clickToLoad?: string }): Promise<void> => {
+    try {
+        // Get current state from storage
+        const stored = await chrome.storage.local.get('tabIdToDetails');
+        let currentParts = stored?.tabIdToDetails?.[tabId] || 0b0111;
+        
+        if (options.filtering === false) {
+            currentParts = 0b0100; // hide badge = true, color = 0, text = 0
+        } else if (options.filtering === true) {
+            currentParts = 0b0111; // show all
+        }
+        
+        // Store updated state
+        const tabDetails = stored?.tabIdToDetails || {};
+        tabDetails[tabId] = currentParts;
+        await chrome.storage.local.set({ tabIdToDetails: tabDetails });
+        
+        // Get per-site filtering state for this tab
+        const tab = await chrome.tabs.get(tabId);
+        if (!tab?.url) return;
+        
+        const hostname = new URL(tab.url).hostname;
+        const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
+        const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
+        
+        // Check if filtering is enabled for this site
+        const isFilteringEnabled = perSiteFiltering[hostname] !== false;
+        
+        // Update badge to reflect filtering state
+        if (isFilteringEnabled && (currentParts & 0b001)) {
+            const blockedCount = popupState.tabMetrics?.[tabId]?.blocked || 0;
+            if (blockedCount > 0) {
+                await chrome.action.setBadgeText({ text: blockedCount > 999 ? '999+' : String(blockedCount) });
+                await chrome.action.setBadgeBackgroundColor({ color: '#cc0000' });
+            } else {
+                await chrome.action.setBadgeText({ text: '' });
+            }
+        } else if (!isFilteringEnabled) {
+            await chrome.action.setBadgeText({ text: 'off', tabId });
+            await chrome.action.setBadgeBackgroundColor({ color: '#888888', tabId });
+        } else {
+            await chrome.action.setBadgeText({ text: '' });
+        }
+        
+        // Store click-to-load allowance
+        if (options.clickToLoad) {
+            const stored = await chrome.storage.local.get('clickToLoadAllowances');
+            const allowances = stored?.clickToLoadAllowances || {};
+            if (!allowances[tabId]) allowances[tabId] = [];
+            if (!allowances[tabId].includes(options.clickToLoad)) {
+                allowances[tabId].push(options.clickToLoad);
+                await chrome.storage.local.set({ clickToLoadAllowances: allowances });
+            }
+        }
+    } catch (e) {
+        console.log('[MV3] updateToolbarIcon error:', e);
+    }
 };
 
 const incrementCounts = (
@@ -2329,19 +3370,37 @@ const getPopupData = async (request: PopupRequest) => {
         }
     })();
     const pageDomain = domainFromHostname(pageHostname);
+
+    const pageStore = tabId > 0 ? await pageStoreFromTabId(tabId) : null;
+
     const trackedState = typeof tabId === 'number'
         ? await loadTabRequestStateWithRetry(tabId)
         : undefined;
     const liveState = typeof tabId === 'number' && pageHostname !== ''
         ? await collectTabHostnameData(tabId, pageHostname)
         : undefined;
+
     const hostnameDict: Record<string, HostnameDetails> = {};
     if ( pageHostname !== '' ) {
         hostnameDict[pageHostname] = zeroHostnameDetails(pageHostname);
     }
+    if ( pageStore ) {
+        const hostnameDetailsMap = pageStore.getAllHostnameDetails();
+        if ( hostnameDetailsMap ) {
+            for ( const [ hostname, details ] of hostnameDetailsMap ) {
+                hostnameDict[hostname] = cloneHostnameDetails({
+                    domain: (details as any).domain || hostname,
+                    counts: (details as any).counts || createCounts(),
+                    cname: (details as any).cname,
+                });
+            }
+        }
+    }
     if ( trackedState?.hostnameDict ) {
         for ( const [ hostname, details ] of Object.entries(trackedState.hostnameDict) ) {
-            hostnameDict[hostname] = cloneHostnameDetails(details);
+            if ( hostnameDict[hostname] === undefined ) {
+                hostnameDict[hostname] = cloneHostnameDetails(details);
+            }
         }
     }
     if ( liveState?.hostnameDict ) {
@@ -2355,7 +3414,10 @@ const getPopupData = async (request: PopupRequest) => {
             }
         }
     }
-    const pageCounts = createCounts();
+
+    let pageCounts = pageStore?.counts 
+        ? { blocked: { ...pageStore.counts.blocked }, allowed: { ...pageStore.counts.allowed } }
+        : createCounts();
     if ( trackedState?.pageCounts ) {
         mergeCounts(pageCounts, trackedState.pageCounts);
     }
@@ -2372,17 +3434,9 @@ const getPopupData = async (request: PopupRequest) => {
         }
     }
 
-    // Get per-site filtering state
-    const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
-    const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
-    // Determine if filtering is enabled for this page
-    let netFilteringEnabled = true;
-    if (pageHostname) {
-        const pageScopeKey = pageHostname;
-        const pageUrlScopeKey = `${pageHostname}:${pageURL}`;
-        // Check page-specific setting first, then hostname setting
-        netFilteringEnabled = perSiteFiltering[pageUrlScopeKey] ?? perSiteFiltering[pageScopeKey] ?? true;
-    }
+    const netFilteringSwitch = pageStore 
+        ? pageStore.getNetFilteringSwitch()
+        : true;
 
     const hostnameSwitches = popupState.sessionHostnameSwitches;
     const noPopups = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-popups'] === true;
@@ -2399,24 +3453,39 @@ const getPopupData = async (request: PopupRequest) => {
             scriptCount: 0,
         };
 
+    // Get content last modified time from pageStore
+    const contentLastModified = pageStore?.contentLastModified || 0;
+
+    // Use pageStore metrics if available
+    const largeMediaCount = pageStore?.largeMediaCount ?? switchMetrics.largeMediaCount;
+    const remoteFontCount = pageStore?.remoteFontCount ?? switchMetrics.remoteFontCount;
+    const popupBlockedCount = pageStore?.popupBlockedCount ?? switchMetrics.popupBlockedCount;
+
     return {
         advancedUserEnabled: popupState.userSettings.advancedUserEnabled,
         appName: chrome.runtime.getManifest().name,
         appVersion: chrome.runtime.getManifest().version,
         colorBlindFriendly: popupState.userSettings.colorBlindFriendly,
-        cosmeticFilteringSwitch: false,
+        contentLastModified,
+        cosmeticFilteringSwitch: noCosmeticFiltering !== true,
         firewallPaneMinimized: popupState.userSettings.firewallPaneMinimized,
         firewallRules: getFirewallRulesForPopup(pageHostname, hostnameDict),
-        godMode: true,
+        godMode: popupState.userSettings.filterAuthorMode === true,
         globalAllowedRequestCount: popupState.globalAllowedRequestCount,
         globalBlockedRequestCount: popupState.globalBlockedRequestCount,
-        hasUnprocessedRequest: false,
+        hasUnprocessedRequest: (() => {
+            const vAPINet = (globalThis as any).vAPI?.net;
+            if (vAPINet?.hasUnprocessedRequest) {
+                return vAPINet.hasUnprocessedRequest(tabId) === true;
+            }
+            return popupState.tabMetrics?.[tabId]?.hasUnprocessedRequest === true;
+        })(),
         hostnameDict,
         pageCounts,
         pageDomain,
         pageHostname,
         pageURL,
-        popupBlockedCount: switchMetrics.popupBlockedCount,
+        popupBlockedCount,
         popupPanelDisabledSections: 0,
         popupPanelHeightMode: 0,
         popupPanelLockedSections: 0,
@@ -2426,15 +3495,15 @@ const getPopupData = async (request: PopupRequest) => {
         tabId,
         tabTitle: pageTitle,
         tooltipsDisabled: popupState.userSettings.tooltipsDisabled,
-        userFiltersAreEnabled: true,
-        netFilteringSwitch: netFilteringEnabled,
+        userFiltersAreEnabled: popupState.userSettings.filteringEnabled !== false,
+        netFilteringSwitch: netFilteringSwitch,
         canElementPicker: /^https?:/.test(pageURL),
         noPopups,
         noCosmeticFiltering,
         noLargeMedia,
-        largeMediaCount: switchMetrics.largeMediaCount,
+        largeMediaCount,
         noRemoteFonts,
-        remoteFontCount: switchMetrics.remoteFontCount,
+        remoteFontCount,
         noScripting,
         matrixIsDirty: (
             popupState.sessionFirewall.hasSameRules(
@@ -2486,6 +3555,12 @@ const saveFirewallRules = async (request: PopupRequest) => {
         request.srcHostname || '',
         request.desHostnames || {},
     );
+    
+    // Clear cosmetic selector cache after saving rules
+    if (cosmeticFilteringEngine?.removeFromSelectorCache) {
+        cosmeticFilteringEngine.removeFromSelectorCache(request.srcHostname || '*', 'net');
+    }
+    
     await persistPermanentFirewall();
     popupState.permanentHostnameSwitches = cloneHostnameSwitchState(popupState.sessionHostnameSwitches);
     await persistPermanentHostnameSwitches();
@@ -2501,6 +3576,12 @@ const revertFirewallRules = async (request: PopupRequest) => {
         request.srcHostname || '',
         request.desHostnames || {},
     );
+    
+    // Clear cosmetic selector cache after reverting rules
+    if (cosmeticFilteringEngine?.removeFromSelectorCache) {
+        cosmeticFilteringEngine.removeFromSelectorCache(request.srcHostname || '*', 'net');
+    }
+    
     popupState.sessionHostnameSwitches = cloneHostnameSwitchState(popupState.permanentHostnameSwitches);
     await syncFirewallDnrRules();
     await syncHostnameSwitchDnrRules();
@@ -2585,7 +3666,25 @@ const setUserSetting = async (request: PopupRequest) => {
             createContextMenu();
         }
     }
-    return { ...popupState.userSettings };
+    
+    // Get vAPI.net capabilities
+    const vAPINet = (globalThis as any).vAPI?.net;
+    const canUncloakCnames = vAPINet?.canUncloakCnames === true;
+    
+    // Build response with conditional fields
+    const response: Record<string, any> = { ...popupState.userSettings };
+    
+    // Only include cnameUncloakEnabled if CNAME uncloaking is available
+    if (!canUncloakCnames) {
+        delete response.cnameUncloakEnabled;
+    }
+    
+    // Only include canLeakLocalIPAddresses if the feature is available  
+    if (!vAPINet?.canLeakLocalIPAddresses) {
+        delete response.canLeakLocalIPAddresses;
+    }
+    
+    return response;
 };
 
 const toggleHostnameSwitch = async (request: PopupRequest) => {
@@ -2623,12 +3722,80 @@ const toggleHostnameSwitch = async (request: PopupRequest) => {
     return getPopupData(request);
 };
 
+const toggleNetFiltering = async (request: PopupRequest) => {
+    await ensurePopupState();
+    const tabId = request.tabId ?? 0;
+    const url = request.url || '';
+    const scope = request.scope || 'page';
+    const state = request.state !== false;
+    
+    if (!tabId || !url) {
+        return getPopupData(request);
+    }
+    
+    try {
+        const pageStore = await pageStoreFromTabId(tabId);
+        if (pageStore) {
+            await pageStore.toggleNetFilteringSwitch(url, scope, state);
+        } else {
+            const hostname = new URL(url).hostname;
+            const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
+            const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
+            const key = scope === 'page' ? `${hostname}:${url}` : hostname;
+            if (state) {
+                delete perSiteFiltering[key];
+            } else {
+                perSiteFiltering[key] = false;
+            }
+            await chrome.storage.local.set({ perSiteFiltering });
+        }
+        
+        // Toggle associated switches
+        const hostnameSwitches = cloneHostnameSwitchState(popupState.sessionHostnameSwitches);
+        const hostname = new URL(url).hostname;
+        const current = hostnameSwitches[hostname] || {};
+        
+        if (!state) {
+            current['no-popups'] = true;
+            current['no-cosmetic-filtering'] = true;
+            current['no-large-media'] = true;
+            current['no-remote-fonts'] = true;
+            current['no-scripting'] = true;
+        } else {
+            delete current['no-popups'];
+            delete current['no-cosmetic-filtering'];
+            delete current['no-large-media'];
+            delete current['no-remote-fonts'];
+            delete current['no-scripting'];
+        }
+        
+        if (Object.keys(current).length > 0) {
+            hostnameSwitches[hostname] = current;
+        } else {
+            delete hostnameSwitches[hostname];
+        }
+        
+        popupState.sessionHostnameSwitches = hostnameSwitches;
+        await syncHostnameSwitchDnrRules();
+        await syncPowerSwitchDnrRules();
+        
+        if (typeof tabId === 'number') {
+            await updateToolbarIcon(tabId, { filtering: state });
+        }
+        
+    } catch (e) {
+        console.error('[MV3] toggleNetFiltering error:', e);
+    }
+    
+    return getPopupData(request);
+};
+
 const handlePopupPanelMessage = async (request: PopupRequest) => {
     switch ( request.what ) {
     case 'getPopupData':
         return getPopupData(request);
     case 'toggleNetFiltering':
-        return handleDashboardMessage(request);
+        return toggleNetFiltering(request);
     case 'toggleFirewallRule':
         return toggleFirewallRule(request);
     case 'saveFirewallRules':
@@ -2643,6 +3810,20 @@ const handlePopupPanelMessage = async (request: PopupRequest) => {
         return toggleHostnameSwitch(request);
     case 'userSettings':
         return setUserSetting(request);
+    case 'readyToFilter':
+        return popupState.initialized;
+    case 'clickToLoad': {
+        const tabId = request.tabId as number;
+        const frameId = request.frameId as number;
+        const frameURL = request.frameURL as string;
+        if (tabId && frameId && frameURL) {
+            const pageStore = await pageStoreFromTabId(tabId);
+            if (pageStore) {
+                await pageStore.clickToLoad(frameId, frameURL);
+            }
+        }
+        return { success: true };
+    }
     default:
         return undefined;
     }
@@ -2674,6 +3855,307 @@ const handleDashboardMessage = async (request: PopupRequest) => {
         return restoreUserData(request as { userData?: unknown; file?: string });
     case 'resetUserData':
         return resetUserData();
+    case 'readUserFilters': {
+        const items = await chrome.storage.local.get('userFilters');
+        const enabled = await chrome.storage.local.get('userFiltersEnabled');
+        const selectedLists = await chrome.storage.local.get('selectedFilterLists');
+        
+        // Check if user filters is in selected filter lists (trust status)
+        const userFiltersPath = 'userfilters';
+        const isSelected = selectedLists?.selectedFilterLists?.includes(userFiltersPath) || false;
+        const isTrusted = popupState.trustedLists?.[userFiltersPath] === true;
+        
+        return { 
+            userFilters: items.userFilters || '',
+            enabled: enabled?.userFiltersEnabled !== false ? isSelected : false,
+            trusted: isTrusted,
+        };
+    }
+    case 'writeUserFilters': {
+        const userFilters = request.userFilters as string;
+        const enabled = request.enabled as boolean;
+        if ( typeof userFilters === 'string' ) {
+            // Validate user filters - ensure it's not too large and is a valid string
+            const MAX_FILTER_SIZE = 10 * 1024 * 1024; // 10MB limit
+            if (userFilters.length > MAX_FILTER_SIZE) {
+                return { success: false, error: 'Filter size exceeds limit' };
+            }
+            await chrome.storage.local.set({ userFilters });
+            if (typeof enabled === 'boolean') {
+                await chrome.storage.local.set({ userFiltersEnabled: enabled });
+            }
+            await reloadAllFilterLists();
+            return { success: true };
+        }
+        return { success: false, error: 'Invalid userFilters' };
+    }
+    case 'cloudGetOptions': {
+        const stored = await chrome.storage.local.get('cloudOptions');
+        const userSettings = (await chrome.storage.local.get('userSettings')).userSettings || {};
+        const options = stored?.cloudOptions || {};
+        const deviceName = options.deviceName || await getDeviceName();
+        const syncStorageAvailable = typeof chrome.storage.sync !== 'undefined';
+        return {
+            deviceName,
+            syncEnabled: options.syncEnabled !== false,
+            enabled: userSettings.cloudStorageEnabled === true,
+            cloudStorageSupported: syncStorageAvailable,
+        };
+    }
+    case 'cloudSetOptions': {
+        const options = request as { deviceName?: string; syncEnabled?: boolean };
+        const stored = await chrome.storage.local.get('cloudOptions');
+        const existing = stored?.cloudOptions || {};
+        if (typeof options.deviceName === 'string') {
+            existing.deviceName = options.deviceName;
+        }
+        if (typeof options.syncEnabled === 'boolean') {
+            existing.syncEnabled = options.syncEnabled;
+        }
+        await chrome.storage.local.set({ cloudOptions: existing });
+        return { success: true };
+    }
+    case 'cloudPull': {
+        const useSync = typeof chrome.storage.sync !== 'undefined';
+        const cloudKey = 'cloudData';
+        const stored = useSync 
+            ? await chrome.storage.sync.get(cloudKey)
+            : await chrome.storage.local.get(cloudKey);
+        const cloudData = stored?.[cloudKey];
+        if (!cloudData) return { error: 'No cloud data' };
+        
+        try {
+            // Enhanced decoding with s14e format support
+            const decoded = await decodeCloudData(cloudData);
+            return { 
+                data: decoded, 
+                clientId: decoded.clientId, 
+                lastModified: decoded.lastModified,
+                serverTime: decoded.serverTime,
+            };
+        } catch (e) {
+            return { error: (e as Error).message };
+        }
+    }
+    case 'cloudPush': {
+        const cloudData = request.data;
+        if (!cloudData) return { error: 'No data to push' };
+        
+        try {
+            // Add server timestamp
+            const dataToPush = {
+                ...cloudData,
+                serverTime: Date.now(),
+                clientTime: Date.now(),
+            };
+            
+            const encoded = await encodeCloudData(dataToPush);
+            
+            // Use sync storage if available, otherwise use local
+            const useSync = typeof chrome.storage.sync !== 'undefined';
+            if (useSync) {
+                await chrome.storage.sync.set({ cloudData: encoded });
+            } else {
+                await chrome.storage.local.set({ cloudData: encoded });
+            }
+            
+            // Update storage usage tracking
+            const storageUsed = useSync 
+                ? await chrome.storage.sync.getBytesInUse()
+                : await chrome.storage.local.getBytesInUse();
+            if (useSync) {
+                await chrome.storage.sync.set({ 
+                    cloudStorageUsed: storageUsed,
+                    lastCloudSync: Date.now() 
+                });
+            } else {
+                await chrome.storage.local.set({ 
+                    cloudStorageUsed: storageUsed,
+                    lastCloudSync: Date.now() 
+                });
+            }
+            
+            return { success: true, clientId: cloudData.clientId };
+        } catch (e) {
+            return { error: (e as Error).message };
+        }
+    }
+    case 'cloudUsed': {
+        // Get actual cloud storage usage
+        const useSync = typeof chrome.storage.sync !== 'undefined';
+        const storageUsed = useSync 
+            ? await chrome.storage.sync.getBytesInUse()
+            : await chrome.storage.local.getBytesInUse();
+        
+        const cloudKey = useSync ? 'cloudData' : 'cloudData';
+        const cloudData = useSync 
+            ? await chrome.storage.sync.get(cloudKey)
+            : await chrome.storage.local.get(cloudKey);
+        const cloudSize = cloudData?.[cloudKey] ? JSON.stringify(cloudData[cloudKey]).length : 0;
+        
+        const lastCloudSync = useSync 
+            ? await chrome.storage.sync.get('lastCloudSync')
+            : await chrome.storage.local.get('lastCloudSync');
+        
+        return { 
+            used: cloudSize,
+            total: storageUsed,
+            lastSync: lastCloudSync?.lastCloudSync || 0,
+        };
+    }
+    case 'getAppData': {
+        const manifest = chrome.runtime.getManifest();
+        const stored = await chrome.storage.local.get('hiddenSettings');
+        const hiddenSettings = stored?.hiddenSettings || {};
+        const whitelistStored = await chrome.storage.local.get('whitelist');
+        const whitelist = whitelistStored?.whitelist || '';
+        
+        return {
+            name: manifest.name || 'uBlock Resurrected',
+            version: manifest.version || '1.0.0',
+            canBenchmark: hiddenSettings?.benchmarkDatasetURL !== 'unset',
+            whitelist: µb?.arrayFromWhitelist?.(whitelist) || [],
+            whitelistDefault: µb?.netWhitelistDefault || [],
+            reBadHostname: µb?.reWhitelistBadHostname?.source || '(^|\\.)(localhost|localhost\\.localdomain|127\\.0\\.0\\.1|0\\.0\\.0\\.0|255\\.255\\.255\\.255)$/',
+            reHostnameExtractor: µb?.reWhitelistHostnameExtractor?.source || '^https?:\\/\\/([^/:]+)',
+        };
+    }
+    case 'getTrustedScriptletTokens': {
+        if (redirectEngine?.getTrustedScriptletTokens) {
+            return redirectEngine.getTrustedScriptletTokens();
+        }
+        return [];
+    }
+    case 'getWhitelist': {
+        const whitelistStored = await chrome.storage.local.get('whitelist');
+        const whitelist = whitelistStored?.whitelist || '';
+        return {
+            whitelist: µb?.arrayFromWhitelist?.(whitelist) || [],
+            whitelistDefault: µb?.netWhitelistDefault || [],
+            reBadHostname: µb?.reWhitelistBadHostname?.source || '(^|\\.)(localhost|localhost\\.localdomain|127\\.0\\.0\\.1|0\\.0\\.0\\.0|255\\.255\\.255\\.255)$/',
+            reHostnameExtractor: µb?.reWhitelistHostnameExtractor?.source || '^https?:\\/\\/([^/:]+)',
+        };
+    }
+    case 'setWhitelist': {
+        const whitelist = request.whitelist as string;
+        if (typeof whitelist === 'string' && whitelist.length > 0) {
+            popupState.whitelist = µb?.whitelistFromString?.(whitelist) || [];
+            try {
+                await chrome.storage.local.set({ whitelist });
+                return { success: true };
+            } catch (e) {
+                return { success: false, error: (e as Error).message };
+            }
+        }
+        return { success: false, error: 'Invalid whitelist' };
+    }
+    case 'getDomainNames': {
+        const target = request.target as string;
+        if (typeof target !== 'string' || target === '') { return []; }
+        
+        const domains: string[] = [];
+        
+        const extractDomain = (hostname: string): string | null => {
+            if (!hostname) return null;
+            // Get second-level domain for public suffixes
+            const parts = hostname.split('.');
+            if (parts.length >= 2) {
+                return parts.slice(-2).join('.');
+            }
+            return hostname;
+        };
+        
+        // Handle URL or hostname
+        try {
+            if (target.includes('/') || target.includes(':')) {
+                // It's a URL
+                const url = new URL(target);
+                const domain = extractDomain(url.hostname);
+                if (domain) domains.push(domain);
+            } else {
+                // It's a hostname
+                const domain = extractDomain(target);
+                if (domain) domains.push(domain);
+            }
+        } catch {
+            // Fallback - treat as hostname
+            const domain = extractDomain(target);
+            if (domain) domains.push(domain);
+        }
+        
+        return domains;
+    }
+    case 'getCollapsibleBlockedRequests': {
+        const tabId = request.tabId as number;
+        if ( typeof tabId !== 'number' ) { return { requests: [] }; }
+        try {
+            const results = await chrome.tabs.sendMessage(tabId, { what: 'getCollapsibleBlockedRequests' });
+            return results || { requests: [] };
+        } catch {
+            return { requests: [] };
+        }
+    }
+    case 'hasPopupContentChanged': {
+        const tabId = request.tabId as number;
+        const contentLastModified = request.contentLastModified as number;
+        
+        if (typeof tabId !== 'number') {
+            return { changed: false };
+        }
+        
+        // Get stored content version for this tab
+        const stored = await chrome.storage.local.get('popupContentVersions');
+        const versions = stored?.popupContentVersions || {};
+        const storedVersion = versions[tabId] || 0;
+        
+        // Compare stored version with requested version
+        const changed = storedVersion !== 0 && storedVersion !== contentLastModified;
+        
+        // Update version if changed
+        if (changed || storedVersion === 0) {
+            versions[tabId] = Date.now();
+            await chrome.storage.local.set({ popupContentVersions: versions });
+        }
+        
+        return { changed };
+    }
+    case 'toggleInMemoryFilter': {
+        const filter = request.filter as string;
+        const tabId = request.tabId as number;
+        if ( filter && typeof tabId === 'number' ) {
+            try {
+                await chrome.tabs.sendMessage(tabId, { what: 'toggleInMemoryFilter', filter });
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+        return { success: true };
+    }
+    case 'hasInMemoryFilter': {
+        const tabId = request.tabId as number;
+        if ( typeof tabId === 'number' ) {
+            try {
+                const results = await chrome.tabs.sendMessage(tabId, { what: 'hasInMemoryFilter' });
+                return results || { hasFilter: false };
+            } catch {
+                return { hasFilter: false };
+            }
+        }
+        return { hasFilter: false };
+    }
+    case 'readAll': {
+        const ownerId = request.ownerId as number;
+        if (logger?.ownerId !== undefined && logger?.ownerId !== ownerId) {
+            return { unavailable: true };
+        }
+        
+        try {
+            const allData = await chrome.storage.local.get(null);
+            return allData;
+        } catch (e) {
+            return { error: (e as Error).message };
+        }
+    }
     case 'toggleNetFiltering': {
         // Handle power switch toggle - enable/disable filtering for a site
         const { url, scope, state, tabId } = request;
@@ -2720,11 +4202,502 @@ const handleDashboardMessage = async (request: PopupRequest) => {
         return getPopupData(request);
     }
     case 'reloadTab': {
-        const { tabId, bypassCache } = request;
+        const { tabId, bypassCache, url } = request;
         if (tabId) {
-            chrome.tabs.reload(tabId, { bypassCache: !!bypassCache });
+            if (typeof url === 'string' && url !== '') {
+                // Replace URL in the tab if different
+                chrome.tabs.get(tabId, (tab) => {
+                    if (tab?.url && tab.url !== url) {
+                        chrome.tabs.update(tabId, { url });
+                    } else {
+                        chrome.tabs.reload(tabId, { bypassCache: !!bypassCache });
+                    }
+                });
+            } else {
+                chrome.tabs.reload(tabId, { bypassCache: !!bypassCache });
+            }
         }
         return {};
+    }
+    case 'dismissUnprocessedRequest': {
+        const tabId = request.tabId as number;
+        if (typeof tabId === 'number') {
+            // Remove from vAPI.net tracking
+            const vAPINet = (globalThis as any).vAPI?.net;
+            if (vAPINet?.removeUnprocessedRequest) {
+                vAPINet.removeUnprocessedRequest(tabId);
+            }
+            
+            // Also remove from local storage
+            const stored = await chrome.storage.local.get('unprocessedRequests');
+            const unprocessed = stored?.unprocessedRequests || {};
+            delete unprocessed[tabId];
+            await chrome.storage.local.set({ unprocessedRequests: unprocessed });
+            
+            // Update toolbar icon after dismissing
+            await updateToolbarIcon(tabId, { filtering: true });
+        }
+        return { success: true };
+    }
+    case 'launchReporter': {
+        const tabId = request.tabId as number;
+        const pageURL = request.pageURL as string;
+        if (tabId && pageURL) {
+            const stored = await chrome.storage.local.get('popupStats');
+            const stats = stored?.popupStats?.[tabId] || {};
+            
+            // Get filter list update ages
+            const filterLists = (await chrome.storage.local.get('filterLists')).filterLists || {};
+            const selectedLists = (await chrome.storage.local.get('selectedFilterLists')).selectedFilterLists || [];
+            const updateAges: Record<string, number> = {};
+            
+            for (const listKey of selectedLists) {
+                const list = filterLists[listKey];
+                if (list?.lastFetchTime) {
+                    updateAges[listKey] = Date.now() - list.lastFetchTime;
+                }
+            }
+            
+            // Get cosmetic filter data
+            const cosmeticData = (await chrome.storage.local.get('cosmeticFiltersData')).cosmeticFiltersData || {};
+            const cosmeticFilterCount = Object.keys(cosmeticData).length;
+            
+            const url = new URL(chrome.runtime.getURL('reporter.html'));
+            url.searchParams.set('url', pageURL);
+            url.searchParams.set('tabId', String(tabId));
+            url.searchParams.set('blocked', String(stats.blocked || 0));
+            url.searchParams.set('allowed', String(stats.allowed || 0));
+            url.searchParams.set('cosmeticFilters', String(cosmeticFilterCount));
+            url.searchParams.set('updateAges', JSON.stringify(updateAges));
+            
+            chrome.tabs.create({ url: url.toString(), active: true });
+        }
+        return { success: true };
+    }
+    case 'gotoURL': {
+        const { url, newTab, tabId: targetTabId, select, index, shiftKey } = request as {
+            url?: string;
+            newTab?: boolean;
+            tabId?: number;
+            select?: boolean;
+            index?: number;
+            shiftKey?: boolean;
+        };
+        if (!url) return { success: false };
+        
+        const createProps: chrome.tabs.CreateProperties = { url, active: select !== false };
+        if (typeof index === 'number') createProps.index = index;
+        if (shiftKey) createProps.active = false;
+        
+        if (newTab) {
+            const created = await chrome.tabs.create(createProps);
+            return { tabId: created.id };
+        } else if (targetTabId) {
+            await chrome.tabs.update(targetTabId, { url, active: true });
+            return { tabId: targetTabId };
+        } else {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if (tabs[0]?.id) {
+                await chrome.tabs.update(tabs[0].id, { url, active: true });
+                return { tabId: tabs[0].id };
+            }
+        }
+        return { success: false };
+    }
+    case 'hasPopupContentChanged': {
+        const tabId = request.tabId as number;
+        if (typeof tabId !== 'number') return { changed: false };
+        
+        const stored = await chrome.storage.local.get('popupContentVersions');
+        const versions = stored?.popupContentVersions || {};
+        const currentVersion = versions[tabId] || 0;
+        const newVersion = Date.now();
+        
+        if (currentVersion !== newVersion) {
+            versions[tabId] = newVersion;
+            await chrome.storage.local.set({ popupContentVersions: versions });
+            return { changed: currentVersion !== 0 && newVersion > currentVersion };
+        }
+        return { changed: false };
+    }
+    case 'getAssetContent': {
+        const url = request.url as string;
+        if (!url) return { error: 'No URL provided' };
+        try {
+            const response = await fetch(url);
+            const text = await response.text();
+            return {
+                content: text,
+                assetKey: url,
+                sourceURL: url,
+            };
+        } catch (e) {
+            return { error: (e as Error).message };
+        }
+    }
+    case 'listsFromNetFilter': {
+        const rawFilter = request.rawFilter as string;
+        if (!rawFilter) return { notFound: true };
+        if (staticFilteringReverseLookup) {
+            try {
+                const result = await staticFilteringReverseLookup.fromNetFilter(rawFilter);
+                return result;
+            } catch (e) {
+                return { notFound: true };
+            }
+        }
+        return { notFound: true };
+    }
+    case 'listsFromCosmeticFilter': {
+        const rawFilter = request.rawFilter as string;
+        if (!rawFilter) return { notFound: true };
+        if (staticFilteringReverseLookup) {
+            try {
+                const result = await staticFilteringReverseLookup.fromExtendedFilter({ rawFilter });
+                return result;
+            } catch (e) {
+                return { notFound: true };
+            }
+        }
+        return { notFound: true };
+    }
+    case 'reloadAllFilters':
+        return reloadAllFilterLists();
+    case 'scriptlet': {
+        const tabId = request.tabId as number;
+        const scriptletName = request.scriptlet as string;
+        if (tabId && scriptletName) {
+            try {
+                await chrome.scripting.executeScript({
+                    target: { tabId },
+                    files: [`/js/scriptlets/${scriptletName}.js`],
+                });
+                return { success: true };
+            } catch (e) {
+                return { error: (e as Error).message };
+            }
+        }
+        return { error: 'Invalid parameters' };
+    }
+    case 'loggerDisabled': {
+        return logger?.enabled !== true;
+    }
+    case 'launchElementPicker': {
+        const tabId = request.tabId as number;
+        const target = request.target as string;
+        const zap = request.zap as boolean;
+        if (tabId) {
+            elementPickerExec(tabId, 0, target, zap);
+        }
+        return { success: true };
+    }
+    case 'snfeBenchmark': {
+        return { result: 'Benchmark not implemented in MV3' };
+    }
+    case 'cfeBenchmark': {
+        return { result: 'Benchmark not implemented in MV3' };
+    }
+    case 'sfeBenchmark': {
+        return { result: 'Benchmark not implemented in MV3' };
+    }
+    case 'snfeToDNR': {
+        return { success: true, message: 'Static network filters already use DNR in MV3' };
+    }
+    case 'snfeDump': {
+        if (staticFilteringEngine) {
+            return { dump: 'Static filtering engine state not available' };
+        }
+        return { dump: 'No engine' };
+    }
+    case 'snfeQuery': {
+        const filter = request.filter as string;
+        if (!filter || !staticFilteringEngine) return { result: [] };
+        return { result: [] };
+    }
+    case 'cfeDump': {
+        if (cosmeticFilteringEngine) {
+            return { dump: 'Cosmetic filtering engine state not available' };
+        }
+        return { dump: 'No engine' };
+    }
+    case 'dashboardConfig': {
+        const noDashboard = popupState.noDashboard === true;
+        return {
+            defaultURL: '/dashboard.html',
+            noDashboardURL: '/no-dashboard.html',
+            noDashboard,
+        };
+    }
+    case 'getRules': {
+        const stored = await chrome.storage.local.get('dynamicRules');
+        const storedFirewall = await chrome.storage.local.get('permanentFirewall');
+        const storedSwitches = await chrome.storage.local.get('permanentSwitches');
+        const storedSession = await chrome.storage.local.get('sessionFirewall');
+        
+        // Get URL filtering from engine if available
+        let urlFilters: any[] = [];
+        const permanentURLFiltering = (globalThis as any).vAPI?.permanentURLFiltering;
+        if (permanentURLFiltering?.toArray) {
+            try {
+                urlFilters = permanentURLFiltering.toArray();
+            } catch (e) {}
+        }
+        // Fallback to storage if engine not available
+        if (urlFilters.length === 0) {
+            const storedURLFilters = await chrome.storage.local.get('permanentURLFiltering');
+            urlFilters = storedURLFilters?.permanentURLFiltering || [];
+        }
+        
+        // Generate PSL selfie if available
+        let pslSelfieValue: string | null = null;
+        if (publicSuffixList?.toSelfie) {
+            try {
+                pslSelfieValue = publicSuffixList.toSelfie();
+            } catch (e) {}
+        }
+        
+        return {
+            dynamicRules: stored?.dynamicRules || [],
+            firewall: storedFirewall?.permanentFirewall || [],
+            switches: storedSwitches?.permanentSwitches || [],
+            urlFilters,
+            sessionFirewall: storedSession?.sessionFirewall || [],
+            pslSelfie: pslSelfieValue,
+        };
+    }
+    case 'modifyRuleset': {
+        const { type, action, raw, rule } = request;
+        
+        // Clear cosmetic selector cache when modifying ruleset
+        if (cosmeticFilteringEngine?.removeFromSelectorCache) {
+            cosmeticFilteringEngine.removeFromSelectorCache('*');
+        }
+        
+        if (type === 'user' && raw) {
+            const stored = await chrome.storage.local.get('userRules');
+            const existingRules = stored?.userRules || [];
+            if (action === 'remove') {
+                const index = existingRules.indexOf(raw);
+                if (index > -1) existingRules.splice(index, 1);
+            } else {
+                existingRules.push(raw);
+            }
+            await chrome.storage.local.set({ userRules: existingRules });
+        }
+        
+        if (type === 'firewall' && rule) {
+            const stored = await chrome.storage.local.get('permanentFirewall');
+            const rules = stored?.permanentFirewall || [];
+            if (action === 'remove') {
+                const index = rules.findIndex((r: any) => r.src === rule.src && r.dest === rule.dest && r.type === rule.type);
+                if (index > -1) rules.splice(index, 1);
+            } else {
+                rules.push(rule);
+            }
+            await chrome.storage.local.set({ permanentFirewall: rules });
+        }
+        
+        if (type === 'switch' && rule) {
+            const stored = await chrome.storage.local.get('permanentSwitches');
+            const rules = stored?.permanentSwitches || [];
+            if (action === 'remove') {
+                const index = rules.findIndex((r: any) => r.hostname === rule.hostname && r.switch === rule.switch);
+                if (index > -1) rules.splice(index, 1);
+            } else {
+                rules.push(rule);
+            }
+            await chrome.storage.local.set({ permanentSwitches: rules });
+        }
+        
+        if (type === 'urlRuleset' && rule) {
+            const stored = await chrome.storage.local.get('permanentURLFiltering');
+            const rules = stored?.permanentURLFiltering || [];
+            if (action === 'remove') {
+                const index = rules.findIndex((r: any) => r.urlPattern === rule.urlPattern);
+                if (index > -1) rules.splice(index, 1);
+            } else {
+                rules.push(rule);
+            }
+            await chrome.storage.local.set({ permanentURLFiltering: rules });
+        }
+        
+        return { success: true };
+    }
+    case 'listsUpdateNow': {
+        const assetKeys = request.assetKeys as string[];
+        const preferOrigin = request.preferOrigin as boolean;
+        if (assetKeys && assetKeys.length > 0) {
+            await updateFilterListsNow({ assetKeys, preferOrigin });
+        }
+        return { success: true };
+    }
+    case 'supportUpdateNow': {
+        // Update support filter list
+        try {
+            const stored = await chrome.storage.local.get('selectedFilterLists');
+            const lists = stored?.selectedFilterLists || [];
+            if (!lists.includes('support')) {
+                lists.push('support');
+                await chrome.storage.local.set({ selectedFilterLists: lists });
+            }
+            await updateFilterListsNow({ assetKeys: ['support'] });
+        } catch (e) {
+            console.log('[MV3] supportUpdateNow error:', e);
+        }
+        return { success: true };
+    }
+    case 'readHiddenSettings': {
+        // Return hidden settings with default and current values
+        const stored = await chrome.storage.local.get('hiddenSettings');
+        const storedAdmin = await chrome.storage.local.get('adminHiddenSettings');
+        const current = stored?.hiddenSettings || {};
+        const admin = storedAdmin?.adminHiddenSettings || {};
+        
+        // Default hidden settings - minimal set
+        const defaults: Record<string, unknown> = {
+            benchmarkDatasetURL: 'unset',
+            debugScriptlet: false,
+            profiler: false,
+        };
+        
+        // Return full structure like reference
+        return {
+            defaults,
+            admin,
+            current,
+        };
+    }
+    case 'writeHiddenSettings': {
+        // Parse hidden settings from string or object and save
+        const content = request.content as string;
+        const hiddenSettings = request.hiddenSettings as Record<string, unknown> | undefined;
+        
+        let parsedSettings: Record<string, unknown> = {};
+        
+        // If content is a string, parse it
+        if (typeof content === 'string' && content.trim() !== '') {
+            try {
+                parsedSettings = JSON.parse(content);
+            } catch {
+                // Try to parse as key=value pairs
+                const pairs = content.split('\n').filter(p => p.includes('='));
+                for (const pair of pairs) {
+                    const [key, ...valueParts] = pair.split('=');
+                    if (key && valueParts.length > 0) {
+                        let value: unknown = valueParts.join('=').trim();
+                        // Convert string booleans
+                        if (value === 'true') value = true;
+                        else if (value === 'false') value = false;
+                        parsedSettings[key.trim()] = value;
+                    }
+                }
+            }
+        } else if (hiddenSettings) {
+            parsedSettings = hiddenSettings;
+        }
+        
+        if (Object.keys(parsedSettings).length > 0) {
+            const stored = await chrome.storage.local.get('hiddenSettings');
+            const existing = stored?.hiddenSettings || {};
+            
+            // Merge new settings
+            const updated = { ...existing };
+            for (const [key, value] of Object.entries(parsedSettings)) {
+                if (value !== undefined) {
+                    updated[key] = value;
+                }
+            }
+            
+            await chrome.storage.local.set({ hiddenSettings: updated });
+        }
+        return { success: true };
+    }
+    case 'getAutoCompleteDetails': {
+        const stored = await chrome.storage.local.get('userFilters');
+        const userFilters = stored?.userFilters || '';
+        const lines = userFilters.split('\n').filter(line => line.trim() !== '');
+        
+        // Get redirect resources from redirect engine
+        const redirectResources: string[] = [];
+        try {
+            const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
+            if (redirectEngine?.getResourceDetails) {
+                const details = redirectEngine.getResourceDetails();
+                redirectResources.push(...Object.keys(details));
+            } else if (redirectEngine?.resources) {
+                redirectResources.push(...redirectEngine.resources);
+            }
+        } catch (e) {}
+        
+        // Get origin hints from actual open tabs
+        const originHintsSet = new Set<string>([
+            '127.0.0.1',
+            'localhost',
+            'chrome-extension:',
+            'chrome:',
+            'about:',
+        ]);
+        
+        try {
+            const tabs = await chrome.tabs.query({});
+            for (const tab of tabs) {
+                if (tab?.url) {
+                    try {
+                        const url = new URL(tab.url);
+                        if (url.hostname) {
+                            originHintsSet.add(url.hostname);
+                        }
+                        if (url.origin) {
+                            originHintsSet.add(url.origin);
+                        }
+                    } catch (e) {}
+                }
+            }
+        } catch (e) {}
+        
+        return {
+            filterCount: lines.length,
+            filterCharCount: userFilters.length,
+            filterParts: lines.filter(l => !l.startsWith('!') && !l.startsWith('#')),
+            filterRegexes: lines.filter(l => l.includes(' regexp')),
+            whitelistParts: lines.filter(l => l.startsWith('@@')),
+            needCommit: false,
+            originHints: Array.from(originHintsSet),
+            redirectResources,
+            preparseDirectiveHints: ['|', '||', '|https:', '|http:', '^', '*', '~'],
+            preparseDirectiveEnv: {
+                flavor: 'chromium',
+                hasWebSocket: true,
+            },
+            hintUpdateToken: Date.now().toString(36),
+        };
+    }
+    case 'getSupportData': {
+        const userSettings = await chrome.storage.local.get('userSettings');
+        const selectedLists = await chrome.storage.local.get('selectedFilterLists');
+        const filterLists = await chrome.storage.local.get('filterLists');
+        const hiddenSettings = await chrome.storage.local.get('hiddenSettings');
+        
+        const manifest = chrome.runtime.getManifest();
+        
+        let filterCount = 0;
+        let cosmeticFilterCount = 0;
+        try {
+            const stored = await chrome.storage.local.get('cosmeticFiltersData');
+            const data = parseStoredCosmeticFilterData(stored.cosmeticFiltersData);
+            cosmeticFilterCount = (data.genericCosmeticFilters?.length || 0) + (data.specificCosmeticFilters?.length || 0);
+        } catch (e) {}
+        
+        return {
+            userSettings: userSettings?.userSettings || {},
+            selectedFilterLists: selectedLists?.selectedFilterLists || [],
+            filterLists: filterLists?.filterLists || {},
+            hiddenSettings: hiddenSettings?.hiddenSettings || {},
+            version: manifest?.version || '1.0.0',
+            platform: 'chrome',
+            filterCount,
+            cosmeticFilterCount,
+        };
     }
     default:
         return undefined;
@@ -2836,7 +4809,7 @@ const Messaging = (() => {
         // Handle contentscript channel for MV3 content script communication
         if ( channel === 'contentscript' ) {
             try {
-                const response = await handleContentScriptRequest(msg || {});
+                const response = await handleContentScriptRequest(msg || {}, port.sender);
                 respond(response);
             } catch (error) {
                 console.error('[MV3] contentscript error:', error);
@@ -2847,7 +4820,97 @@ const Messaging = (() => {
 
         // Handle scriptlets channel
         if ( channel === 'scriptlets' ) {
-            respond({});
+            try {
+                const response = await handleScriptletsMessage(msg || {}, port.sender);
+                respond(response);
+            } catch (error) {
+                console.error('[MV3] scriptlets error:', error);
+                respond({ error: (error as Error).message });
+            }
+            return;
+        }
+
+        // Handle vapi channel for userCSS and other vAPI functions
+        if ( channel === 'vapi' ) {
+            try {
+                const response = await handleVapiMessage(msg || {}, port.sender);
+                respond(response);
+            } catch (error) {
+                console.error('[MV3] vapi error:', error);
+                respond({ error: (error as Error).message });
+            }
+            return;
+        }
+
+        // Handle elementPicker channel
+        if ( channel === 'elementPicker' ) {
+            try {
+                const response = await handleElementPickerMessage(msg || {}, port.sender);
+                respond(response);
+            } catch (error) {
+                console.error('[MV3] elementPicker error:', error);
+                respond({ error: (error as Error).message });
+            }
+            return;
+        }
+
+        // Handle cloudWidget channel
+        if ( channel === 'cloudWidget' ) {
+            try {
+                const response = await handleCloudWidgetMessage(msg || {}, port.sender);
+                respond(response);
+            } catch (error) {
+                console.error('[MV3] cloudWidget error:', error);
+                respond({ error: (error as Error).message });
+            }
+            return;
+        }
+
+        // Handle loggerUI channel
+        if ( channel === 'loggerUI' ) {
+            try {
+                const response = await handleLoggerUIMessage(msg || {}, port.sender);
+                respond(response);
+            } catch (error) {
+                console.error('[MV3] loggerUI error:', error);
+                respond({ error: (error as Error).message });
+            }
+            return;
+        }
+
+        // Handle domInspectorContent channel
+        if ( channel === 'domInspectorContent' ) {
+            try {
+                const response = await handleDomInspectorContentMessage(msg || {}, port.sender);
+                respond(response);
+            } catch (error) {
+                console.error('[MV3] domInspectorContent error:', error);
+                respond({ error: (error as Error).message });
+            }
+            return;
+        }
+
+        // Handle documentBlocked channel
+        if ( channel === 'documentBlocked' ) {
+            try {
+                const response = await handleDocumentBlockedMessage(msg || {}, port.sender);
+                respond(response);
+            } catch (error) {
+                console.error('[MV3] documentBlocked error:', error);
+                respond({ error: (error as Error).message });
+            }
+            return;
+        }
+
+        // Handle devTools channel
+        if ( channel === 'devTools' ) {
+            try {
+                const response = await handleDevToolsMessage(msg || {}, port.sender);
+                respond(response);
+            } catch (error) {
+                console.error('[MV3] devTools error:', error);
+                respond({ error: (error as Error).message });
+            }
             return;
         }
 
@@ -2856,8 +4919,10 @@ const Messaging = (() => {
     }
 
     // Handle content script requests from the contentscript messaging channel
-    async function handleContentScriptRequest(request: { what?: string; [key: string]: any }): Promise<any> {
+    async function handleContentScriptRequest(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
         const { what, ...payload } = request;
+        let response: any = null;
+        const tabId = sender?.tab?.id;
         
         switch (what) {
             case 'retrieveContentScriptParameters':
@@ -2872,9 +4937,465 @@ const Messaging = (() => {
                         resolve({ tabId: tabs[0]?.id ?? null });
                     });
                 });
+            case 'setFrameURL':
+                // Track frame URL in pageStore
+                if (tabId !== undefined && request.frameId !== undefined && request.frameURL) {
+                    const pageStore = await pageStoreFromTabId(tabId);
+                    if (pageStore) {
+                        pageStore.setFrameURL({
+                            frameId: request.frameId,
+                            frameURL: request.frameURL,
+                            parentId: request.parentId,
+                        });
+                    }
+                }
+                return { success: true };
+            case 'cosmeticFiltersInjected':
+                // Store cosmetic filter injection state in pageStoreMap
+                if (tabId !== undefined) {
+                    try {
+                        const stored = await chrome.storage.local.get('pageStoreMap');
+                        const pageStoreMap = stored?.pageStoreMap || {};
+                        if (!pageStoreMap[tabId]) pageStoreMap[tabId] = {};
+                        pageStoreMap[tabId].cosmeticFiltersInjected = request.filters || [];
+                        pageStoreMap[tabId].lastCosmeticInjectTime = Date.now();
+                        await chrome.storage.local.set({ pageStoreMap });
+                    } catch (e) {}
+                }
+                if (cosmeticFilteringEngine?.addToSelectorCache) {
+                    cosmeticFilteringEngine.addToSelectorCache(request);
+                }
+                response = { success: true };
+                break;
+            case 'disableGenericCosmeticFilteringSurveyor':
+                if (cosmeticFilteringEngine?.disableSurveyor) {
+                    cosmeticFilteringEngine.disableSurveyor(request);
+                }
+                // Store surveyor disabled state
+                if (tabId !== undefined) {
+                    try {
+                        const stored = await chrome.storage.local.get('pageStoreMap');
+                        const pageStoreMap = stored?.pageStoreMap || {};
+                        if (!pageStoreMap[tabId]) pageStoreMap[tabId] = {};
+                        pageStoreMap[tabId].genericSurveyorDisabled = true;
+                        await chrome.storage.local.set({ pageStoreMap });
+                    } catch (e) {}
+                }
+                response = { success: true };
+                break;
+            case 'getCollapsibleBlockedRequests':
+                // Get actual blocked element count from pageStore or calculate
+                const storedCollapsible = await chrome.storage.local.get('pageStoreMap');
+                const pageStoreData = storedCollapsible?.pageStoreMap?.[tabId];
+                const blockedCount = pageStoreData?.blockedElementCount || 0;
+                response = {
+                    id: request.id,
+                    hash: request.hash,
+                    netSelectorCacheCountMax: cosmeticFilteringEngine?.netSelectorCacheCountMax || 0,
+                    blockedCount,
+                    collapsible: blockedCount > 0,
+                };
+                break;
+            case 'maybeGoodPopup':
+                // Mark popup as potentially good for future allow
+                if (tabId !== undefined && request.url) {
+                    try {
+                        const stored = await chrome.storage.local.get('goodPopups');
+                        const goodPopups = stored?.goodPopups || {};
+                        if (!goodPopups[tabId]) goodPopups[tabId] = [];
+                        const popupHost = new URL(request.url).hostname;
+                        if (!goodPopups[tabId].includes(popupHost)) {
+                            goodPopups[tabId].push(popupHost);
+                            await chrome.storage.local.set({ goodPopups });
+                        }
+                    } catch (e) {}
+                }
+                if (µb?.maybeGoodPopup) {
+                    µb.maybeGoodPopup.tabId = tabId;
+                    µb.maybeGoodPopup.url = request.url;
+                }
+                response = { success: true };
+                break;
+            case 'messageToLogger':
+                if (logger?.enabled === true && tabId !== undefined) {
+                    logger.writeOne({
+                        tabId,
+                        realm: 'message',
+                        type: request.type || 'info',
+                        keywords: [ 'scriptlet' ],
+                        text: request.text,
+                    });
+                }
+                response = { success: true };
+                break;
+            case 'shouldRenderNoscriptTags':
+                if (tabId !== undefined && filteringContext && µb) {
+                    try {
+                        const fctxt = filteringContext.fromTabId(tabId);
+                        const stored = await chrome.storage.local.get('pageStoreMap');
+                        const pageStoreData = stored?.pageStoreMap?.[tabId];
+                        if (pageStoreData?.netFilteringSwitch !== false) {
+                            await chrome.tabs.executeScript(tabId, {
+                                file: '/js/scriptlets/noscript-spoof.js',
+                                frameId: sender?.frameId,
+                                runAt: 'document_end',
+                            });
+                        }
+                    } catch (e) {
+                        console.log('[MV3] shouldRenderNoscriptTags error:', e);
+                    }
+                }
+                response = { success: true };
+                break;
             default:
                 console.log('[MV3] Unknown content script request:', what);
                 return null;
+        }
+        
+        return response;
+    }
+
+    // Handle scriptlets channel messages
+    async function handleScriptletsMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
+        const { what, ...payload } = request;
+        let response: any = null;
+        const tabId = sender?.tab?.id;
+        
+        switch (what) {
+            case 'inlinescriptFound':
+                if (logger?.enabled === true && tabId !== undefined && filteringContext && µb) {
+                    try {
+                        const fctxt = filteringContext.duplicate();
+                        fctxt.fromTabId(tabId)
+                            .setType('inline-script')
+                            .setURL(request.docURL)
+                            .setDocOriginFromURL(request.docURL);
+                        // Would need pageStore to check filterRequest
+                    } catch (e) {
+                        console.log('[MV3] inlinescriptFound error:', e);
+                    }
+                }
+                break;
+            case 'logCosmeticFilteringData':
+                if (tabId !== undefined) {
+                    try {
+                        // Log cosmetic filtering data to logger if enabled
+                        if (logger?.enabled) {
+                            logger.writeOne({
+                                tabId,
+                                realm: 'cosmetic',
+                                type: 'filter',
+                                text: request.target || '',
+                                selector: request.selector || '',
+                            });
+                        }
+                    } catch (e) {
+                        console.log('[MV3] logCosmeticFilteringData error:', e);
+                    }
+                }
+                break;
+            case 'securityPolicyViolation':
+                if (tabId !== undefined && logger?.enabled) {
+                    try {
+                        // Log CSP violation to logger
+                        logger.writeOne({
+                            tabId,
+                            realm: 'network',
+                            type: 'csp',
+                            text: request['violated-directive'] || 'default',
+                            url: request.documentURL || '',
+                        });
+                    } catch (e) {
+                        console.log('[MV3] securityPolicyViolation error:', e);
+                    }
+                }
+                break;
+            case 'temporarilyAllowLargeMediaElement':
+                if (tabId !== undefined) {
+                    try {
+                        const stored = await chrome.storage.local.get('pageStoreMap');
+                        if (stored?.pageStoreMap?.[tabId]) {
+                            stored.pageStoreMap[tabId].allowLargeMediaElementsUntil = Date.now() + 5000;
+                            await chrome.storage.local.set({ pageStoreMap: stored.pageStoreMap });
+                        }
+                    } catch (e) {
+                        console.log('[MV3] temporarilyAllowLargeMediaElement error:', e);
+                    }
+                }
+                break;
+            case 'subscribeTo':
+                if (request.location && /^(file|https?):\/\//.test(request.location)) {
+                    const url = encodeURIComponent(request.location);
+                    const title = encodeURIComponent(request.title || 'Filter List');
+                    chrome.tabs.create({
+                        url: `/asset-viewer.html?url=${url}&title=${title}&subscribe=1`,
+                        active: true,
+                    });
+                }
+                break;
+            case 'updateLists':
+                const listkeys = (request.listkeys || '').split(',').filter((s: string) => s !== '');
+                if (listkeys.length > 0) {
+                    try {
+                        if (io) {
+                            if (listkeys.includes('all')) {
+                                io.purge(/./, 'public_suffix_list.dat');
+                            } else {
+                                for (const listkey of listkeys) {
+                                    io.purge(listkey);
+                                }
+                            }
+                        }
+                        chrome.tabs.create({
+                            url: 'dashboard.html#3p-filters.html',
+                            active: true,
+                        });
+                        // Schedule asset updater
+                        const stored = await chrome.storage.local.get('assetUpdaterScheduled');
+                        if (!stored?.assetUpdaterScheduled) {
+                            await chrome.storage.local.set({ assetUpdaterScheduled: true });
+                            setTimeout(async () => {
+                                await chrome.storage.local.set({ assetUpdaterScheduled: false });
+                            }, 100);
+                        }
+                    } catch (e) {
+                        console.log('[MV3] updateLists error:', e);
+                    }
+                }
+                break;
+            default:
+                console.log('[MV3] Unknown scriptlets request:', what);
+                return vAPI?.messaging?.UNHANDLED || null;
+        }
+        
+        return response;
+    }
+
+    // Handle vapi channel messages (userCSS, etc.)
+    async function handleVapiMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
+        const { what, ...payload } = request;
+        const tabId = sender?.tab?.id;
+        
+        switch (what) {
+            case 'userCSS': {
+                if (!tabId) return { error: 'No tab ID' };
+                const add = payload.add as string[] || [];
+                const remove = payload.remove as string[] || [];
+                
+                try {
+                    // Remove old CSS
+                    if (remove.length > 0) {
+                        for (const css of remove) {
+                            try {
+                                await chrome.scripting.removeCSS({
+                                    target: { tabId },
+                                    css: css,
+                                });
+                            } catch (e) {}
+                        }
+                    }
+                    
+                    // Add new CSS
+                    if (add.length > 0) {
+                        for (const css of add) {
+                            try {
+                                await chrome.scripting.insertCSS({
+                                    target: { tabId },
+                                    css: css,
+                                });
+                            } catch (e) {}
+                        }
+                    }
+                    
+                    return { success: true };
+                } catch (e) {
+                    return { error: (e as Error).message };
+                }
+            }
+            case 'getClientId': {
+                return { clientId: 'mv3-' + Date.now() };
+            }
+            case 'getSessionId': {
+                return { sessionId: (globalThis as any).vAPI?.sessionId || 'mv3' };
+            }
+            default:
+                console.log('[MV3] Unknown vapi request:', what);
+                return { error: 'Unknown request' };
+        }
+    }
+
+    async function handleElementPickerMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
+        const { what, ...payload } = request;
+        
+        switch (what) {
+            case 'elementPickerArguments': {
+                return {
+                    target: (self as any).µb?.epickerArgs?.target || '',
+                    mouse: (self as any).µb?.epickerArgs?.mouse || false,
+                    zap: (self as any).µb?.epickerArgs?.zap || false,
+                    eprom: (self as any).µb?.epickerArgs?.eprom || null,
+                };
+            }
+            case 'elementPickerEprom': {
+                const eprom = payload.eprom;
+                if (eprom) {
+                    (self as any).µb = (self as any).µb || {};
+                    (self as any).µb.epickerArgs = (self as any).µb.epickerArgs || {};
+                    (self as any).µb.epickerArgs.eprom = eprom;
+                    await chrome.storage.local.set({ elementPickerEprom: eprom }).catch(() => {});
+                }
+                return { success: true };
+            }
+            default:
+                return { error: 'Unknown elementPicker request' };
+        }
+    }
+
+    async function handleCloudWidgetMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
+        const { what, ...payload } = request;
+        const tabId = sender?.tab?.id;
+        const useSync = typeof chrome.storage.sync !== 'undefined';
+        const cloudKey = 'cloudData';
+        
+        switch (what) {
+            case 'cloudPull': {
+                const stored = useSync 
+                    ? await chrome.storage.sync.get(cloudKey)
+                    : await chrome.storage.local.get(cloudKey);
+                const cloudData = stored?.[cloudKey];
+                if (!cloudData) return { error: 'No cloud data' };
+                try {
+                    const decoded = await decodeCloudData(cloudData);
+                    return { 
+                        data: decoded, 
+                        clientId: decoded.clientId, 
+                        lastModified: decoded.lastModified,
+                        serverTime: decoded.serverTime,
+                    };
+                } catch (e) {
+                    return { error: (e as Error).message };
+                }
+            }
+            case 'cloudPush': {
+                const cloudData = payload.data;
+                if (!cloudData) return { error: 'No data to push' };
+                try {
+                    const dataToPush = {
+                        ...cloudData,
+                        serverTime: Date.now(),
+                        clientTime: Date.now(),
+                    };
+                    const encoded = await encodeCloudData(dataToPush);
+                    if (useSync) {
+                        await chrome.storage.sync.set({ cloudData: encoded });
+                    } else {
+                        await chrome.storage.local.set({ cloudData: encoded });
+                    }
+                    const storageUsed = useSync 
+                        ? await chrome.storage.sync.getBytesInUse()
+                        : await chrome.storage.local.getBytesInUse();
+                    if (useSync) {
+                        await chrome.storage.sync.set({ 
+                            cloudStorageUsed: storageUsed,
+                            lastCloudSync: Date.now() 
+                        });
+                    } else {
+                        await chrome.storage.local.set({ 
+                            cloudStorageUsed: storageUsed,
+                            lastCloudSync: Date.now() 
+                        });
+                    }
+                    return { success: true };
+                } catch (e) {
+                    return { error: (e as Error).message };
+                }
+            }
+            case 'cloudUsed': {
+                const used = await chrome.storage.local.getBytesInUse();
+                return { used };
+            }
+            case 'cloudGetOptions': {
+                const options = (await chrome.storage.local.get('cloudOptions'))?.cloudOptions || {};
+                const userSettings = (await chrome.storage.local.get('userSettings'))?.userSettings || {};
+                const syncStorageAvailable = typeof chrome.storage.sync !== 'undefined';
+                return {
+                    deviceName: options.deviceName || await getDeviceName(),
+                    syncEnabled: options.syncEnabled !== false,
+                    enabled: userSettings.cloudStorageEnabled === true,
+                    cloudStorageSupported: syncStorageAvailable,
+                };
+            }
+            case 'cloudSetOptions': {
+                const options = payload as { deviceName?: string; syncEnabled?: boolean };
+                const stored = (await chrome.storage.local.get('cloudOptions'))?.cloudOptions || {};
+                if (options.deviceName) stored.deviceName = options.deviceName;
+                if (typeof options.syncEnabled === 'boolean') stored.syncEnabled = options.syncEnabled;
+                await chrome.storage.local.set({ cloudOptions: stored });
+                return { success: true };
+            }
+            default:
+                return { error: 'Unknown cloudWidget request' };
+        }
+    }
+
+    async function handleLoggerUIMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
+        const { what, ...payload } = request;
+        
+        switch (what) {
+            case 'loggerElementPicker':
+            case 'loggerPing':
+            case 'loggerOpen':
+            case 'loggerUpdate':
+                return { success: true };
+            default:
+                return { error: 'Unknown loggerUI request' };
+        }
+    }
+
+    async function handleDomInspectorContentMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
+        const { what, ...payload } = request;
+        
+        switch (what) {
+            case 'domInspectorStart':
+            case 'domInspectorStop':
+                return { success: true };
+            default:
+                return { error: 'Unknown domInspectorContent request' };
+        }
+    }
+
+    async function handleDocumentBlockedMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
+        const { what, ...payload } = request;
+        
+        switch (what) {
+            case 'getBlockedURL':
+                return { url: '', type: '' };
+            case 'temporarilyWhitelistDocument': {
+                const tabId = sender?.tab?.id;
+                if (tabId) {
+                    try {
+                        await chrome.tabs.reload(tabId);
+                    } catch (e) {}
+                }
+                return { success: true };
+            }
+            default:
+                return { error: 'Unknown documentBlocked request' };
+        }
+    }
+
+    async function handleDevToolsMessage(request: { what?: string; [key: string]: any }, sender?: chrome.runtime.MessageSender): Promise<any> {
+        const { what, ...payload } = request;
+        
+        switch (what) {
+            case 'getInspectorArgs': {
+                return {
+                    autoCollapse: true,
+                    tabId: sender?.tab?.id,
+                };
+            }
+            default:
+                return { error: 'Unknown devTools request' };
         }
     }
 
@@ -3239,14 +5760,26 @@ const Picker = (() => {
     // Handle element picker arguments request (for epicker.js)
     Messaging.on('elementPicker', (payload, callback) => {
         if (payload?.what === 'elementPickerArguments') {
+            const warSecret = (globalThis as any).vAPI?.warSecret?.short?.() || 
+                             Math.random().toString(36).slice(2, 10);
             callback({
                 target: epickerArgs.target,
                 mouse: epickerArgs.mouse,
                 zap: epickerArgs.zap,
-                pickerURL: '/web_accessible_resources/epicker-ui.html',
+                pickerURL: `/web_accessible_resources/epicker-ui.html?zap=${warSecret}`,
+                eprom: epickerArgs.eprom || null,
             });
             // Clear target after returning
             epickerArgs.target = '';
+            epickerArgs.eprom = null;
+        } else if (payload?.what === 'elementPickerEprom') {
+            // Handle element picker eprom data - update local storage with picker state
+            const eprom = payload.eprom;
+            if (eprom) {
+                epickerArgs.eprom = eprom;
+                chrome.storage.local.set({ elementPickerEprom: eprom }).catch(() => {});
+            }
+            callback({ success: true });
         } else {
             callback({});
         }
@@ -3286,7 +5819,23 @@ Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
     try {
         const tabId = payload?._tabId;
         const url = payload?.url || '';
+        const frameId = payload?.frameId || 0;
         const hostname = url ? new URL(url).hostname : '';
+        const origin = url ? new URL(url).origin : '';
+        
+        // Get frame ancestor details
+        const ancestors: string[] = [];
+        if (tabId !== undefined && frameId !== 0) {
+            try {
+                const stored = await chrome.storage.local.get('pageStoreMap');
+                const pageStoreData = stored?.pageStoreMap?.[tabId];
+                if (pageStoreData?.frameAncestors) {
+                    ancestors.push(...pageStoreData.frameAncestors);
+                }
+            } catch (e) {}
+        }
+        
+        // Get per-site filtering state
         const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
         const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
         const pageScopeKey = hostname !== '' && url !== '' ? `${hostname}:${url}` : '';
@@ -3298,42 +5847,69 @@ Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
         const stored = await chrome.storage.local.get('userSettings');
         const userSettings = stored.userSettings || popupState.userSettings;
         
+        // Get hostname switches
         const hostnameSwitches = await getHostnameSwitchState();
         const noCosmeticFilteringSwitch = hostname !== '' &&
             hostnameSwitches[hostname]?.['no-cosmetic-filtering'] === true;
         const noCosmeticFiltering = netFilteringEnabled === false || noCosmeticFilteringSwitch;
+        
+        // Get cosmetic filter data
         const storedCosmeticData = await chrome.storage.local.get('cosmeticFiltersData');
         const cosmeticData = parseStoredCosmeticFilterData(storedCosmeticData.cosmeticFiltersData);
-
+        
+        // Get trusted scriptlet tokens
+        let trustedScriptletTokens: string[] = [];
+        try {
+            const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
+            if (redirectEngine?.getTrustedScriptletTokens) {
+                trustedScriptletTokens = redirectEngine.getTrustedScriptletTokens();
+            }
+        } catch (e) {}
+        
+        // Build full response like reference
         const response = {
             advancedUserEnabled: userSettings.advancedUserEnabled === true,
+            ancestors,
             autoReload: userSettings.autoReload,
             beautify: userSettings.beautify,
-            cloudStorageEnabled: false,
-            consoleLogEnabled: userSettings.consoleLogEnabled,
-            contextMenuEnabled: userSettings.contextMenuEnabled,
-            debugScriptlet: userSettings.debugScriptlet,
-            extensionPopupEnabled: userSettings.extensionPopupEnabled,
+            canDevtoolsBridge: false,
+            cloudStorageEnabled: typeof chrome.storage.sync !== 'undefined',
+            consoleLogEnabled: userSettings.consoleLogEnabled === true,
+            contextMenuEnabled: userSettings.contextMenuEnabled === true,
+            debugScriptlet: userSettings.debugScriptlet === true,
+            extensionPopupEnabled: userSettings.extensionPopupEnabled !== false,
             externalRendererEnabled: false,
-            genericCosmeticFiltersHidden: false,
-            getSelection: () => window.getSelection()?.toString() || '',
+            filterAuthorMode: false,
+            genericCosmeticFiltersHidden: noCosmeticFiltering,
+            getSelection: () => {
+                try {
+                    return window.getSelection()?.toString() || '';
+                } catch (e) { return ''; }
+            },
             hidePlaceholders: userSettings.hidePlaceholders === true,
             hostname: hostname,
             ignoreGenericCosmeticFilters: userSettings.ignoreGenericCosmeticFilters === true,
-            ioPush: () => {},
             noCosmeticFiltering,
             noGenericCosmeticFiltering: noCosmeticFiltering,
             noSpecificCosmeticFiltering: noCosmeticFiltering,
+            origin,
+            pageUrl: url,
             parseAllABPHideFilters: userSettings.parseAllABPHideFilters === true,
             popupPanelType: 'legacy',
             removeWLCollections: () => {},
+            scriptletInjectable: true,
+            scriptletWillInject: true,
             specificCosmeticFilters: noCosmeticFiltering
                 ? { ready: true, injectedCSS: '', proceduralFilters: [], exceptionFilters: [], exceptedFilters: [], convertedProceduralFilters: [], genericCosmeticHashes: [], disableSurveyor: true }
                 : buildSpecificCosmeticPayload(hostname, cosmeticData),
-            showIconBadge: userSettings.showIconBadge,
-            storage: null,
+            showIconBadge: userSettings.showIconBadge !== false,
+            supportWebSocket: true,
             tabId: tabId,
+            trustedScriptletTokens,
+            url: url,
             userSettings: userSettings,
+            userStyles: '',
+            userScripts: '',
             webAllowWildcard: true,
             webextFlavor: 'chromium',
         };
@@ -3374,21 +5950,60 @@ Messaging.on('retrieveGenericCosmeticSelectors', async (payload, callback) => {
         // Filter by hashes - the content script sends hashes of element classes/ids
         // We need to match these against our stored cosmetic filters
         const selectors: string[] = [];
-        const genericFilters = cosmeticData.genericCosmeticFilters || [];
         
-        // Simple matching - in a full implementation this would use proper hash lookup
+        // Process generic cosmetic filters (apply to all sites)
+        const genericFilters = cosmeticData.genericCosmeticFilters || [];
         for (const filter of genericFilters) {
             if (filter.key && hashes.includes(filter.key)) {
                 selectors.push(filter.selector);
             }
         }
         
+        // Process specific cosmetic filters (apply to specific hostnames)
+        const specificFilters = cosmeticData.specificCosmeticFilters || [];
+        const pageHostname = payload?.hostname || '';
+        
+        for (const entry of specificFilters) {
+            // Entry is [selector, { matches: [...], key: "..." }]
+            const selector = Array.isArray(entry) ? entry[0] : entry;
+            const details = Array.isArray(entry) ? entry[1] : {};
+            const matches = details?.matches || [];
+            
+            // Check if this filter applies to the current hostname
+            let appliesToHostname = false;
+            if (matches.length === 0) {
+                // No specific hostnames = applies to all
+                appliesToHostname = true;
+            } else if (matches.includes('*') || matches.includes(pageHostname)) {
+                // Wildcard or exact match
+                appliesToHostname = true;
+            } else if (pageHostname) {
+                // Check for subdomain match
+                for (const match of matches) {
+                    if (pageHostname === match || pageHostname.endsWith('.' + match)) {
+                        appliesToHostname = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (appliesToHostname && details.key && hashes.includes(details.key)) {
+                selectors.push(selector);
+            }
+        }
+        
         // Remove exceptions
         const excepted: string[] = [];
+        const genericExceptions = cosmeticData.genericCosmeticExceptions || [];
+        
+        // Filter out selectors that match exceptions
         const filteredSelectors = selectors.filter(selector => {
-            if (exceptions.includes(selector)) {
-                excepted.push(selector);
-                return false;
+            // Check if selector or its key is in exceptions
+            for (const exc of genericExceptions) {
+                if (exc.selector === selector || exc.key === details?.key) {
+                    excepted.push(selector);
+                    return false;
+                }
             }
             return true;
         });
@@ -3496,11 +6111,1327 @@ Messaging.on('setWhitelist', async (payload, callback) => {
     popupState.whitelist = whitelist;
     const storage = chrome.storage.local;
     await storage.set({ whitelist: whitelist.join('\n') });
+    await syncWhitelistDnrRules();
+    
+    // Notify about filtering behavior change
+    broadcastFilteringBehaviorChanged();
+    
     if ( callback ) {
         callback({ success: true });
     }
     return { success: true };
 });
+
+Messaging.on('documentBlocked', async (request, callback) => {
+    if ( request.what === 'listsFromNetFilter' ) {
+        const response: Record<string, any[]> = {};
+        const rawFilter = request.rawFilter as string;
+        if ( rawFilter ) {
+            const results = await findFilterListFromNetFilter(rawFilter);
+            if ( results.length > 0 ) {
+                response[rawFilter] = results;
+            }
+        }
+        if ( callback ) {
+            callback(response);
+        }
+        return response;
+    }
+    if ( request.what === 'listsFromCosmeticFilter' ) {
+        const response: Record<string, any[]> = {};
+        const rawFilter = request.rawFilter as string;
+        if ( rawFilter ) {
+            const results = await findFilterListFromCosmeticFilter(rawFilter);
+            if ( results.length > 0 ) {
+                response[rawFilter] = results;
+            }
+        }
+        if ( callback ) {
+            callback(response);
+        }
+        return response;
+    }
+    if ( request.what === 'closeThisTab' ) {
+        const tabId = request._sender?.tab?.id;
+        if ( typeof tabId === 'number' ) {
+            await chrome.tabs.remove(tabId);
+        }
+        if ( callback ) {
+            callback({ success: true });
+        }
+        return { success: true };
+    }
+    if ( request.what === 'temporarilyWhitelistDocument' ) {
+        const hostname = request.hostname as string;
+        if ( hostname ) {
+            // Use webRequest.strictBlockBypass if available
+            const webRequest = (globalThis as any).vAPI?.webRequest;
+            if (webRequest?.strictBlockBypass) {
+                webRequest.strictBlockBypass(hostname);
+            }
+            
+            // Also set session hostname switch for DNR
+            await ensurePopupState();
+            popupState.sessionHostnameSwitches[`${hostname}:no-strict-blocking`] = true;
+            await persistHostnameSwitches();
+            await syncHostnameSwitchDnrRules();
+        }
+        if ( callback ) {
+            callback({ success: true });
+        }
+        return { success: true };
+    }
+    if ( callback ) {
+        callback({ success: false });
+    }
+    return { success: false };
+});
+
+Messaging.on('getAssetContent', async (request, callback) => {
+    const url = request.url as string;
+    if ( !url ) {
+        if ( callback ) {
+            callback({ content: '', trustedSource: false });
+        }
+        return { content: '', trustedSource: false };
+    }
+
+    try {
+        // Check cache first
+        const cached = await chrome.storage.local.get(`assetCache_${url}`);
+        if (cached[`assetCache_${url}`]) {
+            const cachedData = cached[`assetCache_${url}`];
+            const result = {
+                content: cachedData.content,
+                trustedSource: cachedData.trustedSource || false,
+                sourceURL: url,
+            };
+            if ( callback ) { callback(result); }
+            return result;
+        }
+        
+        const response = await fetch(url);
+        const content = await response.text();
+        
+        // Check if this is a trusted source (user filters or trusted list)
+        const selectedLists = (await chrome.storage.local.get('selectedFilterLists')).selectedFilterLists || [];
+        const isTrusted = selectedLists.some((list: string) => 
+            url.includes(list) || url.includes('userfilters')
+        );
+        
+        const result = {
+            content,
+            trustedSource: isTrusted,
+            sourceURL: url,
+        };
+        
+        // Cache the result
+        await chrome.storage.local.set({
+            [`assetCache_${url}`]: {
+                content,
+                trustedSource: isTrusted,
+                timestamp: Date.now(),
+            }
+        });
+        
+        if ( callback ) { callback(result); }
+        return result;
+    } catch (e) {
+        console.error('[MV3] Failed to fetch asset content:', e);
+        if ( callback ) {
+            callback({ content: '', trustedSource: false });
+        }
+        return { content: '', trustedSource: false };
+    }
+});
+
+Messaging.on('getAutoCompleteDetails', async (_, callback) => {
+    const stored = await chrome.storage.local.get('userFilters');
+    const userFilters = stored?.userFilters || '';
+    const lines = userFilters.split('\n').filter(line => line.trim() !== '');
+    
+    const redirectResources: string[] = [];
+    try {
+        const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
+        if (redirectEngine?.resources) {
+            redirectResources.push(...redirectEngine.resources);
+        }
+    } catch (e) {}
+    
+    const originHints: string[] = [];
+    try {
+        const tabs = await chrome.tabs.query({});
+        for (const tab of tabs) {
+            if (tab.url) {
+                try {
+                    const hostname = new URL(tab.url).hostname;
+                    if (hostname && !originHints.includes(hostname)) {
+                        originHints.push(hostname);
+                    }
+                } catch (e) {}
+            }
+        }
+    } catch (e) {}
+    
+    const result = {
+        filterParts: lines.filter(l => !l.startsWith('!') && !l.startsWith('#')),
+        filterRegexes: lines.filter(l => l.includes(' regexp')),
+        whitelistParts: lines.filter(l => l.startsWith('@@')),
+        originHints,
+        redirectResources,
+        preparseDirectiveHints: ['|', '||', '|https:', '|http:', '^', '*', '~'],
+        preparseDirectiveEnv: {
+            flavor: 'chromium',
+            hasWebSocket: true,
+        },
+        hintUpdateToken: Date.now().toString(36),
+    };
+    if ( callback ) { callback(result); }
+    return result;
+});
+
+Messaging.on('getTrustedScriptletTokens', async (_, callback) => {
+    const result: string[] = [];
+    try {
+        const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
+        if (redirectEngine?.getTrustedScriptletTokens) {
+            result.push(...redirectEngine.getTrustedScriptletTokens());
+        } else if (redirectEngine?.tokens) {
+            result.push(...redirectEngine.tokens);
+        }
+    } catch (e) {}
+    if ( callback ) { callback(result); }
+    return result;
+});
+
+Messaging.on('scriptlets', async (request, callback) => {
+    if ( request.what === 'applyFilterListSelection' ) {
+        const result = await applyFilterListSelection(request as {
+            toSelect?: string[];
+            toImport?: string;
+            toRemove?: string[];
+        });
+        if ( callback ) {
+            callback(result);
+        }
+        return result;
+    }
+    if ( request.what === 'reloadAllFilters' ) {
+        const result = await reloadAllFilterLists();
+        if ( callback ) {
+            callback(result);
+        }
+        return result;
+    }
+    if ( request.what === 'getAdvancedSettings' ) {
+        const items = await chrome.storage.local.get('advancedSettings');
+        const result = items.advancedSettings || {};
+        if ( callback ) {
+            callback(result);
+        }
+        return result;
+    }
+    if ( request.what === 'setAdvancedSettings' ) {
+        const settings = request.settings as Record<string, string>;
+        if ( settings ) {
+            await chrome.storage.local.set({ advancedSettings: settings });
+        }
+        if ( callback ) {
+            callback({ success: true });
+        }
+        return { success: true };
+    }
+    if ( request.what === 'createUserFilter' ) {
+        const filter = request.filter as string;
+        if ( filter ) {
+            const items = await chrome.storage.local.get('userFilters');
+            const currentFilters = items.userFilters || '';
+            const newFilters = currentFilters ? `${currentFilters}\n${filter}` : filter;
+            await chrome.storage.local.set({ userFilters: newFilters });
+            await reloadAllFilterLists();
+        }
+        if ( callback ) {
+            callback({ success: true });
+        }
+        return { success: true };
+    }
+    if ( request.what === 'readHiddenSettings' ) {
+        const items = await chrome.storage.local.get('hiddenSettings');
+        const result = items.hiddenSettings || {};
+        if ( callback ) {
+            callback(result);
+        }
+        return result;
+    }
+    if ( request.what === 'writeHiddenSettings' ) {
+        const settings = request.settings as Record<string, any>;
+        if ( settings ) {
+            await chrome.storage.local.set({ hiddenSettings: settings });
+        }
+        if ( callback ) {
+            callback({ success: true });
+        }
+        return { success: true };
+    }
+    if ( request.what === 'cloudUsed' ) {
+        const now = Date.now();
+        await chrome.storage.local.set({ lastCloudSync: now });
+        if ( callback ) {
+            callback({ success: true });
+        }
+        return { success: true };
+    }
+    if ( callback ) {
+        callback({ success: false });
+    }
+    return { success: false };
+});
+
+Messaging.on('default', async (request, callback) => {
+    if ( request.what === 'getAssetContent' ) {
+        const url = request.url as string;
+        if ( !url ) {
+            const result = { content: '', trustedSource: false };
+            if ( callback ) { callback(result); }
+            return result;
+        }
+        try {
+            const response = await fetch(url);
+            const content = await response.text();
+            const result = { content, trustedSource: false, sourceURL: url };
+            if ( callback ) { callback(result); }
+            return result;
+        } catch (e) {
+            const result = { content: '', trustedSource: false };
+            if ( callback ) { callback(result); }
+            return result;
+        }
+    }
+    if ( request.what === 'getURL' ) {
+        const result = chrome.runtime.getURL(request.path as string);
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'purgeAllCaches' ) {
+        try {
+            // Get bytes in use before
+            const bytesBefore = await chrome.storage.local.getBytesInUse(null);
+            
+            // Clear all cached data
+            const keys = await chrome.storage.local.get(null);
+            const cacheKeys = Object.keys(keys).filter(k => 
+                k.startsWith('assetCache_') || k.startsWith('cachedAsset_') || k === 'filterLists' || k === 'cachedAssets'
+            );
+            if (cacheKeys.length > 0) {
+                await chrome.storage.local.remove(cacheKeys);
+            }
+            
+            // Get bytes in use after
+            const bytesAfter = await chrome.storage.local.getBytesInUse(null);
+            
+            const formatBytes = (bytes: number): string => {
+                if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+                if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return bytes + ' B';
+            };
+            
+            const result = { 
+                success: true,
+                before: formatBytes(bytesBefore),
+                after: formatBytes(bytesAfter),
+            };
+            if ( callback ) { callback(result); }
+            return result;
+        } catch (e) {
+            const result = { success: false, error: (e as Error).message };
+            if ( callback ) { callback(result); }
+            return result;
+        }
+    }
+    if ( request.what === 'assetViewerRead' ) {
+        const assetKey = request.assetKey as string;
+        if ( assetKey ) {
+            const items = await chrome.storage.local.get('assetViewerReadList');
+            const readList: string[] = items.assetViewerReadList || [];
+            if ( !readList.includes(assetKey) ) {
+                readList.push(assetKey);
+                await chrome.storage.local.set({ assetViewerReadList: readList });
+            }
+        }
+        if ( callback ) {
+            callback({ success: true });
+        }
+        return { success: true };
+    }
+    if ( request.what === 'gotoURL' ) {
+        const url = request.url as string;
+        const tabId = request.tabId as number;
+        const newTab = request.newTab as boolean;
+        
+        if ( newTab ) {
+            const created = await chrome.tabs.create({ url, active: true });
+            if ( callback ) { callback({ tabId: created.id }); }
+            return { tabId: created.id };
+        } else if ( typeof tabId === 'number' ) {
+            await chrome.tabs.update(tabId, { url, active: true });
+            if ( callback ) { callback({ tabId }); }
+            return { tabId };
+        } else {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if ( tabs[0]?.id ) {
+                await chrome.tabs.update(tabs[0].id, { url, active: true });
+                if ( callback ) { callback({ tabId: tabs[0].id }); }
+                return { tabId: tabs[0].id };
+            }
+        }
+        if ( callback ) { callback({ success: false }); }
+        return { success: false };
+    }
+    if ( request.what === 'reloadTab' ) {
+        const tabId = request.tabId as number;
+        const bypassCache = request.bypassCache as boolean;
+        
+        if ( typeof tabId === 'number' ) {
+            await chrome.tabs.reload(tabId, { bypassCache: !!bypassCache });
+            if ( callback ) { callback({ success: true }); }
+            return { success: true };
+        }
+        if ( callback ) { callback({ success: false }); }
+        return { success: false };
+    }
+    if ( request.what === 'getHiddenElementCount' ) {
+        const tabId = request.tabId as number;
+        if ( typeof tabId === 'number' ) {
+            try {
+                const results = await chrome.tabs.sendMessage(tabId, { what: 'getHiddenElementCount' });
+                if ( callback ) { callback(results); }
+                return results;
+            } catch (e) {
+                if ( callback ) { callback({ count: 0 }); }
+                return { count: 0 };
+            }
+        }
+        if ( callback ) { callback({ count: 0 }); }
+        return { count: 0 };
+    }
+    if ( request.what === 'getScriptCount' ) {
+        const tabId = request.tabId as number;
+        if ( typeof tabId === 'number' ) {
+            try {
+                const results = await chrome.tabs.sendMessage(tabId, { what: 'getScriptCount' });
+                if ( callback ) { callback(results); }
+                return results;
+            } catch (e) {
+                if ( callback ) { callback({ count: 0 }); }
+                return { count: 0 };
+            }
+        }
+        if ( callback ) { callback({ count: 0 }); }
+        return { count: 0 };
+    }
+    if ( request.what === 'launchReporter' ) {
+        const url = request.url as string;
+        if ( url ) {
+            const reporterUrl = chrome.runtime.getURL(`reporter.html?url=${encodeURIComponent(url)}`);
+            await chrome.tabs.create({ url: reporterUrl, active: true });
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    if ( request.what === 'readyToFilter' ) {
+        const tabId = request.tabId as number;
+        const url = request.url as string;
+        
+        // Return readyToFilter status - just the boolean like reference
+        const isReady = popupState.initialized === true;
+        
+        if ( typeof tabId === 'number' ) {
+            try {
+                // Signal content script that page is ready for filtering
+                await chrome.tabs.sendMessage(tabId, { what: 'readyToFilter', url });
+                
+                // Update toolbar icon to show filtering is active
+                await updateToolbarIcon(tabId, { filtering: true });
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+        if ( callback ) { callback(isReady); }
+        return isReady;
+    }
+    if ( request.what === 'clickToLoad' ) {
+        const tabId = request.tabId as number;
+        const hostname = request.hostname as string;
+        if ( typeof tabId === 'number' && hostname ) {
+            try {
+                // Notify content script to allow blocked element
+                await chrome.tabs.sendMessage(tabId, { what: 'clickToLoad', hostname });
+                
+                // Update toolbar icon to reflect change
+                await updateToolbarIcon(tabId, { clickToLoad: hostname });
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    if ( request.what === 'loggerDisabled' ) {
+        const tabId = request.tabId as number;
+        const hostname = request.hostname as string;
+        
+        // Clear in-memory filters when logger is disabled
+        popupState.inMemoryFilter = '';
+        await chrome.storage.local.set({ inMemoryFilter: '' });
+        
+        if ( typeof tabId === 'number' && hostname ) {
+            try {
+                await chrome.tabs.sendMessage(tabId, { what: 'clickToLoad', hostname });
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    if ( request.what === 'dismissUnprocessedRequest' ) {
+        const tabId = request.tabId as number;
+        if ( typeof tabId === 'number' ) {
+            try {
+                await chrome.tabs.sendMessage(tabId, { what: 'dismissUnprocessedRequest' });
+            } catch (e) {
+                // Ignore errors
+            }
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    if ( request.what === 'updateLists' ) {
+        await reloadAllFilterLists();
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    // scriptlet handler - execute scriptlet in a tab
+    if ( request.what === 'scriptlet' ) {
+        const tabId = request.tabId as number;
+        const scriptletSrc = request.scriptletSrc as string;
+        const scriptlet = request.scriptlet as string;
+        
+        let scriptletFile = scriptletSrc;
+        
+        // If using scriptlet name (like reference), construct path
+        if (!scriptletFile && scriptlet) {
+            scriptletFile = `/js/scriptlets/${scriptlet}.js`;
+        }
+        
+        if (typeof tabId === 'number' && scriptletFile) {
+            try {
+                await chrome.scripting.executeScript({
+                    target: { tabId },
+                    files: [scriptletFile],
+                    injectImmediately: false,
+                    runAt: 'document_end',
+                });
+            } catch (e) {
+                console.log('[MV3] scriptlet error:', e);
+            }
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    // createUserFilter - add filter from popup/picker
+    if ( request.what === 'createUserFilter' ) {
+        const filter = request.filter as string;
+        if (filter) {
+            try {
+                const stored = await chrome.storage.local.get('userFilters');
+                const userFilters = stored?.userFilters || '';
+                const newFilters = userFilters + '\n' + filter;
+                await chrome.storage.local.set({ userFilters: newFilters });
+                await reloadAllFilterLists();
+            } catch (e) {
+                console.log('[MV3] createUserFilter error:', e);
+            }
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    // getTrustedScriptletTokens - get redirect engine tokens
+    if ( request.what === 'getTrustedScriptletTokens' ) {
+        const result: string[] = [];
+        // Get tokens from redirect engine if available
+        try {
+            const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
+            if (redirectEngine?.tokens) {
+                result.push(...redirectEngine.tokens);
+            }
+        } catch (e) {
+            // Return empty array if not available
+        }
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    // listsFromNetFilter - find filter lists containing a network filter
+    if ( request.what === 'listsFromNetFilter' ) {
+        const rawFilter = request.rawFilter as string;
+        if (rawFilter) {
+            const results = await findFilterListFromNetFilter(rawFilter);
+            if ( callback ) { callback(results); }
+            return results;
+        }
+        if ( callback ) { callback({}); }
+        return {};
+    }
+    // listsFromCosmeticFilter - find filter lists containing a cosmetic filter
+    if ( request.what === 'listsFromCosmeticFilter' ) {
+        const rawFilter = request.rawFilter as string;
+        if (rawFilter) {
+            const results = await findFilterListFromCosmeticFilter(rawFilter);
+            if ( callback ) { callback(results); }
+            return results;
+        }
+        if ( callback ) { callback({}); }
+        return {};
+    }
+    if ( request.what === 'getSupportData' ) {
+        const items = await chrome.storage.local.get([
+            'userSettings', 'filterLists', 'selectedFilterLists', 
+            'hiddenSettings', 'whitelist', 'dynamicRules', 'permanentFirewall',
+            'permanentSwitches', 'perSiteFiltering', 'cloudData', 'userFilters'
+        ]);
+        const manifest = chrome.runtime.getManifest();
+        
+        // Calculate filter counts from lists
+        let netFilterCount = 0;
+        let cosmeticFilterCount = 0;
+        let scriptletFilterCount = 0;
+        
+        if (items.filterLists) {
+            for (const [key, list] of Object.entries(items.filterLists as Record<string, any>)) {
+                if (list?.content) {
+                    const lines = list.content.split('\n');
+                    const netFilters = lines.filter(l => !l.startsWith('!') && !l.startsWith('#') && l.trim() && !l.includes('##') && !l.includes('#@#'));
+                    const cosmeticFilters = lines.filter(l => !l.startsWith('!') && (l.includes('##') || l.includes('#@#') || l.includes('#?') || l.includes('##@')));
+                    const scriptletFilters = lines.filter(l => !l.startsWith('!') && l.includes('+js('));
+                    netFilterCount += netFilters.length;
+                    cosmeticFilterCount += cosmeticFilters.length;
+                    scriptletFilterCount += scriptletFilters.length;
+                }
+            }
+        }
+        
+        // Add user filters count
+        if (items.userFilters) {
+            const userLines = items.userFilters.split('\n');
+            netFilterCount += userLines.filter(l => !l.startsWith('!') && l.trim() && !l.includes('##')).length;
+            cosmeticFilterCount += userLines.filter(l => !l.startsWith('!') && l.includes('##')).length;
+        }
+        
+        // Try to get counts from filtering engines
+        let engineNetFilterCount = 0;
+        let engineCosmeticFilterCount = 0;
+        try {
+            const staticNetFilteringEngine = (globalThis as any).vAPI?.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
+            if (staticNetFilteringEngine?.acceptedCount) {
+                engineNetFilterCount = staticNetFilteringEngine.acceptedCount;
+            }
+        } catch (e) {}
+        
+        try {
+            const cosmeticFilteringEngine = (globalThis as any).vAPI?.cosmeticFilteringEngine || (globalThis as any).cosmeticFilteringEngine;
+            if (cosmeticFilteringEngine?.acceptedCount) {
+                engineCosmeticFilterCount = cosmeticFilteringEngine.acceptedCount;
+            }
+        } catch (e) {}
+        
+        // Use engine counts if available
+        if (engineNetFilterCount > 0) netFilterCount = engineNetFilterCount;
+        if (engineCosmeticFilterCount > 0) cosmeticFilterCount = engineCosmeticFilterCount;
+        
+        const supportData = {
+            userSettings: items.userSettings || {},
+            filterLists: items.filterLists || {},
+            selectedFilterLists: items.selectedFilterLists || [],
+            hiddenSettings: items.hiddenSettings || {},
+            netWhitelist: items.whitelist || '',
+            dynamicRules: items.dynamicRules || [],
+            permanentFirewallRules: items.permanentFirewall || [],
+            permanentHostnameSwitches: items.permanentSwitches || [],
+            perSiteFiltering: items.perSiteFiltering || {},
+            version: manifest?.version || '1.0.0',
+            platform: 'chrome',
+            netFilterCount,
+            cosmeticFilterCount,
+            scriptletFilterCount,
+            htmlFilterCount: 0,
+            cloudStorageUsed: items.cloudData ? JSON.stringify(items.cloudData).length : 0,
+            storageUsed: await chrome.storage.local.getBytesInUse(),
+        };
+        if ( callback ) { callback(supportData); }
+        return supportData;
+    }
+    // DevTools handlers
+    if ( request.what === 'snfeBenchmark' ) {
+        const result = { duration: 0, count: 0 };
+        try {
+            const staticNetFilteringEngine = (globalThis as any).vAPI?.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
+            if (staticNetFilteringEngine) {
+                const startTime = Date.now();
+                const filters = staticNetFilteringEngine.filterParser?.filters;
+                const count = filters ? filters.size || 0 : 0;
+                
+                // Run simple benchmark - count filters
+                for (let i = 0; i < 1000; i++) {
+                    staticNetFilteringEngine.matchRequest?.('http://example.com/test');
+                }
+                
+                result.duration = Date.now() - startTime;
+                result.count = count;
+            }
+        } catch (e) {
+            console.log('[MV3] snfeBenchmark error:', e);
+        }
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'cfeBenchmark' ) {
+        const result = { duration: 0, count: 0 };
+        try {
+            const cosmeticFilteringEngine = (globalThis as any).vAPI?.cosmeticFilteringEngine || (globalThis as any).cosmeticFilteringEngine;
+            if (cosmeticFilteringEngine) {
+                const startTime = Date.now();
+                const count = cosmeticFilteringEngine.specificFilters?.size || 0;
+                
+                // Run simple benchmark
+                for (let i = 0; i < 1000; i++) {
+                    cosmeticFilteringEngine.retrieveSpecificSelectors?.({ hostname: 'example.com' });
+                }
+                
+                result.duration = Date.now() - startTime;
+                result.count = count;
+            }
+        } catch (e) {
+            console.log('[MV3] cfeBenchmark error:', e);
+        }
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'sfeBenchmark' ) {
+        const result = { duration: 0, count: 0 };
+        try {
+            const staticNetFilteringEngine = (globalThis as any).vAPI?.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
+            if (staticNetFilteringEngine) {
+                const startTime = Date.now();
+                const count = staticNetFilteringEngine.acceptedCount || 0;
+                
+                result.duration = Date.now() - startTime;
+                result.count = count;
+            }
+        } catch (e) {
+            console.log('[MV3] sfeBenchmark error:', e);
+        }
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'snfeToDNR' ) {
+        const result = { rules: [], errors: [] };
+        try {
+            const staticNetFilteringEngine = (globalThis as any).vAPI?.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
+            const stored = await chrome.storage.local.get('userFilters');
+            const filterLists = await chrome.storage.local.get('filterLists');
+            const selectedLists = await chrome.storage.local.get('selectedFilterLists');
+            
+            const allFilters: string[] = [];
+            
+            // Get user filters
+            if (stored?.userFilters) {
+                allFilters.push(...stored.userFilters.split('\n').filter(l => l.trim() && !l.startsWith('!')));
+            }
+            
+            // Get selected filter list content
+            if (selectedLists?.selectedFilterLists && filterLists?.filterLists) {
+                for (const listKey of selectedLists.selectedFilterLists) {
+                    const listData = filterLists.filterLists[listKey];
+                    if (listData?.content) {
+                        allFilters.push(...listData.content.split('\n').filter(l => l.trim() && !l.startsWith('!')));
+                    }
+                }
+            }
+            
+            // Convert to DNR rules (simplified)
+            let ruleId = 1;
+            for (const filter of allFilters.slice(0, 1000)) {
+                try {
+                    if (filter.includes('||') || filter.includes('|') || filter.includes('^')) {
+                        result.rules.push({
+                            id: ruleId++,
+                            priority: 1,
+                            action: { type: 'block' },
+                            condition: { urlFilter: filter.replace(/\*/g, '.*').replace(/\^/g, '.*') }
+                        });
+                    }
+                } catch (e) {}
+            }
+        } catch (e) {
+            result.errors.push((e as Error).message);
+        }
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'snfeDump' ) {
+        const result: any = { 
+            filterCount: 0, 
+            memoryUse: 0,
+            acceptedCount: 0,
+            discardedCount: 0,
+            filterParser: {},
+            hostnameToFilterMapSize: 0,
+            domainToFilterMapSize: 0,
+        };
+        try {
+            const staticNetFilteringEngine = (globalThis as any).vAPI?.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
+            if (staticNetFilteringEngine) {
+                result.filterCount = staticNetFilteringEngine.acceptedCount || 0;
+                result.acceptedCount = staticNetFilteringEngine.acceptedCount || 0;
+                result.discardedCount = staticNetFilteringEngine.discardedCount || 0;
+                result.memoryUse = result.filterCount * 100;
+                result.hostnameToFilterMapSize = staticNetFilteringEngine.hostnameToFilterMap?.size || 0;
+                result.domainToFilterMapSize = staticNetFilteringEngine.domainToFilterMap?.size || 0;
+                
+                // Get filter parser stats
+                if (staticNetFilteringEngine.filterParser) {
+                    result.filterParser = {
+                        filterCount: staticNetFilteringEngine.filterParser.filters?.size || 0,
+                        ruleCount: staticNetFilteringEngine.filterParser.rules?.size || 0,
+                    };
+                }
+            }
+        } catch (e) {
+            console.log('[MV3] snfeDump error:', e);
+        }
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'snfeQuery' ) {
+        const result = { matches: [], statistics: {} };
+        const url = request.url as string;
+        const type = request.type as string;
+        if (url) {
+            try {
+                const staticNetFilteringEngine = (globalThis as any).vAPI?.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
+                const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
+                if (staticNetFilteringEngine?.matchRequest) {
+                    const startTime = Date.now();
+                    const match = staticNetFilteringEngine.matchRequest({ url, type, redirectEngine });
+                    const duration = Date.now() - startTime;
+                    
+                    if (match) {
+                        result.matches.push({ 
+                            filter: match.filter, 
+                            type: match.type,
+                            raw: match.raw,
+                        });
+                    }
+                    
+                    result.statistics = {
+                        duration,
+                        url,
+                        type,
+                        filterCount: staticNetFilteringEngine.acceptedCount || 0,
+                    };
+                }
+            } catch (e) {
+                console.log('[MV3] snfeQuery error:', e);
+            }
+        }
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'cfeDump' ) {
+        const result: any = { 
+            cosmeticFilterCount: 0, 
+            specificFilterCount: 0,
+            genericFilterCount: 0,
+            acceptedCount: 0,
+            discardedCount: 0,
+            netSelectorCacheCount: 0,
+            proceduralFilterCount: 0,
+        };
+        try {
+            const cosmeticFilteringEngine = (globalThis as any).vAPI?.cosmeticFilteringEngine || (globalThis as any).cosmeticFilteringEngine;
+            if (cosmeticFilteringEngine) {
+                result.cosmeticFilterCount = cosmeticFilteringEngine.acceptedCount || 0;
+                result.acceptedCount = cosmeticFilteringEngine.acceptedCount || 0;
+                result.discardedCount = cosmeticFilteringEngine.discardedCount || 0;
+                result.specificFilterCount = cosmeticFilteringEngine.specificFilters?.size || 0;
+                result.genericFilterCount = cosmeticFilteringEngine.genericFilters?.size || 0;
+                result.netSelectorCacheCount = cosmeticFilteringEngine.netSelectorCacheCountMax || 0;
+                result.proceduralFilterCount = cosmeticFilteringEngine.proceduralFilters?.size || 0;
+            }
+        } catch (e) {
+            console.log('[MV3] cfeDump error:', e);
+        }
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'purgeAllCaches' ) {
+        try {
+            // Get bytes in use before
+            const bytesBefore = await chrome.storage.local.getBytesInUse(null);
+            
+            // Clear all cached assets
+            const keys = await chrome.storage.local.get(null);
+            const cacheKeys = Object.keys(keys).filter(k => k.startsWith('assetCache_') || k.startsWith('cachedAsset_'));
+            for (const key of cacheKeys) {
+                await chrome.storage.local.remove(key);
+            }
+            await chrome.storage.local.remove(['filterLists', 'cachedAssets']);
+            
+            // Get bytes in use after
+            const bytesAfter = await chrome.storage.local.getBytesInUse(null);
+            
+            const result = {
+                success: true,
+                before: bytesBefore,
+                after: bytesAfter,
+            };
+            if ( callback ) { callback(result); }
+            return result;
+        } catch (e) {
+            const result = { success: false, error: (e as Error).message };
+            if ( callback ) { callback(result); }
+            return result;
+        }
+    }
+    // Logger UI handlers
+    if ( request.what === 'readAll' ) {
+        const tabId = request.tabId as number;
+        const offset = request.offset as number;
+        const limit = request.limit as number;
+        const filter = request.filter as string;
+        const ownerId = request.ownerId as number;
+        
+        // Check ownership - if another logger view exists, don't return data
+        const loggerOwnerId = popupState.loggerOwnerId;
+        if (loggerOwnerId !== undefined && loggerOwnerId !== ownerId) {
+            const result = { unavailable: true };
+            if ( callback ) { callback(result); }
+            return result;
+        }
+        
+        // Set ownership
+        popupState.loggerOwnerId = ownerId;
+        
+        const items = await chrome.storage.local.get('loggerEntries');
+        let entries = items?.loggerEntries || [];
+        
+        // Filter by tabId if provided
+        if (typeof tabId === 'number') {
+            entries = entries.filter((e: any) => e.tabId === tabId);
+        }
+        
+        // Apply filter if provided
+        if (filter) {
+            const filterLower = filter.toLowerCase();
+            entries = entries.filter((e: any) => {
+                const text = e.text || '';
+                const url = e.url || '';
+                return text.toLowerCase().includes(filterLower) || url.toLowerCase().includes(filterLower);
+            });
+        }
+        
+        const userSettings = await chrome.storage.local.get('userSettings');
+        const result = {
+            entries: entries.slice(offset || 0, (offset || 0) + (limit || 100)),
+            total: entries.length,
+            colorBlind: userSettings?.userSettings?.colorBlindFriendly || false,
+            tooltips: true,
+            tabIds: [...new Set(entries.map((e: any) => e.tabId).filter(Boolean))],
+        };
+        
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'toggleInMemoryFilter' ) {
+        const filter = request.filter as string;
+        const tabId = request.tabId as number;
+        const kind = request.kind as string;
+        
+        if (filter && typeof tabId === 'number') {
+            const stored = await chrome.storage.local.get('loggerInMemoryFilters');
+            const filters = stored?.loggerInMemoryFilters || {};
+            const tabFilters = filters[tabId] || [];
+            
+            if (kind === 'add') {
+                if (!tabFilters.includes(filter)) {
+                    tabFilters.push(filter);
+                }
+            } else {
+                const index = tabFilters.indexOf(filter);
+                if (index > -1) tabFilters.splice(index, 1);
+            }
+            
+            filters[tabId] = tabFilters;
+            await chrome.storage.local.set({ loggerInMemoryFilters: filters });
+        }
+        
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    if ( request.what === 'hasInMemoryFilter' ) {
+        const filter = request.filter as string;
+        const tabId = request.tabId as number;
+        
+        let hasFilter = false;
+        if (filter && typeof tabId === 'number') {
+            const stored = await chrome.storage.local.get('loggerInMemoryFilters');
+            const filters = stored?.loggerInMemoryFilters || {};
+            hasFilter = (filters[tabId] || []).includes(filter);
+        }
+        
+        if ( callback ) { callback({ hasFilter }); }
+        return { hasFilter };
+    }
+    if ( request.what === 'releaseView' ) {
+        // Release logger view and clear owner
+        const ownerId = request.ownerId as number;
+        
+        // Check ownership before releasing
+        if (ownerId !== popupState.loggerOwnerId) {
+            if ( callback ) { callback({ success: false }); }
+            return { success: false };
+        }
+        
+        // Clear ownership and in-memory filters
+        popupState.loggerOwnerId = undefined;
+        popupState.inMemoryFilter = '';
+        await chrome.storage.local.set({ loggerOwnerId: null, inMemoryFilter: '' });
+        
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    if ( request.what === 'saveURLFilteringRules' ) {
+        const rules = request.rules as any[];
+        const colors = request.colors as Record<string, string>;
+        if (rules) {
+            // Save URL filtering rules with colors
+            await chrome.storage.local.set({ 
+                urlFilteringRules: rules,
+                urlFilteringColors: colors || {
+                    'allow': '#4caf50',
+                    'block': '#f44336',
+                    'noop': '#ff9800',
+                },
+                urlFilteringDirty: false,
+            });
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    if ( request.what === 'setURLFilteringRule' ) {
+        const rule = request.rule as any;
+        if (rule) {
+            const stored = await chrome.storage.local.get('urlFilteringRules');
+            const rules = stored?.urlFilteringRules || [];
+            
+            // Check if rule already exists and toggle it
+            const existingIndex = rules.findIndex((r: any) => 
+                r.urlPattern === rule.urlPattern && r.action === rule.action
+            );
+            
+            if (existingIndex >= 0) {
+                // Remove existing rule (toggle off)
+                rules.splice(existingIndex, 1);
+            } else {
+                // Add new rule
+                rules.push({
+                    ...rule,
+                    id: Date.now(),
+                    created: Date.now(),
+                });
+            }
+            
+            await chrome.storage.local.set({ 
+                urlFilteringRules: rules,
+                urlFilteringDirty: true,
+            });
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    if ( request.what === 'getURLFilteringData' ) {
+        const stored = await chrome.storage.local.get('urlFilteringRules');
+        const storedColors = await chrome.storage.local.get('urlFilteringColors');
+        const storedDirty = await chrome.storage.local.get('urlFilteringDirty');
+        
+        // Default URL filtering colors
+        const defaultColors = {
+            'allow': '#4caf50',
+            'block': '#f44336',
+            'noop': '#ff9800',
+        };
+        
+        const result = {
+            urlFilters: stored?.urlFilteringRules || [],
+            colors: storedColors?.urlFilteringColors || defaultColors,
+            dirty: storedDirty?.urlFilteringDirty || false,
+        };
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    // UI styles handlers
+    if ( request.what === 'uiStyles' ) {
+        const stored = await chrome.storage.local.get('userSettings');
+        const hiddenStored = await chrome.storage.local.get('hiddenSettings');
+        const userSettings = stored?.userSettings || {};
+        const hiddenSettings = hiddenStored?.hiddenSettings || {};
+        const dark = typeof self.matchMedia === 'function' &&
+            self.matchMedia('(prefers-color-scheme: dark)').matches;
+        const accent = userSettings.uiAccentCustom || '#717191';
+        
+        // Build accent stylesheet
+        const accentStylesheet = popupState.uiAccentStylesheet || generateAccentStylesheet(accent, dark);
+        
+        const result = {
+            dark,
+            accent,
+            uiAccentCustom: userSettings.uiAccentCustom || false,
+            uiAccentCustom0: userSettings.uiAccentCustom0 || '#3498d6',
+            uiAccentStylesheet: accentStylesheet,
+            uiStyles: hiddenSettings.uiStyles || '',
+            uiTheme: userSettings.uiTheme || 'default',
+        };
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'uiAccentStylesheet' ) {
+        const stored = await chrome.storage.local.get('userSettings');
+        const userSettings = stored?.userSettings || {};
+        
+        const accent = userSettings.uiAccentCustom || '#717191';
+        const dark = userSettings.darkMode === true || 
+            (userSettings.darkMode === undefined && 
+             typeof window.matchMedia === 'function' && 
+             window.matchMedia('(prefers-color-scheme: dark)').matches);
+        
+        // Build full accent stylesheet
+        const result = `
+:root {
+    --accent: ${accent};
+    --accent-light: ${adjustColor(accent, 20)};
+    --accent-dark: ${adjustColor(accent, -20)};
+    --accent-alpha: ${accent}20;
+}
+
+.accent { 
+    --accent: ${accent};
+}
+
+.accent-light {
+    --accent: ${adjustColor(accent, 20)};
+}
+
+.accent-dark {
+    --accent: ${adjustColor(accent, -20)};
+}
+
+${dark ? `
+:root {
+    --dark: 1;
+}
+` : ''}
+`;
+        
+        // Store the accent stylesheet in popupState for reference
+        popupState.uiAccentStylesheet = result;
+        
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    // Store custom accent stylesheet when sent from UI
+    if ( request.what === 'saveUiAccentStylesheet' ) {
+        const stylesheet = request.stylesheet as string;
+        if (typeof stylesheet === 'string') {
+            popupState.uiAccentStylesheet = stylesheet;
+            await chrome.storage.local.set({ uiAccentStylesheet: stylesheet });
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    // DOM Inspector args
+    if ( request.what === 'getInspectorArgs' ) {
+        const tabId = request.tabId as number;
+        const frameId = request.frameId as number;
+        
+        // Create BroadcastChannel for inspector communication
+        try {
+            const bc = new BroadcastChannel('contentInspectorChannel');
+            bc.postMessage({
+                topic: 'inspector',
+                tabId,
+                frameId,
+                timestamp: Date.now(),
+            });
+            bc.close();
+        } catch (e) {
+            // BroadcastChannel not available
+        }
+        
+        // Get war secret for secure URL
+        const warSecret = (globalThis as any).vAPI?.warSecret?.short?.() || 
+                         Math.random().toString(36).slice(2, 10);
+        
+        const result = {
+            tabId,
+            frameId,
+            inspectorURL: `/web_accessible_resources/dom-inspector.html?secret=${warSecret}`,
+        };
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    // launchElementPicker
+    if ( request.what === 'launchElementPicker' ) {
+        const tabId = request.tabId as number;
+        const frameId = request.frameId as number;
+        const target = request.target as string;
+        
+        // Clear context menu coordinates like reference does
+        epickerArgs.mouse = '';
+        
+        if (typeof tabId === 'number') {
+            try {
+                // Set the target for the picker
+                epickerArgs.target = target || '';
+                
+                await chrome.tabs.executeScript(tabId, {
+                    file: '/js/contentscript-extra.js',
+                    frameId: frameId || 0,
+                    matchAboutBlank: true,
+                    runAt: 'document_start',
+                });
+            } catch (e) {
+                console.log('[MV3] launchElementPicker error:', e);
+            }
+        }
+        if ( callback ) { callback({ success: true }); }
+        return { success: true };
+    }
+    if ( callback ) {
+        callback(undefined);
+    }
+    return undefined;
+});
+
+const findFilterListFromNetFilter = async (rawFilter: string): Promise<any[]> => {
+    const results: any[] = [];
+    if (!rawFilter || rawFilter.trim() === '') {
+        return results;
+    }
+    
+    // Normalize the filter for searching
+    const normalizedFilter = rawFilter.trim().toLowerCase();
+    const isWhitelist = normalizedFilter.startsWith('@@');
+    const filterPattern = isWhitelist ? normalizedFilter.slice(2) : normalizedFilter;
+    
+    try {
+        const stored = await chrome.storage.local.get(['filterLists', 'selectedFilterLists', 'userFilters']);
+        const selectedFilterLists = stored.selectedFilterLists || [];
+        const filterLists = stored.filterLists || {};
+        
+        // Also check user filters
+        const userFiltersContent = stored.userFilters || '';
+        
+        // Check user filters first
+        if (userFiltersContent.toLowerCase().includes(filterPattern)) {
+            results.push({
+                assetKey: 'user',
+                title: 'My filters',
+                supportURL: '',
+                type: 'user',
+            });
+        }
+        
+        // Check selected filter lists
+        for (const listKey of selectedFilterLists) {
+            const listInfo = filterLists[listKey as string] as any;
+            if (listInfo && listInfo.title && listInfo.content) {
+                const content = listInfo.content.toLowerCase();
+                // Check for exact match or partial match
+                if (content.includes(filterPattern) || content.includes(normalizedFilter)) {
+                    results.push({
+                        assetKey: listKey,
+                        title: listInfo.title,
+                        supportURL: listInfo.supportURL || '',
+                        description: listInfo.description || '',
+                        type: 'list',
+                    });
+                }
+            }
+        }
+        
+    } catch (e) {
+        console.error('[MV3] findFilterListFromNetFilter error:', e);
+    }
+    return results;
+};
+
+const findFilterListFromCosmeticFilter = async (rawFilter: string): Promise<any[]> => {
+    const results: any[] = [];
+    if (!rawFilter || rawFilter.trim() === '') {
+        return results;
+    }
+    
+    // Normalize cosmetic filter for searching
+    // Remove ## or #@# prefix
+    const normalizedFilter = rawFilter.trim()
+        .replace(/^##/, '')
+        .replace(/^#@#/, '')
+        .replace(/^#@/, '')
+        .replace(/^##/, '')
+        .toLowerCase();
+    
+    try {
+        const stored = await chrome.storage.local.get(['filterLists', 'selectedFilterLists', 'userFilters']);
+        const selectedFilterLists = stored.selectedFilterLists || [];
+        const filterLists = stored.filterLists || {};
+        
+        // Check user filters for cosmetic rules
+        const userFiltersContent = stored.userFilters || '';
+        if (userFiltersContent.toLowerCase().includes(normalizedFilter) || 
+            userFiltersContent.toLowerCase().includes(rawFilter.trim().toLowerCase())) {
+            results.push({
+                assetKey: 'user',
+                title: 'My filters',
+                supportURL: '',
+                type: 'user',
+            });
+        }
+        
+        // Check selected filter lists for cosmetic rules
+        for (const listKey of selectedFilterLists) {
+            const listInfo = filterLists[listKey as string] as any;
+            if (listInfo && listInfo.title && listInfo.content) {
+                const content = listInfo.content.toLowerCase();
+                // Look for cosmetic filter patterns
+                if (content.includes(`##${normalizedFilter}`) || 
+                    content.includes(`#@#${normalizedFilter}`) ||
+                    content.includes(rawFilter.trim().toLowerCase())) {
+                    results.push({
+                        assetKey: listKey,
+                        title: listInfo.title,
+                        supportURL: listInfo.supportURL || '',
+                        description: listInfo.description || '',
+                        type: 'list',
+                    });
+                }
+            }
+        }
+        
+    } catch (e) {
+        console.error('[MV3] findFilterListFromCosmeticFilter error:', e);
+    }
+    return results;
+};
 
 Messaging.on('pickerContextMenuPoint', (payload, callback) => {
     const tabId = typeof payload?._tabId === 'number' ? payload._tabId : payload?._sender?.tab?.id;
@@ -3572,6 +7503,11 @@ chrome.webRequest.onErrorOccurred.addListener(
 
 chrome.tabs.onRemoved.addListener(tabId => {
     void clearTabRequestState(tabId);
+    const pageStore = pageStores.get(tabId);
+    if (pageStore) {
+        pageStore.disposeFrameStores();
+        pageStores.delete(tabId);
+    }
 });
 
 // Inject YouTube ad blocking script into page context immediately
@@ -3724,6 +7660,7 @@ ensurePopupState()
         syncFilterListDnrRules();
         syncPowerSwitchDnrRules();
         syncHostnameSwitchDnrRules();
+        syncWhitelistDnrRules();
     })
     .catch(error => {
         console.error('Failed to initialize popup/firewall state', error);
@@ -3742,9 +7679,6 @@ ensurePopupState()
 // elementPickerExec - called from context menu to launch the element picker
 (self as any).µb = {
     elementPickerExec: async function(tabId: number, frameId: number, target?: string) {
-        // Match the popup picker path: always launch in the top page frame.
-        // Keep the saved point/target when it came from the top frame, and only
-        // fall back to the clicked frame's stored point if needed.
         const point = getPickerContextPoint(tabId, 0) || getPickerContextPoint(tabId, frameId);
         await launchPickerInTab(tabId, 0, {
             initialPoint: point ? { x: point.x, y: point.y } : undefined,
@@ -3754,6 +7688,124 @@ ensurePopupState()
         return { success: true };
     },
     userSettings: popupState.userSettings,
+    hiddenSettings: {},
+    hiddenSettingsDefault: {},
+    requestStats: {
+        allowedCount: 0,
+        blockedCount: 0,
+    },
+    readyToFilter: false,
+    netWhitelist: [] as string[],
+    netWhitelistDefault: [] as string[],
+    reWhitelistBadHostname: /(^|\.)(localhost|localhost\.localdomain|127\.0\.0\.1|0\.0\.0\.0|255\.255\.255\.255)$/,
+    reWhitelistHostnameExtractor: /^https?:\/\/([^/:]+)/,
+    selectedFilterLists: [] as string[],
+    pageStores: pageStores,
+    pageStoresToken: pageStoresToken,
+    cloudStorageSupported: typeof chrome.storage.sync !== 'undefined',
+    privacySettingsSupported: typeof navigator !== 'undefined' && typeof navigator.connection !== 'undefined',
+    restoreBackupSettings: {},
+    userFiltersPath: 'user-filters',
+    maybeGoodPopup: { tabId: 0, url: '' },
+    epickerArgs: { target: '', mouse: false, zap: false, eprom: null },
+    tabContextManager: {
+        mustLookup: (tabId: number) => ({ tabId, hostname: '' }),
+        lookup: (tabId: number) => null,
+    },
+    arrayFromWhitelist: (whitelist: string[]) => {
+        if (!whitelist) return [];
+        return whitelist.split('\n').filter(line => line.trim() !== '');
+    },
+    whitelistFromString: (str: string) => {
+        if (!str) return '';
+        return str.split('\n').filter(line => line.trim() !== '').join('\n');
+    },
+    isTrustedList: (assetKey: string) => {
+        return popupState.trustedLists?.[assetKey] === true;
+    },
+    userFiltersAreEnabled: () => {
+        return popupState.userSettings.filteringEnabled !== false;
+    },
+    changeUserSettings: (name: string, value: any) => {
+        popupState.userSettings[name] = value;
+        return { done: true };
+    },
+    getModifiedSettings: (settings: any, defaults: any) => {
+        const modified: any = {};
+        for (const key in settings) {
+            if (settings[key] !== defaults[key]) {
+                modified[key] = settings[key];
+            }
+        }
+        return modified;
+    },
+    getAvailableLists: () => {
+        return getFilterListState();
+    },
+    dateNowToSensibleString: () => {
+        const now = new Date();
+        return now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    },
+    getBytesInUse: async () => {
+        const result = await chrome.storage.local.getBytesInUse();
+        return result;
+    },
+    saveLocalSettings: async () => {
+        await chrome.storage.local.set({ userSettings: popupState.userSettings });
+    },
+    saveWhitelist: async () => {
+        await chrome.storage.local.set({ whitelist: popupState.whitelist.join('\n') });
+    },
+    saveUserFilters: async (filters: string) => {
+        await chrome.storage.local.set({ userFilters: filters });
+        await reloadAllFilterLists();
+    },
+    loadUserFilters: async () => {
+        const stored = await chrome.storage.local.get('userFilters');
+        return stored?.userFilters || '';
+    },
+    saveSelectedFilterLists: async (lists: string[]) => {
+        await chrome.storage.local.set({ selectedFilterLists: lists });
+    },
+    savePermanentFirewallRules: async () => {
+        await persistPermanentFirewall();
+    },
+    saveHostnameSwitches: async () => {
+        await persistPermanentHostnameSwitches();
+    },
+    savePermanentURLFilteringRules: async () => {
+        await persistURLFilteringRules();
+    },
+    loadFilterLists: async () => {
+        await reloadAllFilterLists();
+    },
+    applyFilterListSelection: async (request: any) => {
+        return applyFilterListSelection(request);
+    },
+    createUserFilters: async (request: any) => {
+        await chrome.storage.local.set({ userFilters: request.filters || '' });
+        await reloadAllFilterLists();
+        return { success: true };
+    },
+    updateToolbarIcon: async (tabId: number, state: number | { filtering?: boolean; largeMedia?: boolean; noPopups?: boolean }) => {
+        await updateToolbarIcon(tabId, state);
+    },
+    openNewTab: async (details: { url: string; select?: boolean; index?: number }) => {
+        const created = await chrome.tabs.create({
+            url: details.url,
+            active: details.select !== false,
+            index: details.index,
+        });
+        return { tabId: created.id };
+    },
+    clearInMemoryFilters: () => {
+        popupState.inMemoryFilter = '';
+    },
+    toggleHostnameSwitch: (request: any) => {
+        return toggleHostnameSwitch(request);
+    },
+    getTabId: (sender: any) => sender?.tab?.id,
+    pageStoreFromTabId: pageStoreFromTabId,
 };
 
 // Create context menu for "Block element..."

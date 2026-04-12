@@ -64,6 +64,10 @@ import webRequest from './traffic.js';
 import µb from './background.js';
 import blockerAdapter from './blocker-adapter.js';
 
+import { scriptingManager } from './mv3/scripting-manager.js';
+import { dnrIntegration } from './dnr-integration.js';
+import { debug } from './mv3/debug.js';
+
 /******************************************************************************/
 
 const registerMessagingListener = (details: { name: string; listener: unknown }) => {
@@ -185,6 +189,62 @@ const onMessage = function(request, sender, callback) {
         }).then(result => {
             callback(result);
         });
+        return;
+
+    // GAP #1: Dynamic Content Script Registration
+    case 'getRegisteredContentScripts':
+        scriptingManager.getRegisteredContentScripts().then(ids => {
+            callback(ids);
+        });
+        return;
+
+    case 'reRegisterContentScripts':
+        scriptingManager.reRegisterContentScripts().then(() => {
+            callback();
+        });
+        return;
+
+    // GAP #2: Effective DNR Rules Visibility
+    case 'getEffectiveDynamicRules':
+        dnrIntegration.getDynamicRules().then(rules => {
+            callback(rules);
+        });
+        return;
+
+    case 'getEffectiveSessionRules':
+        dnrIntegration.getSessionRules().then(rules => {
+            callback(rules);
+        });
+        return;
+
+    case 'getEffectiveUserRules':
+        dnrIntegration.getUserRules().then(rules => {
+            callback(rules);
+        });
+        return;
+
+    case 'getRulesetDetails':
+        dnrIntegration.getRulesetDetails().then(details => {
+            callback(details);
+        });
+        return;
+
+    case 'getEnabledRulesetsDetails':
+        dnrIntegration.getEnabledRulesetsDetails().then(details => {
+            callback(details);
+        });
+        return;
+
+    // GAP #3: Matched Rules Debugging
+    case 'getMatchedRules':
+        debug.getMatchedRules(request.tabId).then(rules => {
+            callback(rules);
+        });
+        return;
+
+    case 'showMatchedRules':
+        vAPI.tabs.create({ url: '/matched-rules.html' });
+        callback();
         return;
 
     default:

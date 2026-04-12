@@ -1,7 +1,8 @@
 {
   "author": "Raymond Hill & contributors",
   "background": {
-    "service_worker": "js/sw.js"
+    "service_worker": "js/sw.js",
+    "type": "module"
   },
   "action": {
     "browser_style": false,

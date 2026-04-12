@@ -596,6 +596,90 @@ class DNRIntegration {
             platform: isGecko ? 'Firefox' : 'Chrome/Chromium'
         };
     }
+
+    async getDynamicRules(): Promise<any[]> {
+        if ( !this.enabled || !this.dnrApi ) return [];
+        
+        try {
+            const rules = await this.dnrApi.getDynamicRules();
+            return rules;
+        } catch ( e ) {
+            console.error('[DNR] Failed to get dynamic rules:', e);
+            return [];
+        }
+    }
+
+    async getSessionRules(): Promise<any[]> {
+        if ( !this.enabled || !this.dnrApi ) return [];
+        
+        try {
+            const rules = await this.dnrApi.getSessionRules();
+            return rules;
+        } catch ( e ) {
+            console.error('[DNR] Failed to get session rules:', e);
+            return [];
+        }
+    }
+
+    async getUserRules(): Promise<any[]> {
+        const userRules: any[] = [];
+        
+        try {
+            const whitelist = µb.arrayFromWhitelist(µb.netWhitelist) || [];
+            for ( const pattern of whitelist ) {
+                if ( typeof pattern !== 'string' || pattern.length === 0 ) continue;
+                if ( pattern.startsWith('#') ) continue;
+                
+                userRules.push({
+                    pattern,
+                    type: 'whitelist'
+                });
+            }
+            
+            const userFiltersData = await storage.readUserFilters();
+            const content = userFiltersData.content || '';
+            const filterLines = content.split('\n');
+            
+            for ( const line of filterLines ) {
+                const filter = line.trim();
+                if ( !filter || filter.startsWith('!') || filter.startsWith('[') ) continue;
+                userRules.push({
+                    filter: filter,
+                    type: 'user-filter'
+                });
+            }
+        } catch ( e ) {
+            console.error('[DNR] Failed to get user rules:', e);
+        }
+        
+        return userRules;
+    }
+
+    async getRulesetDetails(): Promise<any[]> {
+        const details: any[] = [];
+        
+        try {
+            const selectedLists = µb.selectedFilterLists || [];
+            
+            for ( const assetKey of selectedLists ) {
+                const list = µb.availableFilterLists?.[assetKey];
+                details.push({
+                    assetKey,
+                    title: list?.title || assetKey,
+                    enabled: true,
+                    url: list?.supportURL || '',
+                });
+            }
+        } catch ( e ) {
+            console.error('[DNR] Failed to get ruleset details:', e);
+        }
+        
+        return details;
+    }
+
+    async getEnabledRulesetsDetails(): Promise<any[]> {
+        return this.getRulesetDetails();
+    }
 }
 
 /******************************************************************************/

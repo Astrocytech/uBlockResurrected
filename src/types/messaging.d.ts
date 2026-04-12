@@ -249,7 +249,7 @@ export interface StorageData {
     urlFilteringRules: string;
     hostnameSwitches: string;
     lastBackgroundTabId: number;
-    last VisitTime: number;
+    lastVisitTime: number;
     [key: string]: unknown;
 }
 

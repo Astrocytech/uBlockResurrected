@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark" />
+<title data-i18n="cloudPageName"></title>
+<link rel="stylesheet" href="css/themes/default.css">
+<link rel="stylesheet" href="css/common.css">
+<link rel="stylesheet" href="css/fa-icons.css">
+<link rel="stylesheet" href="css/cloud-ui.css">
+<link rel="icon" type="image/png" href="img/icon_64.png">
+</head>
+<body class="loading">
+
+<div id="cloudWidget" class="hide">
+    <div id="cloudScope">
+        <label data-i18n="cloudSyncScope"></label>
+        <select id="cloudScopeEntry">
+            <option value="device" data-i18n="cloudScopeDevice"></option>
+            <option value="account" data-i18n="cloudScopeAccount"></option>
+        </select>
+    </div>
+    <div id="cloudOptions">
+        <span id="cloudDeviceName"></span>
+        <button id="cloudPush" type="button" data-i18n="cloudPush" title="cloudPushTitle"></button>
+        <button id="cloudPull" type="button" data-i18n="cloudPull" title="cloudPullTitle"></button>
+        <button id="cloudReset" type="button" data-i18n="cloudReset" title="cloudResetTitle"></button>
+    </div>
+    <div id="cloudStatus"></div>
+</div>
+
+<script src="js/vapi.js"></script>
+<script src="js/vapi-common.js"></script>
+<script src="js/vapi-client.js"></script>
+<script src="js/fa-icons-bundle.js"></script>
+<script src="js/i18n-bundle.js"></script>
+<script src="js/dashboard-common-bundle.js"></script>
+<script src="js/messaging-bundle.js"></script>
+<script src="js/cloud-ui.js"></script>
+</body>
+</html>

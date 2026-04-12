@@ -12045,984 +12045,114 @@
     });
   }
 
-  // src/lib/punycode.js
-  var punycode_default = (function() {
-    var punycode, maxInt = 2147483647, base = 36, tMin = 1, tMax = 26, skew = 38, damp = 700, initialBias = 72, initialN = 128, delimiter = "-", regexPunycode = /^xn--/, regexNonASCII = /[^\x20-\x7E]/, regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g, errors = {
-      "overflow": "Overflow: input needs wider integers to process",
-      "not-basic": "Illegal input >= 0x80 (not a basic code point)",
-      "invalid-input": "Invalid input"
-    }, baseMinusTMin = base - tMin, floor = Math.floor, stringFromCharCode = String.fromCharCode, key;
-    function error(type) {
-      throw new RangeError(errors[type]);
+  // src/js/code-viewer.ts
+  var fallbackText = /* @__PURE__ */ new Map([
+    ["codeViewerPageName", "uBlock \u2014 Code viewer"]
+  ]);
+  var browserRuntime = typeof browser !== "undefined" ? browser.runtime : void 0;
+  var sendMessage = async (topic, payload = {}) => {
+    const message = { topic, payload };
+    if (browserRuntime !== void 0) {
+      return await browserRuntime.sendMessage(message);
     }
-    function map(array, fn2) {
-      var length = array.length;
-      var result = [];
-      while (length--) {
-        result[length] = fn2(array[length]);
-      }
-      return result;
-    }
-    function mapDomain(string, fn2) {
-      if (string === null || string === void 0) {
-        return "";
-      }
-      var parts = string.split("@");
-      var result = "";
-      if (parts.length > 1) {
-        result = parts[0] + "@";
-        string = parts[1];
-      }
-      string = string.replace(regexSeparators, ".");
-      var labels = string.split(".");
-      var encoded = map(labels, fn2).join(".");
-      return result + encoded;
-    }
-    function ucs2decode(string) {
-      var output = [], counter = 0, length = string.length, value, extra;
-      while (counter < length) {
-        value = string.charCodeAt(counter++);
-        if (value >= 55296 && value <= 56319 && counter < length) {
-          extra = string.charCodeAt(counter++);
-          if ((extra & 64512) == 56320) {
-            output.push(((value & 1023) << 10) + (extra & 1023) + 65536);
-          } else {
-            output.push(value);
-            counter--;
-          }
-        } else {
-          output.push(value);
+    return await new Promise((resolve, reject) => {
+      chrome.runtime.sendMessage(message, (response) => {
+        const lastError = chrome.runtime.lastError;
+        if (lastError) {
+          reject(new Error(lastError.message));
+          return;
         }
-      }
-      return output;
-    }
-    function ucs2encode(array) {
-      return map(array, function(value) {
-        var output = "";
-        if (value > 65535) {
-          value -= 65536;
-          output += stringFromCharCode(value >>> 10 & 1023 | 55296);
-          value = 56320 | value & 1023;
-        }
-        output += stringFromCharCode(value);
-        return output;
-      }).join("");
-    }
-    function basicToDigit(codePoint) {
-      if (codePoint - 48 < 10) {
-        return codePoint - 22;
-      }
-      if (codePoint - 65 < 26) {
-        return codePoint - 65;
-      }
-      if (codePoint - 97 < 26) {
-        return codePoint - 97;
-      }
-      return base;
-    }
-    function digitToBasic(digit, flag) {
-      return digit + 22 + 75 * (digit < 26) - ((flag != 0) << 5);
-    }
-    function adapt(delta, numPoints, firstTime) {
-      var k2 = 0;
-      delta = firstTime ? floor(delta / damp) : delta >> 1;
-      delta += floor(delta / numPoints);
-      for (; delta > baseMinusTMin * tMax >> 1; k2 += base) {
-        delta = floor(delta / baseMinusTMin);
-      }
-      return floor(k2 + (baseMinusTMin + 1) * delta / (delta + skew));
-    }
-    function decode(input) {
-      var output = [], inputLength = input.length, out, i = 0, n = initialN, bias = initialBias, basic, j2, index, oldi, w2, k2, digit, t, baseMinusT;
-      basic = input.lastIndexOf(delimiter);
-      if (basic < 0) {
-        basic = 0;
-      }
-      for (j2 = 0; j2 < basic; ++j2) {
-        if (input.charCodeAt(j2) >= 128) {
-          error("not-basic");
-        }
-        output.push(input.charCodeAt(j2));
-      }
-      for (index = basic > 0 ? basic + 1 : 0; index < inputLength; ) {
-        for (oldi = i, w2 = 1, k2 = base; ; k2 += base) {
-          if (index >= inputLength) {
-            error("invalid-input");
-          }
-          digit = basicToDigit(input.charCodeAt(index++));
-          if (digit >= base || digit > floor((maxInt - i) / w2)) {
-            error("overflow");
-          }
-          i += digit * w2;
-          t = k2 <= bias ? tMin : k2 >= bias + tMax ? tMax : k2 - bias;
-          if (digit < t) {
-            break;
-          }
-          baseMinusT = base - t;
-          if (w2 > floor(maxInt / baseMinusT)) {
-            error("overflow");
-          }
-          w2 *= baseMinusT;
-        }
-        out = output.length + 1;
-        bias = adapt(i - oldi, out, oldi == 0);
-        if (floor(i / out) > maxInt - n) {
-          error("overflow");
-        }
-        n += floor(i / out);
-        i %= out;
-        output.splice(i++, 0, n);
-      }
-      return ucs2encode(output);
-    }
-    function encode(input) {
-      var n, delta, handledCPCount, basicLength, bias, j2, m, q2, k2, t, currentValue, output = [], inputLength, handledCPCountPlusOne, baseMinusT, qMinusT;
-      input = ucs2decode(input);
-      inputLength = input.length;
-      n = initialN;
-      delta = 0;
-      bias = initialBias;
-      for (j2 = 0; j2 < inputLength; ++j2) {
-        currentValue = input[j2];
-        if (currentValue < 128) {
-          output.push(stringFromCharCode(currentValue));
-        }
-      }
-      handledCPCount = basicLength = output.length;
-      if (basicLength) {
-        output.push(delimiter);
-      }
-      while (handledCPCount < inputLength) {
-        for (m = maxInt, j2 = 0; j2 < inputLength; ++j2) {
-          currentValue = input[j2];
-          if (currentValue >= n && currentValue < m) {
-            m = currentValue;
-          }
-        }
-        handledCPCountPlusOne = handledCPCount + 1;
-        if (m - n > floor((maxInt - delta) / handledCPCountPlusOne)) {
-          error("overflow");
-        }
-        delta += (m - n) * handledCPCountPlusOne;
-        n = m;
-        for (j2 = 0; j2 < inputLength; ++j2) {
-          currentValue = input[j2];
-          if (currentValue < n && ++delta > maxInt) {
-            error("overflow");
-          }
-          if (currentValue == n) {
-            for (q2 = delta, k2 = base; ; k2 += base) {
-              t = k2 <= bias ? tMin : k2 >= bias + tMax ? tMax : k2 - bias;
-              if (q2 < t) {
-                break;
-              }
-              qMinusT = q2 - t;
-              baseMinusT = base - t;
-              output.push(
-                stringFromCharCode(digitToBasic(t + qMinusT % baseMinusT, 0))
-              );
-              q2 = floor(qMinusT / baseMinusT);
-            }
-            output.push(stringFromCharCode(digitToBasic(q2, 0)));
-            bias = adapt(delta, handledCPCountPlusOne, handledCPCount == basicLength);
-            delta = 0;
-            ++handledCPCount;
-          }
-        }
-        ++delta;
-        ++n;
-      }
-      return output.join("");
-    }
-    function toUnicode(input) {
-      if (input === null || input === void 0) {
-        return "";
-      }
-      return mapDomain(input, function(string) {
-        return regexPunycode.test(string) ? decode(string.slice(4).toLowerCase()) : string;
+        resolve(response);
       });
-    }
-    function toASCII(input) {
-      if (input === null || input === void 0) {
-        return "";
+    });
+  };
+  var applyFallbackTranslations = () => {
+    for (const element of document.querySelectorAll("[data-i18n]")) {
+      const key = element.dataset.i18n || "";
+      const fallback = fallbackText.get(key);
+      if (fallback === void 0) {
+        continue;
       }
-      return mapDomain(input, function(string) {
-        return regexNonASCII.test(string) ? "xn--" + encode(string) : string;
-      });
-    }
-    punycode = {
-      /**
-       * A string representing the current Punycode.js version number.
-       * @memberOf punycode
-       * @type String
-       */
-      "version": "1.3.2",
-      /**
-       * An object of methods to convert from JavaScript's internal character
-       * representation (UCS-2) to Unicode code points, and back.
-       * @see <https://mathiasbynens.be/notes/javascript-encoding>
-       * @memberOf punycode
-       * @type Object
-       */
-      "ucs2": {
-        "decode": ucs2decode,
-        "encode": ucs2encode
-      },
-      "decode": decode,
-      "encode": encode,
-      "toASCII": toASCII,
-      "toUnicode": toUnicode
-    };
-    return punycode;
-  })();
-
-  // src/js/uri-utils.ts
-  var reHostnameFromCommonURL = /^https:\/\/[0-9a-z._-]+[0-9a-z]\//;
-  var reAuthorityFromURI = /^(?:[^:/?#]+:)?(\/\/[^/?#]+)/;
-  var reHostFromNakedAuthority = /^[0-9a-z._-]+[0-9a-z]$/i;
-  var reHostFromAuthority = /^(?:[^@]*@)?([^:]+)(?::\d*)?$/;
-  var reIPv6FromAuthority = /^(?:[^@]*@)?(\[[0-9a-f:]+\])(?::\d*)?$/i;
-  var reMustNormalizeHostname = /[^0-9a-z._-]/;
-  function hostnameFromURI(uri) {
-    let match = reHostnameFromCommonURL.exec(uri);
-    if (match !== null) {
-      return match[0].slice(8, -1);
-    }
-    match = reAuthorityFromURI.exec(uri);
-    if (match === null) {
-      return "";
-    }
-    const authority = match[1].slice(2);
-    if (reHostFromNakedAuthority.test(authority)) {
-      return authority.toLowerCase();
-    }
-    match = reHostFromAuthority.exec(authority);
-    if (match === null) {
-      match = reIPv6FromAuthority.exec(authority);
-      if (match === null) {
-        return "";
+      if (element.textContent?.trim() === "" || element.textContent?.trim() === "_") {
+        element.textContent = fallback;
       }
     }
-    let hostname = match[1];
-    while (hostname.endsWith(".")) {
-      hostname = hostname.slice(0, -1);
+  };
+  var applyThemeClasses = () => {
+    const root = document.documentElement;
+    const dark = typeof self.matchMedia === "function" && self.matchMedia("(prefers-color-scheme: dark)").matches;
+    root.classList.toggle("dark", dark);
+    root.classList.toggle("light", dark === false);
+    root.classList.add((navigator.maxTouchPoints || 0) > 0 ? "mobile" : "desktop");
+    if (self.matchMedia("(min-resolution: 150dpi)").matches) {
+      root.classList.add("hidpi");
     }
-    if (reMustNormalizeHostname.test(hostname)) {
-      hostname = punycode_default.toASCII(hostname.toLowerCase());
-    }
-    return hostname;
-  }
-
-  // src/js/epicker-ui.ts
-  (() => {
-    if (typeof vAPI !== "object") {
+  };
+  var init = async () => {
+    document.body.classList.remove("loading");
+    applyThemeClasses();
+    applyFallbackTranslations();
+    const cmContainer = document.querySelector("#content");
+    if (cmContainer === null) {
       return;
     }
-    const $id = (id) => document.getElementById(id);
-    const $stor = (selector) => document.querySelector(selector);
-    const $storAll = (selector) => document.querySelectorAll(selector);
-    const pickerRoot = document.documentElement;
-    const dialog = $stor("aside");
-    let staticFilteringParser;
-    const svgRoot = $stor("svg#sea");
-    const svgOcean = svgRoot.children[0];
-    const svgIslands = svgRoot.children[1];
-    const NoPaths = "M0 0";
-    const reCosmeticAnchor = /^#(\$|\?|\$\?)?#/;
-    {
-      const url = new URL(self.location.href);
-      if (url.searchParams.has("zap")) {
-        pickerRoot.classList.add("zap");
-      }
-    }
-    const docURL = new URL(vAPI.getURL(""));
-    const computedSpecificityCandidates = /* @__PURE__ */ new Map();
-    let resultsetOpt;
-    let cosmeticFilterCandidates = [];
-    let computedCandidate = "";
-    let needBody = false;
-    const cmEditor = new CodeMirror(document.querySelector(".codeMirrorContainer"), {
-      autoCloseBrackets: true,
-      autofocus: true,
-      extraKeys: {
-        "Ctrl-Space": "autocomplete"
-      },
+    const editor = CodeMirror(cmContainer, {
+      lineNumbers: true,
+      readOnly: true,
       lineWrapping: true,
-      matchBrackets: true,
-      maxScanLines: 1
+      mode: "text"
     });
-    vAPI.messaging.send("dashboard", {
-      what: "getAutoCompleteDetails"
-    }).then((hints) => {
-      if (hints instanceof Object === false) {
-        return;
-      }
-      cmEditor.setOption("uboHints", hints);
-    });
-    const rawFilterFromTextarea = function() {
-      const text = cmEditor.getValue();
-      const pos = text.indexOf("\n");
-      return pos === -1 ? text : text.slice(0, pos);
-    };
-    const filterFromTextarea = function() {
-      const filter = rawFilterFromTextarea();
-      if (filter === "") {
-        return "";
-      }
-      const parser = staticFilteringParser;
-      parser.parse(filter);
-      if (parser.isFilter() === false) {
-        return "!";
-      }
-      if (parser.isExtendedFilter()) {
-        if (parser.isCosmeticFilter() === false) {
-          return "!";
-        }
-      } else if (parser.isNetworkFilter() === false) {
-        return "!";
-      }
-      return filter;
-    };
-    const renderRange = function(id, value, invert = false) {
-      const input = $stor(`#${id} input`);
-      const max = parseInt(input.max, 10);
-      if (typeof value !== "number") {
-        value = parseInt(input.value, 10);
-      }
-      if (invert) {
-        value = max - value;
-      }
-      input.value = value;
-      const slider = $stor(`#${id} > span`);
-      const lside = slider.children[0];
-      const thumb = slider.children[1];
-      const sliderWidth = slider.offsetWidth;
-      const maxPercent = (sliderWidth - thumb.offsetWidth) / sliderWidth * 100;
-      const widthPercent = value / max * maxPercent;
-      lside.style.width = `${widthPercent}%`;
-    };
-    const userFilterFromCandidate = function(filter) {
-      if (filter === "" || filter === "!") {
-        return;
-      }
-      let hn2 = hostnameFromURI(docURL.href);
-      if (hn2.startsWith("xn--")) {
-        hn2 = punycode_default.toUnicode(hn2);
-      }
-      if (reCosmeticAnchor.test(filter)) {
-        return hn2 + filter;
-      }
-      const opts = [];
-      if (filter.startsWith("||") === false) {
-        opts.push(`domain=${hn2}`);
-      }
-      if (resultsetOpt !== void 0) {
-        opts.push(resultsetOpt);
-      }
-      if (opts.length) {
-        filter += "$" + opts.join(",");
-      }
-      return filter;
-    };
-    const candidateFromFilterChoice = function(filterChoice) {
-      let { slot, filters } = filterChoice;
-      let filter = filters[slot];
-      for (const elem of $storAll("#candidateFilters li")) {
-        elem.classList.remove("active");
-      }
-      computedCandidate = "";
-      if (filter === void 0) {
-        return "";
-      }
-      if (filter.startsWith("##") === false) {
-        $stor(`#netFilters li:nth-of-type(${slot + 1})`).classList.add("active");
-        return filter;
-      }
-      $stor(`#cosmeticFilters li:nth-of-type(${slot + 1})`).classList.add("active");
-      return cosmeticCandidatesFromFilterChoice(filterChoice);
-    };
-    const cosmeticCandidatesFromFilterChoice = function(filterChoice) {
-      let { slot, filters } = filterChoice;
-      renderRange("resultsetDepth", slot, true);
-      renderRange("resultsetSpecificity");
-      if (computedSpecificityCandidates.has(slot)) {
-        onCandidatesOptimized({ slot });
-        return;
-      }
-      const specificities = [
-        0,
-        // remove hierarchy; remove id, nth-of-type, attribute values
-        2,
-        // remove hierarchy; remove id, nth-of-type
-        3,
-        // remove hierarchy
-        8,
-        // trim hierarchy; remove id, nth-of-type, attribute values
-        10,
-        // trim hierarchy; remove id, nth-of-type
-        12,
-        // remove id, nth-of-type, attribute values
-        14,
-        // remove id, nth-of-type
-        15
-        // keep all = most specific
-      ];
-      const candidates = [];
-      let filter = filters[slot];
-      for (const specificity of specificities) {
-        const paths = [];
-        for (let i = slot; i < filters.length; i++) {
-          filter = filters[i].slice(2);
-          if ((specificity & 1) === 0) {
-            filter = filter.replace(/:nth-of-type\(\d+\)/, "");
-            if (filter.charAt(0) === "#" && ((specificity & 8) === 0 || i === slot)) {
-              const pos = filter.search(/[^\\]\./);
-              if (pos !== -1) {
-                filter = filter.slice(pos + 1);
-              }
-            }
-          }
-          if ((specificity & 2) === 0) {
-            const match = /^\[([^^*$=]+)[\^*$]?=.+\]$/.exec(filter);
-            if (match !== null) {
-              filter = `[${match[1]}]`;
-            }
-          }
-          if (filter.charAt(0) === "#") {
-            filter = filter.replace(/([^\\])\..+$/, "$1");
-          }
-          if (paths.length !== 0) {
-            filter += " > ";
-          }
-          paths.unshift(filter);
-          if ((specificity & 8) === 0 || filter.startsWith("#")) {
-            break;
-          }
-        }
-        if ((specificity & 12) === 8) {
-          let i = 0;
-          while (i < paths.length - 1) {
-            if (/^[a-z0-9]+ > $/.test(paths[i + 1])) {
-              if (paths[i].endsWith(" > ")) {
-                paths[i] = paths[i].slice(0, -2);
-              }
-              paths.splice(i + 1, 1);
-            } else {
-              i += 1;
-            }
-          }
-        }
-        if (needBody && paths.length !== 0 && paths[0].startsWith("#") === false && paths[0].startsWith("body ") === false && (specificity & 12) !== 0) {
-          paths.unshift("body > ");
-        }
-        candidates.push(paths);
-      }
-      pickerContentPort.postMessage({
-        what: "optimizeCandidates",
-        candidates,
-        slot
-      });
-    };
-    const onCandidatesOptimized = function(details) {
-      $id("resultsetModifiers").classList.remove("hide");
-      const i = parseInt($stor("#resultsetSpecificity input").value, 10);
-      if (Array.isArray(details.candidates)) {
-        computedSpecificityCandidates.set(details.slot, details.candidates);
-      }
-      const candidates = computedSpecificityCandidates.get(details.slot);
-      computedCandidate = candidates[i];
-      cmEditor.setValue(computedCandidate);
-      cmEditor.clearHistory();
-      onCandidateChanged();
-    };
-    const onSvgClicked = function(ev) {
-      if (pickerRoot.classList.contains("zap")) {
-        pickerContentPort.postMessage({
-          what: "zapElementAtPoint",
-          mx: ev.clientX,
-          my: ev.clientY,
-          options: {
-            stay: true,
-            highlight: ev.target !== svgIslands
-          }
+    const currentURLInput = document.querySelector("#currentURL input");
+    const reloadURL = document.querySelector("#reloadURL");
+    const removeURL = document.querySelector("#removeURL");
+    const pastURLs = document.querySelector("#pastURLs");
+    let urlHistory = [];
+    const loadURL = async (url) => {
+      try {
+        const response = await sendMessage("default", {
+          what: "getAssetContent",
+          url
         });
-        return;
-      }
-      if (pickerRoot.classList.contains("paused")) {
-        if (pickerRoot.classList.contains("preview") === false) {
-          unpausePicker();
+        if (response?.content) {
+          editor.setValue(response.content);
         }
-        return;
+      } catch (e) {
+        console.error("Failed to load URL:", e);
       }
-      if (ev.type === "touch") {
-        pickerRoot.classList.add("show");
-      }
-      pickerContentPort.postMessage({
-        what: "filterElementAtPoint",
-        mx: ev.clientX,
-        my: ev.clientY,
-        broad: ev.ctrlKey
-      });
     };
-    const onSvgTouch = /* @__PURE__ */ (() => {
-      let startX = 0, startY = 0;
-      let t0 = 0;
-      return (ev) => {
-        if (ev.type === "touchstart") {
-          startX = ev.touches[0].screenX;
-          startY = ev.touches[0].screenY;
-          t0 = ev.timeStamp;
-          return;
-        }
-        if (startX === void 0) {
-          return;
-        }
-        const stopX = ev.changedTouches[0].screenX;
-        const stopY = ev.changedTouches[0].screenY;
-        const angle = Math.abs(Math.atan2(stopY - startY, stopX - startX));
-        const distance = Math.sqrt(
-          Math.pow(stopX - startX, 2) + Math.pow(stopY - startY, 2)
-        );
-        const duration = ev.timeStamp - t0;
-        if (distance < 32 && duration < 200) {
-          onSvgClicked({
-            type: "touch",
-            target: ev.target,
-            clientX: ev.changedTouches[0].pageX,
-            clientY: ev.changedTouches[0].pageY
-          });
-          ev.preventDefault();
-          return;
-        }
-        if (distance < 64) {
-          return;
-        }
-        const angleUpperBound = Math.PI * 0.25 * 0.5;
-        const swipeRight = angle < angleUpperBound;
-        if (swipeRight === false && angle < Math.PI - angleUpperBound) {
-          return;
-        }
-        if (ev.cancelable) {
-          ev.preventDefault();
-        }
-        if (swipeRight === false) {
-          if (pickerRoot.classList.contains("paused")) {
-            pickerRoot.classList.remove("hide");
-            pickerRoot.classList.add("show");
+    if (currentURLInput) {
+      currentURLInput.addEventListener("change", () => {
+        const url = currentURLInput.value;
+        if (url) {
+          loadURL(url);
+          if (!urlHistory.includes(url)) {
+            urlHistory.push(url);
           }
-          return;
-        }
-        if (pickerRoot.classList.contains("zap") && svgIslands.getAttribute("d") !== NoPaths) {
-          pickerContentPort.postMessage({
-            what: "unhighlight"
-          });
-          return;
-        } else if (pickerRoot.classList.contains("paused") && pickerRoot.classList.contains("show")) {
-          pickerRoot.classList.remove("show");
-          pickerRoot.classList.add("hide");
-          return;
-        }
-        quitPicker();
-      };
-    })();
-    const onCandidateChanged = function() {
-      const filter = filterFromTextarea();
-      const bad = filter === "!";
-      $stor("section").classList.toggle("invalidFilter", bad);
-      if (bad) {
-        $id("resultsetCount").textContent = "E";
-        $id("create").setAttribute("disabled", "");
-      }
-      const text = rawFilterFromTextarea();
-      $id("resultsetModifiers").classList.toggle(
-        "hide",
-        text === "" || text !== computedCandidate
-      );
-      pickerContentPort.postMessage({
-        what: "dialogSetFilter",
-        filter,
-        compiled: reCosmeticAnchor.test(filter) ? staticFilteringParser.result.compiled : void 0
-      });
-    };
-    const onPreviewClicked = function() {
-      const state = pickerRoot.classList.toggle("preview");
-      pickerContentPort.postMessage({
-        what: "togglePreview",
-        state
-      });
-    };
-    const onCreateClicked = function() {
-      const candidate = filterFromTextarea();
-      const filter = userFilterFromCandidate(candidate);
-      if (filter !== void 0) {
-        vAPI.messaging.send("elementPicker", {
-          what: "createUserFilter",
-          autoComment: true,
-          filters: filter,
-          docURL: docURL.href,
-          killCache: reCosmeticAnchor.test(candidate) === false
-        });
-      }
-      pickerContentPort.postMessage({
-        what: "dialogCreate",
-        filter: candidate,
-        compiled: reCosmeticAnchor.test(candidate) ? staticFilteringParser.result.compiled : void 0
-      });
-    };
-    const onPickClicked = function() {
-      unpausePicker();
-    };
-    const onQuitClicked = function() {
-      quitPicker();
-    };
-    const onDepthChanged = function() {
-      const input = $stor("#resultsetDepth input");
-      const max = parseInt(input.max, 10);
-      const value = parseInt(input.value, 10);
-      const text = candidateFromFilterChoice({
-        filters: cosmeticFilterCandidates,
-        slot: max - value
-      });
-      if (text === void 0) {
-        return;
-      }
-      cmEditor.setValue(text);
-      cmEditor.clearHistory();
-      onCandidateChanged();
-    };
-    const onSpecificityChanged = function() {
-      renderRange("resultsetSpecificity");
-      if (rawFilterFromTextarea() !== computedCandidate) {
-        return;
-      }
-      const depthInput = $stor("#resultsetDepth input");
-      const slot = parseInt(depthInput.max, 10) - parseInt(depthInput.value, 10);
-      const i = parseInt($stor("#resultsetSpecificity input").value, 10);
-      const candidates = computedSpecificityCandidates.get(slot);
-      computedCandidate = candidates[i];
-      cmEditor.setValue(computedCandidate);
-      cmEditor.clearHistory();
-      onCandidateChanged();
-    };
-    const onCandidateClicked = function(ev) {
-      let li = ev.target.closest("li");
-      if (li === null) {
-        return;
-      }
-      const ul2 = li.closest(".changeFilter");
-      if (ul2 === null) {
-        return;
-      }
-      const choice = {
-        filters: Array.from(ul2.querySelectorAll("li")).map((a) => a.textContent),
-        slot: 0
-      };
-      while (li.previousElementSibling !== null) {
-        li = li.previousElementSibling;
-        choice.slot += 1;
-      }
-      const text = candidateFromFilterChoice(choice);
-      if (text === void 0) {
-        return;
-      }
-      cmEditor.setValue(text);
-      cmEditor.clearHistory();
-      onCandidateChanged();
-    };
-    const onKeyPressed = function(ev) {
-      if ((ev.key === "Delete" || ev.key === "Backspace") && pickerRoot.classList.contains("zap")) {
-        pickerContentPort.postMessage({
-          what: "zapElementAtPoint",
-          options: { stay: true }
-        });
-        return;
-      }
-      if (ev.key === "Escape" || ev.which === 27) {
-        onQuitClicked();
-        return;
-      }
-    };
-    const onStartMoving = /* @__PURE__ */ (() => {
-      let isTouch = false;
-      let mx0 = 0, my0 = 0;
-      let mx1 = 0, my1 = 0;
-      let pw = 0, ph2 = 0;
-      let dw = 0, dh2 = 0;
-      let cx0 = 0, cy0 = 0;
-      let timer;
-      const eatEvent = function(ev) {
-        ev.stopPropagation();
-        ev.preventDefault();
-      };
-      const move = () => {
-        timer = void 0;
-        const cx1 = cx0 + mx1 - mx0;
-        const cy1 = cy0 + my1 - my0;
-        if (cx1 < pw / 2) {
-          dialog.style.setProperty("left", `${Math.max(cx1 - dw / 2, 2)}px`);
-          dialog.style.removeProperty("right");
-        } else {
-          dialog.style.removeProperty("left");
-          dialog.style.setProperty("right", `${Math.max(pw - cx1 - dw / 2, 2)}px`);
-        }
-        if (cy1 < ph2 / 2) {
-          dialog.style.setProperty("top", `${Math.max(cy1 - dh2 / 2, 2)}px`);
-          dialog.style.removeProperty("bottom");
-        } else {
-          dialog.style.removeProperty("top");
-          dialog.style.setProperty("bottom", `${Math.max(ph2 - cy1 - dh2 / 2, 2)}px`);
-        }
-      };
-      const moveAsync = (ev) => {
-        if (timer !== void 0) {
-          return;
-        }
-        if (isTouch) {
-          const touch = ev.touches[0];
-          mx1 = touch.pageX;
-          my1 = touch.pageY;
-        } else {
-          mx1 = ev.pageX;
-          my1 = ev.pageY;
-        }
-        timer = self.requestAnimationFrame(move);
-      };
-      const stop = (ev) => {
-        if (dialog.classList.contains("moving") === false) {
-          return;
-        }
-        dialog.classList.remove("moving");
-        if (isTouch) {
-          self.removeEventListener("touchmove", moveAsync, { capture: true });
-        } else {
-          self.removeEventListener("mousemove", moveAsync, { capture: true });
-        }
-        eatEvent(ev);
-      };
-      return (ev) => {
-        const target = dialog.querySelector("#move");
-        if (ev.target !== target) {
-          return;
-        }
-        if (dialog.classList.contains("moving")) {
-          return;
-        }
-        isTouch = ev.type.startsWith("touch");
-        if (isTouch) {
-          const touch = ev.touches[0];
-          mx0 = touch.pageX;
-          my0 = touch.pageY;
-        } else {
-          mx0 = ev.pageX;
-          my0 = ev.pageY;
-        }
-        const rect = dialog.getBoundingClientRect();
-        dw = rect.width;
-        dh2 = rect.height;
-        cx0 = rect.x + dw / 2;
-        cy0 = rect.y + dh2 / 2;
-        pw = pickerRoot.clientWidth;
-        ph2 = pickerRoot.clientHeight;
-        dialog.classList.add("moving");
-        if (isTouch) {
-          self.addEventListener("touchmove", moveAsync, { capture: true });
-          self.addEventListener("touchend", stop, { capture: true, once: true });
-        } else {
-          self.addEventListener("mousemove", moveAsync, { capture: true });
-          self.addEventListener("mouseup", stop, { capture: true, once: true });
-        }
-        eatEvent(ev);
-      };
-    })();
-    const svgListening = /* @__PURE__ */ (() => {
-      let on2 = false;
-      let timer;
-      let mx = 0, my = 0;
-      const onTimer = () => {
-        timer = void 0;
-        pickerContentPort.postMessage({
-          what: "highlightElementAtPoint",
-          mx,
-          my
-        });
-      };
-      const onHover = (ev) => {
-        mx = ev.clientX;
-        my = ev.clientY;
-        if (timer === void 0) {
-          timer = self.requestAnimationFrame(onTimer);
-        }
-      };
-      return (state) => {
-        if (state === on2) {
-          return;
-        }
-        on2 = state;
-        if (on2) {
-          document.addEventListener("mousemove", onHover, { passive: true });
-          return;
-        }
-        document.removeEventListener("mousemove", onHover, { passive: true });
-        if (timer !== void 0) {
-          self.cancelAnimationFrame(timer);
-          timer = void 0;
-        }
-      };
-    })();
-    const populateCandidates = function(candidates, selector) {
-      const root = dialog.querySelector(selector);
-      const ul2 = root.querySelector("ul");
-      while (ul2.firstChild !== null) {
-        ul2.firstChild.remove();
-      }
-      for (let i = 0; i < candidates.length; i++) {
-        const li = document.createElement("li");
-        li.textContent = candidates[i];
-        ul2.appendChild(li);
-      }
-      if (candidates.length !== 0) {
-        root.style.removeProperty("display");
-      } else {
-        root.style.setProperty("display", "none");
-      }
-    };
-    const showDialog = function(details) {
-      pausePicker();
-      const { netFilters, cosmeticFilters, filter } = details;
-      needBody = cosmeticFilters.length !== 0 && cosmeticFilters[cosmeticFilters.length - 1] === "##body";
-      if (needBody) {
-        cosmeticFilters.pop();
-      }
-      cosmeticFilterCandidates = cosmeticFilters;
-      docURL.href = details.url;
-      populateCandidates(netFilters, "#netFilters");
-      populateCandidates(cosmeticFilters, "#cosmeticFilters");
-      computedSpecificityCandidates.clear();
-      const depthInput = $stor("#resultsetDepth input");
-      depthInput.max = cosmeticFilters.length - 1;
-      depthInput.value = depthInput.max;
-      dialog.querySelector("ul").style.display = netFilters.length || cosmeticFilters.length ? "" : "none";
-      $id("create").setAttribute("disabled", "");
-      if (typeof filter !== "object" || filter === null) {
-        cmEditor.setValue("");
-        return;
-      }
-      const filterChoice = {
-        filters: filter.filters,
-        slot: filter.slot
-      };
-      const text = candidateFromFilterChoice(filterChoice);
-      if (text === void 0) {
-        return;
-      }
-      cmEditor.setValue(text);
-      onCandidateChanged();
-    };
-    const pausePicker = function() {
-      dom.cl.add(pickerRoot, "paused");
-      dom.cl.remove(pickerRoot, "minimized");
-      svgListening(false);
-    };
-    const unpausePicker = function() {
-      dom.cl.remove(pickerRoot, "paused", "preview");
-      dom.cl.add(pickerRoot, "minimized");
-      pickerContentPort.postMessage({
-        what: "togglePreview",
-        state: false
-      });
-      svgListening(true);
-    };
-    const startPicker = function() {
-      self.addEventListener("keydown", onKeyPressed, true);
-      const svg = $stor("svg#sea");
-      svg.addEventListener("click", onSvgClicked);
-      svg.addEventListener("touchstart", onSvgTouch);
-      svg.addEventListener("touchend", onSvgTouch);
-      unpausePicker();
-      $id("quit").addEventListener("click", onQuitClicked);
-      if (pickerRoot.classList.contains("zap")) {
-        return;
-      }
-      cmEditor.on("changes", onCandidateChanged);
-      $id("preview").addEventListener("click", onPreviewClicked);
-      $id("create").addEventListener("click", onCreateClicked);
-      $id("pick").addEventListener("click", onPickClicked);
-      $id("minimize").addEventListener("click", () => {
-        if (dom.cl.has(pickerRoot, "paused") === false) {
-          pausePicker();
-          onCandidateChanged();
-        } else {
-          dom.cl.toggle(pickerRoot, "minimized");
         }
       });
-      $id("move").addEventListener("mousedown", onStartMoving);
-      $id("move").addEventListener("touchstart", onStartMoving);
-      $id("candidateFilters").addEventListener("click", onCandidateClicked);
-      $stor("#resultsetDepth input").addEventListener("input", onDepthChanged);
-      $stor("#resultsetSpecificity input").addEventListener("input", onSpecificityChanged);
-      staticFilteringParser = new AstFilterParser({
-        interactive: true,
-        nativeCssHas: vAPI.webextFlavor.env.includes("native_css_has")
+    }
+    if (reloadURL) {
+      reloadURL.addEventListener("click", () => {
+        if (currentURLInput?.value) {
+          loadURL(currentURLInput.value);
+        }
       });
-    };
-    const quitPicker = function() {
-      pickerContentPort.postMessage({ what: "quitPicker" });
-      pickerContentPort.close();
-      pickerContentPort = void 0;
-    };
-    const onPickerMessage = function(msg) {
-      switch (msg.what) {
-        case "candidatesOptimized":
-          onCandidatesOptimized(msg);
-          break;
-        case "showDialog":
-          showDialog(msg);
-          break;
-        case "resultsetDetails": {
-          resultsetOpt = msg.opt;
-          $id("resultsetCount").textContent = msg.count;
-          if (msg.count !== 0) {
-            $id("create").removeAttribute("disabled");
-          } else {
-            $id("create").setAttribute("disabled", "");
-          }
-          break;
+    }
+    if (removeURL) {
+      removeURL.addEventListener("click", () => {
+        if (currentURLInput) {
+          currentURLInput.value = "";
         }
-        case "svgPaths": {
-          let { ocean, islands } = msg;
-          ocean += islands;
-          svgOcean.setAttribute("d", ocean);
-          svgIslands.setAttribute("d", islands || NoPaths);
-          break;
-        }
-        default:
-          break;
-      }
-    };
-    let pickerContentPort;
-    globalThis.addEventListener("message", (ev) => {
-      const msg = ev.data || {};
-      if (msg.what !== "epickerStart") {
-        return;
-      }
-      if (Array.isArray(ev.ports) === false) {
-        return;
-      }
-      if (ev.ports.length === 0) {
-        return;
-      }
-      pickerContentPort = ev.ports[0];
-      pickerContentPort.onmessage = (ev2) => {
-        const msg2 = ev2.data || {};
-        onPickerMessage(msg2);
-      };
-      pickerContentPort.onmessageerror = () => {
-        quitPicker();
-      };
-      startPicker();
-      pickerContentPort.postMessage({ what: "start" });
-    }, { once: true });
-  })();
+      });
+    }
+    const params = new URLSearchParams(window.location.search);
+    const urlParam = params.get("url");
+    if (urlParam && currentURLInput) {
+      currentURLInput.value = decodeURIComponent(urlParam);
+      loadURL(decodeURIComponent(urlParam));
+    }
+  };
+  document.addEventListener("DOMContentLoaded", () => {
+    init().catch(console.error);
+  });
 })();
-/*! Home: https://github.com/gorhill/publicsuffixlist.js -- GPLv3 APLv2 */
-/*! https://mths.be/punycode v1.3.2 by @mathias */

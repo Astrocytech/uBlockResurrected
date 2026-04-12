@@ -7,4 +7,23 @@ export const storage = {
         }
         return { content: '' };
     },
+
+    async readFilteringMode(): Promise<{ [hostname: string]: string }> {
+        const data = await browser.storage.local.get('filtering-modes');
+        return data['filtering-modes'] || {};
+    },
+
+    async writeFilteringMode(hostname: string, mode: string): Promise<void> {
+        const data = await browser.storage.local.get('filtering-modes');
+        const modes = data['filtering-modes'] || {};
+        modes[hostname] = mode;
+        await browser.storage.local.set({ 'filtering-modes': modes });
+    },
+
+    async deleteFilteringMode(hostname: string): Promise<void> {
+        const data = await browser.storage.local.get('filtering-modes');
+        const modes = data['filtering-modes'] || {};
+        delete modes[hostname];
+        await browser.storage.local.set({ 'filtering-modes': modes });
+    },
 };

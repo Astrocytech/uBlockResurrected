@@ -12045,984 +12045,759 @@
     });
   }
 
-  // src/lib/punycode.js
-  var punycode_default = (function() {
-    var punycode, maxInt = 2147483647, base = 36, tMin = 1, tMax = 26, skew = 38, damp = 700, initialBias = 72, initialN = 128, delimiter = "-", regexPunycode = /^xn--/, regexNonASCII = /[^\x20-\x7E]/, regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g, errors = {
-      "overflow": "Overflow: input needs wider integers to process",
-      "not-basic": "Illegal input >= 0x80 (not a basic code point)",
-      "invalid-input": "Invalid input"
-    }, baseMinusTMin = base - tMin, floor = Math.floor, stringFromCharCode = String.fromCharCode, key;
-    function error(type) {
-      throw new RangeError(errors[type]);
-    }
-    function map(array, fn2) {
-      var length = array.length;
-      var result = [];
-      while (length--) {
-        result[length] = fn2(array[length]);
-      }
-      return result;
-    }
-    function mapDomain(string, fn2) {
-      if (string === null || string === void 0) {
-        return "";
-      }
-      var parts = string.split("@");
-      var result = "";
-      if (parts.length > 1) {
-        result = parts[0] + "@";
-        string = parts[1];
-      }
-      string = string.replace(regexSeparators, ".");
-      var labels = string.split(".");
-      var encoded = map(labels, fn2).join(".");
-      return result + encoded;
-    }
-    function ucs2decode(string) {
-      var output = [], counter = 0, length = string.length, value, extra;
-      while (counter < length) {
-        value = string.charCodeAt(counter++);
-        if (value >= 55296 && value <= 56319 && counter < length) {
-          extra = string.charCodeAt(counter++);
-          if ((extra & 64512) == 56320) {
-            output.push(((value & 1023) << 10) + (extra & 1023) + 65536);
-          } else {
-            output.push(value);
-            counter--;
-          }
-        } else {
-          output.push(value);
-        }
-      }
-      return output;
-    }
-    function ucs2encode(array) {
-      return map(array, function(value) {
-        var output = "";
-        if (value > 65535) {
-          value -= 65536;
-          output += stringFromCharCode(value >>> 10 & 1023 | 55296);
-          value = 56320 | value & 1023;
-        }
-        output += stringFromCharCode(value);
-        return output;
-      }).join("");
-    }
-    function basicToDigit(codePoint) {
-      if (codePoint - 48 < 10) {
-        return codePoint - 22;
-      }
-      if (codePoint - 65 < 26) {
-        return codePoint - 65;
-      }
-      if (codePoint - 97 < 26) {
-        return codePoint - 97;
-      }
-      return base;
-    }
-    function digitToBasic(digit, flag) {
-      return digit + 22 + 75 * (digit < 26) - ((flag != 0) << 5);
-    }
-    function adapt(delta, numPoints, firstTime) {
-      var k2 = 0;
-      delta = firstTime ? floor(delta / damp) : delta >> 1;
-      delta += floor(delta / numPoints);
-      for (; delta > baseMinusTMin * tMax >> 1; k2 += base) {
-        delta = floor(delta / baseMinusTMin);
-      }
-      return floor(k2 + (baseMinusTMin + 1) * delta / (delta + skew));
-    }
-    function decode(input) {
-      var output = [], inputLength = input.length, out, i = 0, n = initialN, bias = initialBias, basic, j2, index, oldi, w2, k2, digit, t, baseMinusT;
-      basic = input.lastIndexOf(delimiter);
-      if (basic < 0) {
-        basic = 0;
-      }
-      for (j2 = 0; j2 < basic; ++j2) {
-        if (input.charCodeAt(j2) >= 128) {
-          error("not-basic");
-        }
-        output.push(input.charCodeAt(j2));
-      }
-      for (index = basic > 0 ? basic + 1 : 0; index < inputLength; ) {
-        for (oldi = i, w2 = 1, k2 = base; ; k2 += base) {
-          if (index >= inputLength) {
-            error("invalid-input");
-          }
-          digit = basicToDigit(input.charCodeAt(index++));
-          if (digit >= base || digit > floor((maxInt - i) / w2)) {
-            error("overflow");
-          }
-          i += digit * w2;
-          t = k2 <= bias ? tMin : k2 >= bias + tMax ? tMax : k2 - bias;
-          if (digit < t) {
-            break;
-          }
-          baseMinusT = base - t;
-          if (w2 > floor(maxInt / baseMinusT)) {
-            error("overflow");
-          }
-          w2 *= baseMinusT;
-        }
-        out = output.length + 1;
-        bias = adapt(i - oldi, out, oldi == 0);
-        if (floor(i / out) > maxInt - n) {
-          error("overflow");
-        }
-        n += floor(i / out);
-        i %= out;
-        output.splice(i++, 0, n);
-      }
-      return ucs2encode(output);
-    }
-    function encode(input) {
-      var n, delta, handledCPCount, basicLength, bias, j2, m, q2, k2, t, currentValue, output = [], inputLength, handledCPCountPlusOne, baseMinusT, qMinusT;
-      input = ucs2decode(input);
-      inputLength = input.length;
-      n = initialN;
-      delta = 0;
-      bias = initialBias;
-      for (j2 = 0; j2 < inputLength; ++j2) {
-        currentValue = input[j2];
-        if (currentValue < 128) {
-          output.push(stringFromCharCode(currentValue));
-        }
-      }
-      handledCPCount = basicLength = output.length;
-      if (basicLength) {
-        output.push(delimiter);
-      }
-      while (handledCPCount < inputLength) {
-        for (m = maxInt, j2 = 0; j2 < inputLength; ++j2) {
-          currentValue = input[j2];
-          if (currentValue >= n && currentValue < m) {
-            m = currentValue;
-          }
-        }
-        handledCPCountPlusOne = handledCPCount + 1;
-        if (m - n > floor((maxInt - delta) / handledCPCountPlusOne)) {
-          error("overflow");
-        }
-        delta += (m - n) * handledCPCountPlusOne;
-        n = m;
-        for (j2 = 0; j2 < inputLength; ++j2) {
-          currentValue = input[j2];
-          if (currentValue < n && ++delta > maxInt) {
-            error("overflow");
-          }
-          if (currentValue == n) {
-            for (q2 = delta, k2 = base; ; k2 += base) {
-              t = k2 <= bias ? tMin : k2 >= bias + tMax ? tMax : k2 - bias;
-              if (q2 < t) {
-                break;
-              }
-              qMinusT = q2 - t;
-              baseMinusT = base - t;
-              output.push(
-                stringFromCharCode(digitToBasic(t + qMinusT % baseMinusT, 0))
-              );
-              q2 = floor(qMinusT / baseMinusT);
-            }
-            output.push(stringFromCharCode(digitToBasic(q2, 0)));
-            bias = adapt(delta, handledCPCountPlusOne, handledCPCount == basicLength);
-            delta = 0;
-            ++handledCPCount;
-          }
-        }
-        ++delta;
-        ++n;
-      }
-      return output.join("");
-    }
-    function toUnicode(input) {
-      if (input === null || input === void 0) {
-        return "";
-      }
-      return mapDomain(input, function(string) {
-        return regexPunycode.test(string) ? decode(string.slice(4).toLowerCase()) : string;
-      });
-    }
-    function toASCII(input) {
-      if (input === null || input === void 0) {
-        return "";
-      }
-      return mapDomain(input, function(string) {
-        return regexNonASCII.test(string) ? "xn--" + encode(string) : string;
-      });
-    }
-    punycode = {
-      /**
-       * A string representing the current Punycode.js version number.
-       * @memberOf punycode
-       * @type String
-       */
-      "version": "1.3.2",
-      /**
-       * An object of methods to convert from JavaScript's internal character
-       * representation (UCS-2) to Unicode code points, and back.
-       * @see <https://mathiasbynens.be/notes/javascript-encoding>
-       * @memberOf punycode
-       * @type Object
-       */
-      "ucs2": {
-        "decode": ucs2decode,
-        "encode": ucs2encode
+  // src/js/i18n.ts
+  var i18n = null;
+  if (typeof self.browser !== "undefined" && self.browser instanceof Object && !(self.browser instanceof Element)) {
+    i18n = self.browser.i18n;
+  } else if (typeof self.chrome !== "undefined" && self.chrome.i18n) {
+    i18n = self.chrome.i18n;
+  }
+  if (!i18n) {
+    i18n = {
+      getMessage: function(key, _args) {
+        return key;
       },
-      "decode": decode,
-      "encode": encode,
-      "toASCII": toASCII,
-      "toUnicode": toUnicode
-    };
-    return punycode;
-  })();
-
-  // src/js/uri-utils.ts
-  var reHostnameFromCommonURL = /^https:\/\/[0-9a-z._-]+[0-9a-z]\//;
-  var reAuthorityFromURI = /^(?:[^:/?#]+:)?(\/\/[^/?#]+)/;
-  var reHostFromNakedAuthority = /^[0-9a-z._-]+[0-9a-z]$/i;
-  var reHostFromAuthority = /^(?:[^@]*@)?([^:]+)(?::\d*)?$/;
-  var reIPv6FromAuthority = /^(?:[^@]*@)?(\[[0-9a-f:]+\])(?::\d*)?$/i;
-  var reMustNormalizeHostname = /[^0-9a-z._-]/;
-  function hostnameFromURI(uri) {
-    let match = reHostnameFromCommonURL.exec(uri);
-    if (match !== null) {
-      return match[0].slice(8, -1);
-    }
-    match = reAuthorityFromURI.exec(uri);
-    if (match === null) {
-      return "";
-    }
-    const authority = match[1].slice(2);
-    if (reHostFromNakedAuthority.test(authority)) {
-      return authority.toLowerCase();
-    }
-    match = reHostFromAuthority.exec(authority);
-    if (match === null) {
-      match = reIPv6FromAuthority.exec(authority);
-      if (match === null) {
+      safeTemplateToDOM: function(_id, _dict, parent) {
+        if (parent === void 0) {
+          return document.createDocumentFragment();
+        }
+        return parent;
+      },
+      render: function(_context) {
+      },
+      renderElapsedTimeToString: function(_tstamp) {
         return "";
+      },
+      patchUnicodeFlags: function(_text) {
+        return document.createDocumentFragment();
       }
-    }
-    let hostname = match[1];
-    while (hostname.endsWith(".")) {
-      hostname = hostname.slice(0, -1);
-    }
-    if (reMustNormalizeHostname.test(hostname)) {
-      hostname = punycode_default.toASCII(hostname.toLowerCase());
-    }
-    return hostname;
+    };
+  }
+  var i18n$ = (...args) => i18n.getMessage(args[0], args.slice(1));
+  var isBackgroundProcess = document.title === "uBlock Resurrected Background Page";
+  if (isBackgroundProcess !== true) {
+    document.body.setAttribute(
+      "dir",
+      ["ar", "he", "fa", "ps", "ur"].indexOf(i18n$("@@ui_locale")) !== -1 ? "rtl" : "ltr"
+    );
+    const allowedTags = /* @__PURE__ */ new Set([
+      "a",
+      "b",
+      "code",
+      "em",
+      "i",
+      "span",
+      "u"
+    ]);
+    const expandHtmlEntities = /* @__PURE__ */ (() => {
+      const entities = /* @__PURE__ */ new Map([
+        ["&shy;", "\xAD"],
+        ["&ldquo;", "\u201C"],
+        ["&rdquo;", "\u201D"],
+        ["&lsquo;", "\u2018"],
+        ["&rsquo;", "\u2019"],
+        ["&lt;", "<"],
+        ["&gt;", ">"]
+      ]);
+      const decodeEntities = (match) => {
+        return entities.get(match) || match;
+      };
+      return function(text) {
+        if (text.indexOf("&") !== -1) {
+          text = text.replace(/&[a-z]+;/g, decodeEntities);
+        }
+        return text;
+      };
+    })();
+    const safeTextToTextNode = function(text) {
+      return document.createTextNode(expandHtmlEntities(text));
+    };
+    const sanitizeElement = function(node) {
+      if (allowedTags.has(node.localName) === false) {
+        return null;
+      }
+      node.removeAttribute("style");
+      let child = node.firstElementChild;
+      while (child !== null) {
+        const next = child.nextElementSibling;
+        if (sanitizeElement(child) === null) {
+          child.remove();
+        }
+        child = next;
+      }
+      return node;
+    };
+    const safeTextToDOM = function(text, parent) {
+      if (text === "") {
+        return;
+      }
+      const hasTemplate = text.indexOf("{{") !== -1;
+      if (text.indexOf("<") === -1 && !hasTemplate) {
+        const toInsert = safeTextToTextNode(text);
+        if (parent.childNodes.length !== 0) {
+          const toRemove = [];
+          let child = parent.firstChild;
+          while (child !== null) {
+            const next = child.nextSibling;
+            if (child.nodeType === 3 && child.nodeValue !== null) {
+              toRemove.push(child);
+            }
+            child = next;
+          }
+          for (const node2 of toRemove) {
+            node2.remove();
+          }
+        }
+        parent.appendChild(toInsert);
+        return;
+      }
+      text = text.replace(/^<p>|<\/p>/g, "").replace(/<p>/g, "\n\n");
+      const domParser = new DOMParser();
+      const parsedDoc = domParser.parseFromString(text, "text/html");
+      if (parent.childNodes.length !== 0) {
+        const toRemove = [];
+        let child = parent.firstChild;
+        while (child !== null) {
+          const next = child.nextSibling;
+          if (child.nodeType === 3 && child.nodeValue !== null) {
+            toRemove.push(child);
+          }
+          child = next;
+        }
+        for (const node2 of toRemove) {
+          node2.remove();
+        }
+      }
+      let node = parsedDoc.body.firstChild;
+      while (node !== null) {
+        const next = node.nextSibling;
+        switch (node.nodeType) {
+          case 1:
+            if (sanitizeElement(node) === null) {
+              break;
+            }
+            parent.appendChild(node);
+            break;
+          case 3:
+            parent.appendChild(node);
+            break;
+          default:
+            break;
+        }
+        node = next;
+      }
+    };
+    i18n.safeTemplateToDOM = function(id, dict, parent) {
+      if (parent === void 0) {
+        parent = document.createDocumentFragment();
+      }
+      let textin = i18n$(id);
+      if (textin === "") {
+        return parent;
+      }
+      if (textin.indexOf("{{") === -1) {
+        safeTextToDOM(textin, parent);
+        return parent;
+      }
+      const re2 = /\{\{\w+\}\}/g;
+      let textout = "";
+      for (; ; ) {
+        const match = re2.exec(textin);
+        if (match === null) {
+          textout += textin;
+          break;
+        }
+        textout += textin.slice(0, match.index);
+        let prop = match[0].slice(2, -2);
+        if (Object.hasOwn(dict, prop)) {
+          textout += dict[prop].replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        } else {
+          textout += prop;
+        }
+        textin = textin.slice(re2.lastIndex);
+      }
+      safeTextToDOM(textout, parent);
+      return parent;
+    };
+    i18n.render = function(context) {
+      const docu = document;
+      const root = context || docu;
+      const elems = root.querySelectorAll("[data-i18n]");
+      for (let i = 0; i < elems.length; i++) {
+        const elem = elems[i];
+        let text = i18n$(elem.getAttribute("data-i18n") || "");
+        if (!text) {
+          continue;
+        }
+        if (text.indexOf("{{") === -1) {
+          safeTextToDOM(text, elem);
+          continue;
+        }
+        const parts = text.split(/(\{\{[^}]+\}\})/);
+        const fragment = document.createDocumentFragment();
+        let textBefore = "";
+        for (let j2 = 0; j2 < parts.length; j2++) {
+          const part = parts[j2];
+          if (part === "") {
+            continue;
+          }
+          if (part.startsWith("{{") && part.endsWith("}}")) {
+            const pos = part.indexOf(":");
+            if (pos !== -1) {
+              part.slice(0, pos) + part.slice(-2);
+            }
+            const selector = part.slice(2, -2);
+            let node;
+            if (selector.charCodeAt(0) !== 46) {
+              node = elem.querySelector(`.${selector}`);
+            }
+            if (node instanceof Element === false) {
+              node = elem.querySelector(selector);
+            }
+            if (node instanceof Element) {
+              safeTextToDOM(textBefore, fragment);
+              fragment.appendChild(node);
+              textBefore = "";
+              continue;
+            }
+          }
+          textBefore += part;
+        }
+        if (textBefore !== "") {
+          safeTextToDOM(textBefore, fragment);
+        }
+        elem.appendChild(fragment);
+      }
+      const elemsTitle = root.querySelectorAll("[data-i18n-title]");
+      for (let i = 0; i < elemsTitle.length; i++) {
+        const elem = elemsTitle[i];
+        const text = i18n$(elem.getAttribute("data-i18n-title") || "");
+        if (!text) {
+          continue;
+        }
+        elem.setAttribute("title", expandHtmlEntities(text));
+      }
+      const elemsPlaceholder = root.querySelectorAll("[placeholder]");
+      for (let i = 0; i < elemsPlaceholder.length; i++) {
+        const elem = elemsPlaceholder[i];
+        const text = i18n$(elem.getAttribute("placeholder") || "");
+        if (text === "") {
+          continue;
+        }
+        elem.setAttribute("placeholder", text);
+      }
+      const elemsTip = root.querySelectorAll("[data-i18n-tip]");
+      for (let i = 0; i < elemsTip.length; i++) {
+        const elem = elemsTip[i];
+        const text = i18n$(elem.getAttribute("data-i18n-tip") || "").replace(/<br>/g, "\n").replace(/\n{3,}/g, "\n\n");
+        elem.setAttribute("data-tip", text);
+        if (elem.getAttribute("aria-label") === "data-tip") {
+          elem.setAttribute("aria-label", text);
+        }
+      }
+      const elemsLabel = root.querySelectorAll("[data-i18n-label]");
+      for (let i = 0; i < elemsLabel.length; i++) {
+        const elem = elemsLabel[i];
+        const text = i18n$(elem.getAttribute("data-i18n-label") || "");
+        elem.setAttribute("label", text);
+      }
+    };
+    i18n.renderElapsedTimeToString = function(tstamp) {
+      let value = (Date.now() - tstamp) / 6e4;
+      if (value < 2) {
+        return i18n$("elapsedOneMinuteAgo");
+      }
+      if (value < 60) {
+        return i18n$("elapsedManyMinutesAgo").replace("{{value}}", Math.floor(value).toLocaleString());
+      }
+      value /= 60;
+      if (value < 2) {
+        return i18n$("elapsedOneHourAgo");
+      }
+      if (value < 24) {
+        return i18n$("elapsedManyHoursAgo").replace("{{value}}", Math.floor(value).toLocaleString());
+      }
+      value /= 24;
+      if (value < 2) {
+        return i18n$("elapsedOneDayAgo");
+      }
+      return i18n$("elapsedManyDaysAgo").replace("{{value}}", Math.floor(value).toLocaleString());
+    };
+    const unicodeFlagToImageSrc = /* @__PURE__ */ new Map([
+      ["\u{1F1E6}\u{1F1F1}", "al"],
+      ["\u{1F1E6}\u{1F1F7}", "ar"],
+      ["\u{1F1E6}\u{1F1F9}", "at"],
+      ["\u{1F1E7}\u{1F1E6}", "ba"],
+      ["\u{1F1E7}\u{1F1EA}", "be"],
+      ["\u{1F1E7}\u{1F1EC}", "bg"],
+      ["\u{1F1E7}\u{1F1F7}", "br"],
+      ["\u{1F1E8}\u{1F1E6}", "ca"],
+      ["\u{1F1E8}\u{1F1ED}", "ch"],
+      ["\u{1F1E8}\u{1F1F3}", "cn"],
+      ["\u{1F1E8}\u{1F1F4}", "co"],
+      ["\u{1F1E8}\u{1F1FE}", "cy"],
+      ["\u{1F1E8}\u{1F1FF}", "cz"],
+      ["\u{1F1E9}\u{1F1EA}", "de"],
+      ["\u{1F1E9}\u{1F1F0}", "dk"],
+      ["\u{1F1E9}\u{1F1FF}", "dz"],
+      ["\u{1F1EA}\u{1F1EA}", "ee"],
+      ["\u{1F1EA}\u{1F1EC}", "eg"],
+      ["\u{1F1EA}\u{1F1F8}", "es"],
+      ["\u{1F1EB}\u{1F1EE}", "fi"],
+      ["\u{1F1EB}\u{1F1F4}", "fo"],
+      ["\u{1F1EB}\u{1F1F7}", "fr"],
+      ["\u{1F1EC}\u{1F1F7}", "gr"],
+      ["\u{1F1ED}\u{1F1F7}", "hr"],
+      ["\u{1F1ED}\u{1F1FA}", "hu"],
+      ["\u{1F1EE}\u{1F1E9}", "id"],
+      ["\u{1F1EE}\u{1F1F1}", "il"],
+      ["\u{1F1EE}\u{1F1F3}", "in"],
+      ["\u{1F1EE}\u{1F1F7}", "ir"],
+      ["\u{1F1EE}\u{1F1F8}", "is"],
+      ["\u{1F1EE}\u{1F1F9}", "it"],
+      ["\u{1F1EF}\u{1F1F5}", "jp"],
+      ["\u{1F1F0}\u{1F1F7}", "kr"],
+      ["\u{1F1F0}\u{1F1FF}", "kz"],
+      ["\u{1F1F1}\u{1F1F0}", "lk"],
+      ["\u{1F1F1}\u{1F1F9}", "lt"],
+      ["\u{1F1F1}\u{1F1FB}", "lv"],
+      ["\u{1F1F2}\u{1F1E6}", "ma"],
+      ["\u{1F1F2}\u{1F1E9}", "md"],
+      ["\u{1F1F2}\u{1F1F0}", "mk"],
+      ["\u{1F1F2}\u{1F1FD}", "mx"],
+      ["\u{1F1F2}\u{1F1FE}", "my"],
+      ["\u{1F1F3}\u{1F1F1}", "nl"],
+      ["\u{1F1F3}\u{1F1F4}", "no"],
+      ["\u{1F1F3}\u{1F1F5}", "np"],
+      ["\u{1F1F5}\u{1F1F1}", "pl"],
+      ["\u{1F1F5}\u{1F1F9}", "pt"],
+      ["\u{1F1F7}\u{1F1F4}", "ro"],
+      ["\u{1F1F7}\u{1F1F8}", "rs"],
+      ["\u{1F1F7}\u{1F1FA}", "ru"],
+      ["\u{1F1F8}\u{1F1E6}", "sa"],
+      ["\u{1F1F8}\u{1F1EE}", "si"],
+      ["\u{1F1F8}\u{1F1F0}", "sk"],
+      ["\u{1F1F8}\u{1F1EA}", "se"],
+      ["\u{1F1F8}\u{1F1F7}", "sr"],
+      ["\u{1F1F9}\u{1F1ED}", "th"],
+      ["\u{1F1F9}\u{1F1EF}", "tj"],
+      ["\u{1F1F9}\u{1F1FC}", "tw"],
+      ["\u{1F1F9}\u{1F1F7}", "tr"],
+      ["\u{1F1FA}\u{1F1E6}", "ua"],
+      ["\u{1F1FA}\u{1F1FF}", "uz"],
+      ["\u{1F1FB}\u{1F1F3}", "vn"],
+      ["\u{1F1FD}\u{1F1F0}", "xk"]
+    ]);
+    const reUnicodeFlags = new RegExp(
+      Array.from(unicodeFlagToImageSrc).map((a) => a[0]).join("|"),
+      "gu"
+    );
+    i18n.patchUnicodeFlags = function(text) {
+      const fragment = document.createDocumentFragment();
+      let i = 0;
+      for (; ; ) {
+        const match = reUnicodeFlags.exec(text);
+        if (match === null) {
+          break;
+        }
+        if (match.index > i) {
+          fragment.append(text.slice(i, match.index));
+        }
+        const img = document.createElement("img");
+        const countryCode = unicodeFlagToImageSrc.get(match[0]);
+        img.src = `/img/flags-of-the-world/${countryCode}.png`;
+        img.title = countryCode;
+        img.classList.add("countryFlag");
+        fragment.append(img, "\u200A");
+        i = reUnicodeFlags.lastIndex;
+      }
+      if (i < text.length) {
+        fragment.append(text.slice(i));
+      }
+      return fragment;
+    };
+    i18n.render();
   }
 
-  // src/js/epicker-ui.ts
-  (() => {
-    if (typeof vAPI !== "object") {
+  // src/js/broadcast.ts
+  var broadcastChannel;
+  function broadcast(message) {
+    if (broadcastChannel === void 0) {
+      broadcastChannel = new self.BroadcastChannel("uBR");
+    }
+    broadcastChannel.postMessage(message);
+  }
+  function onBroadcast(listener) {
+    const bc2 = new self.BroadcastChannel("uBR");
+    bc2.onmessage = (ev) => listener(ev.data || {});
+    return bc2;
+  }
+  function filteringBehaviorChanged(details = {}) {
+    if (typeof details.direction !== "number" || details.direction >= 0) {
+      filteringBehaviorChanged.throttle.offon(727);
+    }
+    broadcast(Object.assign({ what: "filteringBehaviorChanged" }, details));
+  }
+  filteringBehaviorChanged.throttle = vAPI.defer.create(() => {
+    const { history, max } = filteringBehaviorChanged;
+    const now = Date.now() / 1e3 | 0;
+    if (history.length >= max) {
+      if (now - history[0] <= 10 * 60) {
+        return;
+      }
+      history.shift();
+    }
+    history.push(now);
+    vAPI.net.handlerBehaviorChanged();
+  });
+  filteringBehaviorChanged.history = [];
+  filteringBehaviorChanged.max = Math.min(
+    browser.webRequest.MAX_HANDLER_BEHAVIOR_CHANGED_CALLS_PER_10_MINUTES - 1,
+    19
+  );
+
+  // src/js/1p-filters.ts
+  var extensionStorage = browser?.storage?.local || chrome?.storage?.local;
+  var storageGet = async (keys) => {
+    const result = extensionStorage.get(keys);
+    if (result instanceof Promise) {
+      return await result;
+    }
+    return await new Promise((resolve) => {
+      extensionStorage.get(keys, resolve);
+    });
+  };
+  var storageSet = async (bin) => {
+    const result = extensionStorage.set(bin);
+    if (result instanceof Promise) {
+      await result;
       return;
     }
-    const $id = (id) => document.getElementById(id);
-    const $stor = (selector) => document.querySelector(selector);
-    const $storAll = (selector) => document.querySelectorAll(selector);
-    const pickerRoot = document.documentElement;
-    const dialog = $stor("aside");
-    let staticFilteringParser;
-    const svgRoot = $stor("svg#sea");
-    const svgOcean = svgRoot.children[0];
-    const svgIslands = svgRoot.children[1];
-    const NoPaths = "M0 0";
-    const reCosmeticAnchor = /^#(\$|\?|\$\?)?#/;
-    {
-      const url = new URL(self.location.href);
-      if (url.searchParams.has("zap")) {
-        pickerRoot.classList.add("zap");
-      }
-    }
-    const docURL = new URL(vAPI.getURL(""));
-    const computedSpecificityCandidates = /* @__PURE__ */ new Map();
-    let resultsetOpt;
-    let cosmeticFilterCandidates = [];
-    let computedCandidate = "";
-    let needBody = false;
-    const cmEditor = new CodeMirror(document.querySelector(".codeMirrorContainer"), {
-      autoCloseBrackets: true,
-      autofocus: true,
-      extraKeys: {
-        "Ctrl-Space": "autocomplete"
-      },
-      lineWrapping: true,
-      matchBrackets: true,
-      maxScanLines: 1
+    await new Promise((resolve) => {
+      extensionStorage.set(bin, () => {
+        resolve();
+      });
     });
-    vAPI.messaging.send("dashboard", {
-      what: "getAutoCompleteDetails"
-    }).then((hints) => {
+  };
+  var cmEditor = new CodeMirror(qs$("#userFilters"), {
+    autoCloseBrackets: true,
+    autofocus: true,
+    extraKeys: {
+      "Ctrl-Space": "autocomplete",
+      "Tab": "toggleComment"
+    },
+    foldGutter: true,
+    gutters: [
+      "CodeMirror-linenumbers",
+      { className: "CodeMirror-lintgutter", style: "width: 11px" }
+    ],
+    lineNumbers: true,
+    lineWrapping: true,
+    matchBrackets: true,
+    maxScanLines: 1,
+    styleActiveLine: {
+      nonEmpty: true
+    }
+  });
+  uBlockDashboard.patchCodeMirrorEditor(cmEditor);
+  {
+    let hintUpdateToken = 0;
+    const getHints = async function() {
+      const hints = await vAPI.messaging.send("dashboard", {
+        what: "getAutoCompleteDetails",
+        hintUpdateToken
+      });
       if (hints instanceof Object === false) {
         return;
       }
-      cmEditor.setOption("uboHints", hints);
+      if (hints.hintUpdateToken !== void 0) {
+        cmEditor.setOption("uboHints", hints);
+        hintUpdateToken = hints.hintUpdateToken;
+      }
+      timer.on(2503);
+    };
+    const timer = vAPI.defer.create(() => {
+      getHints();
     });
-    const rawFilterFromTextarea = function() {
-      const text = cmEditor.getValue();
-      const pos = text.indexOf("\n");
-      return pos === -1 ? text : text.slice(0, pos);
+    getHints();
+  }
+  vAPI.messaging.send("dashboard", {
+    what: "getTrustedScriptletTokens"
+  }).then((tokens) => {
+    cmEditor.setOption("trustedScriptletTokens", tokens);
+  });
+  var originalState = {
+    enabled: true,
+    trusted: false,
+    filters: ""
+  };
+  function getCurrentState() {
+    const enabled = qs$("#enableMyFilters input").checked;
+    return {
+      enabled,
+      trusted: qs$("#trustMyFilters input").checked,
+      filters: getEditorText()
     };
-    const filterFromTextarea = function() {
-      const filter = rawFilterFromTextarea();
-      if (filter === "") {
-        return "";
-      }
-      const parser = staticFilteringParser;
-      parser.parse(filter);
-      if (parser.isFilter() === false) {
-        return "!";
-      }
-      if (parser.isExtendedFilter()) {
-        if (parser.isCosmeticFilter() === false) {
-          return "!";
+  }
+  function rememberCurrentState() {
+    originalState = getCurrentState();
+  }
+  function currentStateChanged() {
+    return JSON.stringify(getCurrentState()) !== JSON.stringify(originalState);
+  }
+  function getEditorText() {
+    const text = cmEditor.getValue().trimEnd();
+    return text === "" ? text : `${text}
+`;
+  }
+  function setEditorText(text) {
+    cmEditor.setValue(`${text.trimEnd()}
+
+`);
+  }
+  function userFiltersChanged(details = {}) {
+    const changed = typeof details.changed === "boolean" ? details.changed : self.hasUnsavedData();
+    qs$("#userFiltersApply").disabled = !changed;
+    qs$("#userFiltersRevert").disabled = !changed;
+    const enabled = qs$("#enableMyFilters input").checked;
+    const trustedbefore = cmEditor.getOption("trustedSource");
+    const trustedAfter = enabled && qs$("#trustMyFilters input").checked;
+    if (trustedAfter === trustedbefore) {
+      return;
+    }
+    cmEditor.startOperation();
+    cmEditor.setOption("trustedSource", trustedAfter);
+    const doc = cmEditor.getDoc();
+    const history = doc.getHistory();
+    const selections = doc.listSelections();
+    doc.replaceRange(
+      doc.getValue(),
+      { line: 0, ch: 0 },
+      { line: doc.lineCount(), ch: 0 }
+    );
+    doc.setSelections(selections);
+    doc.setHistory(history);
+    cmEditor.endOperation();
+    cmEditor.focus();
+  }
+  function threeWayMerge(newContent) {
+    const prvContent = originalState.filters.trim().split(/\n/);
+    const differ = new self.diff_match_patch();
+    const newChanges = differ.diff(
+      prvContent,
+      newContent.trim().split(/\n/)
+    );
+    const usrChanges = differ.diff(
+      prvContent,
+      getEditorText().trim().split(/\n/)
+    );
+    const out = [];
+    let i = 0, j2 = 0, k2 = 0;
+    while (i < prvContent.length) {
+      for (; j2 < newChanges.length; j2++) {
+        const change = newChanges[j2];
+        if (change[0] !== 1) {
+          break;
         }
-      } else if (parser.isNetworkFilter() === false) {
-        return "!";
+        out.push(change[1]);
       }
-      return filter;
-    };
-    const renderRange = function(id, value, invert = false) {
-      const input = $stor(`#${id} input`);
-      const max = parseInt(input.max, 10);
-      if (typeof value !== "number") {
-        value = parseInt(input.value, 10);
+      for (; k2 < usrChanges.length; k2++) {
+        const change = usrChanges[k2];
+        if (change[0] !== 1) {
+          break;
+        }
+        out.push(change[1]);
       }
-      if (invert) {
-        value = max - value;
+      if (k2 === usrChanges.length || usrChanges[k2][0] !== -1) {
+        out.push(prvContent[i]);
       }
-      input.value = value;
-      const slider = $stor(`#${id} > span`);
-      const lside = slider.children[0];
-      const thumb = slider.children[1];
-      const sliderWidth = slider.offsetWidth;
-      const maxPercent = (sliderWidth - thumb.offsetWidth) / sliderWidth * 100;
-      const widthPercent = value / max * maxPercent;
-      lside.style.width = `${widthPercent}%`;
-    };
-    const userFilterFromCandidate = function(filter) {
-      if (filter === "" || filter === "!") {
+      i += 1;
+      j2 += 1;
+      k2 += 1;
+    }
+    for (; j2 < newChanges.length; j2++) {
+      const change = newChanges[j2];
+      if (change[0] !== 1) {
+        continue;
+      }
+      out.push(change[1]);
+    }
+    for (; k2 < usrChanges.length; k2++) {
+      const change = usrChanges[k2];
+      if (change[0] !== 1) {
+        continue;
+      }
+      out.push(change[1]);
+    }
+    return out.join("\n");
+  }
+  async function renderUserFilters() {
+    const bin = await storageGet([
+      "user-filters",
+      "selectedFilterLists",
+      "userFiltersTrusted"
+    ]);
+    if (bin instanceof Object === false) {
+      return;
+    }
+    const enabled = Array.isArray(bin.selectedFilterLists) && bin.selectedFilterLists.includes("user-filters");
+    const trusted = bin.userFiltersTrusted === true;
+    const content = typeof bin["user-filters"] === "string" ? bin["user-filters"] : "";
+    cmEditor.setOption("trustedSource", trusted);
+    qs$("#enableMyFilters input").checked = enabled;
+    qs$("#trustMyFilters input").checked = trusted;
+    setEditorText(content.trim());
+    userFiltersChanged({ changed: false });
+    rememberCurrentState();
+  }
+  function handleImportFilePicker(ev) {
+    const target = ev.target;
+    const file = target.files?.[0];
+    if (file === void 0 || file.name === "") {
+      return;
+    }
+    if (file.type.indexOf("text") !== 0) {
+      return;
+    }
+    const fr = new FileReader();
+    fr.onload = function() {
+      if (typeof fr.result !== "string") {
         return;
       }
-      let hn2 = hostnameFromURI(docURL.href);
-      if (hn2.startsWith("xn--")) {
-        hn2 = punycode_default.toUnicode(hn2);
-      }
-      if (reCosmeticAnchor.test(filter)) {
-        return hn2 + filter;
-      }
-      const opts = [];
-      if (filter.startsWith("||") === false) {
-        opts.push(`domain=${hn2}`);
-      }
-      if (resultsetOpt !== void 0) {
-        opts.push(resultsetOpt);
-      }
-      if (opts.length) {
-        filter += "$" + opts.join(",");
-      }
-      return filter;
-    };
-    const candidateFromFilterChoice = function(filterChoice) {
-      let { slot, filters } = filterChoice;
-      let filter = filters[slot];
-      for (const elem of $storAll("#candidateFilters li")) {
-        elem.classList.remove("active");
-      }
-      computedCandidate = "";
-      if (filter === void 0) {
-        return "";
-      }
-      if (filter.startsWith("##") === false) {
-        $stor(`#netFilters li:nth-of-type(${slot + 1})`).classList.add("active");
-        return filter;
-      }
-      $stor(`#cosmeticFilters li:nth-of-type(${slot + 1})`).classList.add("active");
-      return cosmeticCandidatesFromFilterChoice(filterChoice);
-    };
-    const cosmeticCandidatesFromFilterChoice = function(filterChoice) {
-      let { slot, filters } = filterChoice;
-      renderRange("resultsetDepth", slot, true);
-      renderRange("resultsetSpecificity");
-      if (computedSpecificityCandidates.has(slot)) {
-        onCandidatesOptimized({ slot });
-        return;
-      }
-      const specificities = [
-        0,
-        // remove hierarchy; remove id, nth-of-type, attribute values
-        2,
-        // remove hierarchy; remove id, nth-of-type
-        3,
-        // remove hierarchy
-        8,
-        // trim hierarchy; remove id, nth-of-type, attribute values
-        10,
-        // trim hierarchy; remove id, nth-of-type
-        12,
-        // remove id, nth-of-type, attribute values
-        14,
-        // remove id, nth-of-type
-        15
-        // keep all = most specific
-      ];
-      const candidates = [];
-      let filter = filters[slot];
-      for (const specificity of specificities) {
-        const paths = [];
-        for (let i = slot; i < filters.length; i++) {
-          filter = filters[i].slice(2);
-          if ((specificity & 1) === 0) {
-            filter = filter.replace(/:nth-of-type\(\d+\)/, "");
-            if (filter.charAt(0) === "#" && ((specificity & 8) === 0 || i === slot)) {
-              const pos = filter.search(/[^\\]\./);
-              if (pos !== -1) {
-                filter = filter.slice(pos + 1);
-              }
-            }
-          }
-          if ((specificity & 2) === 0) {
-            const match = /^\[([^^*$=]+)[\^*$]?=.+\]$/.exec(filter);
-            if (match !== null) {
-              filter = `[${match[1]}]`;
-            }
-          }
-          if (filter.charAt(0) === "#") {
-            filter = filter.replace(/([^\\])\..+$/, "$1");
-          }
-          if (paths.length !== 0) {
-            filter += " > ";
-          }
-          paths.unshift(filter);
-          if ((specificity & 8) === 0 || filter.startsWith("#")) {
-            break;
-          }
-        }
-        if ((specificity & 12) === 8) {
-          let i = 0;
-          while (i < paths.length - 1) {
-            if (/^[a-z0-9]+ > $/.test(paths[i + 1])) {
-              if (paths[i].endsWith(" > ")) {
-                paths[i] = paths[i].slice(0, -2);
-              }
-              paths.splice(i + 1, 1);
-            } else {
-              i += 1;
-            }
-          }
-        }
-        if (needBody && paths.length !== 0 && paths[0].startsWith("#") === false && paths[0].startsWith("body ") === false && (specificity & 12) !== 0) {
-          paths.unshift("body > ");
-        }
-        candidates.push(paths);
-      }
-      pickerContentPort.postMessage({
-        what: "optimizeCandidates",
-        candidates,
-        slot
+      const content = uBlockDashboard.mergeNewLines(getEditorText(), fr.result);
+      cmEditor.operation(() => {
+        const cmPos = cmEditor.getCursor();
+        setEditorText(content);
+        cmEditor.setCursor(cmPos);
+        cmEditor.focus();
       });
     };
-    const onCandidatesOptimized = function(details) {
-      $id("resultsetModifiers").classList.remove("hide");
-      const i = parseInt($stor("#resultsetSpecificity input").value, 10);
-      if (Array.isArray(details.candidates)) {
-        computedSpecificityCandidates.set(details.slot, details.candidates);
+    fr.readAsText(file);
+  }
+  dom.on("#importFilePicker", "change", handleImportFilePicker);
+  function startImportFilePicker() {
+    const input = qs$("#importFilePicker");
+    input.value = "";
+    input.click();
+  }
+  dom.on("#importUserFiltersFromFile", "click", startImportFilePicker);
+  function exportUserFiltersToFile() {
+    const val = getEditorText();
+    if (val === "") {
+      return;
+    }
+    const filename = i18n$("1pExportFilename").replace("{{datetime}}", uBlockDashboard.dateNowToSensibleString()).replace(/ +/g, "_");
+    vAPI.download({
+      "url": `data:text/plain;charset=utf-8,${encodeURIComponent(val)}`,
+      "filename": filename
+    });
+  }
+  async function applyChanges() {
+    const state = getCurrentState();
+    const nextEnabled = state.filters.trim() !== "" ? true : state.enabled;
+    const bin = await storageGet("selectedFilterLists");
+    const selected = new Set(
+      Array.isArray(bin?.selectedFilterLists) ? bin.selectedFilterLists : []
+    );
+    if (nextEnabled) {
+      selected.add("user-filters");
+    } else {
+      selected.delete("user-filters");
+    }
+    qs$("#enableMyFilters input").checked = nextEnabled;
+    await storageSet({
+      "user-filters": state.filters.trim(),
+      selectedFilterLists: Array.from(selected),
+      userFiltersTrusted: state.trusted
+    });
+    rememberCurrentState();
+    userFiltersChanged({ changed: false });
+    void vAPI.messaging.send("dashboard", {
+      what: "reloadAllFilters"
+    });
+  }
+  function revertChanges() {
+    qs$("#enableMyFilters input").checked = originalState.enabled;
+    qs$("#trustMyFilters input").checked = originalState.trusted;
+    setEditorText(originalState.filters);
+    userFiltersChanged();
+  }
+  function getCloudData() {
+    return getEditorText();
+  }
+  function setCloudData(data, append) {
+    if (typeof data !== "string") {
+      return;
+    }
+    if (append) {
+      data = uBlockDashboard.mergeNewLines(getEditorText(), data);
+    }
+    cmEditor.setValue(data);
+  }
+  self.cloud.onPush = getCloudData;
+  self.cloud.onPull = setCloudData;
+  self.wikilink = "https://github.com/gorhill/uBlock/wiki/Dashboard:-My-filters";
+  self.hasUnsavedData = function() {
+    return currentStateChanged();
+  };
+  dom.on("#exportUserFiltersToFile", "click", exportUserFiltersToFile);
+  dom.on("#userFiltersApply", "click", () => {
+    applyChanges();
+  });
+  dom.on("#userFiltersRevert", "click", revertChanges);
+  dom.on("#enableMyFilters input", "change", userFiltersChanged);
+  dom.on("#trustMyFilters input", "change", userFiltersChanged);
+  (async () => {
+    await renderUserFilters();
+    cmEditor.clearHistory();
+    {
+      const line = await vAPI.localStorage.getItemAsync("myFiltersCursorPosition");
+      if (typeof line === "number") {
+        cmEditor.setCursor(line, 0);
       }
-      const candidates = computedSpecificityCandidates.get(details.slot);
-      computedCandidate = candidates[i];
-      cmEditor.setValue(computedCandidate);
-      cmEditor.clearHistory();
-      onCandidateChanged();
-    };
-    const onSvgClicked = function(ev) {
-      if (pickerRoot.classList.contains("zap")) {
-        pickerContentPort.postMessage({
-          what: "zapElementAtPoint",
-          mx: ev.clientX,
-          my: ev.clientY,
-          options: {
-            stay: true,
-            highlight: ev.target !== svgIslands
-          }
-        });
-        return;
-      }
-      if (pickerRoot.classList.contains("paused")) {
-        if (pickerRoot.classList.contains("preview") === false) {
-          unpausePicker();
+      cmEditor.focus();
+    }
+    {
+      let curline = 0;
+      cmEditor.on("cursorActivity", () => {
+        if (timer.ongoing()) {
+          return;
         }
-        return;
-      }
-      if (ev.type === "touch") {
-        pickerRoot.classList.add("show");
-      }
-      pickerContentPort.postMessage({
-        what: "filterElementAtPoint",
-        mx: ev.clientX,
-        my: ev.clientY,
-        broad: ev.ctrlKey
+        if (cmEditor.getCursor().line === curline) {
+          return;
+        }
+        timer.on(701);
       });
-    };
-    const onSvgTouch = /* @__PURE__ */ (() => {
-      let startX = 0, startY = 0;
-      let t0 = 0;
-      return (ev) => {
-        if (ev.type === "touchstart") {
-          startX = ev.touches[0].screenX;
-          startY = ev.touches[0].screenY;
-          t0 = ev.timeStamp;
-          return;
-        }
-        if (startX === void 0) {
-          return;
-        }
-        const stopX = ev.changedTouches[0].screenX;
-        const stopY = ev.changedTouches[0].screenY;
-        const angle = Math.abs(Math.atan2(stopY - startY, stopX - startX));
-        const distance = Math.sqrt(
-          Math.pow(stopX - startX, 2) + Math.pow(stopY - startY, 2)
-        );
-        const duration = ev.timeStamp - t0;
-        if (distance < 32 && duration < 200) {
-          onSvgClicked({
-            type: "touch",
-            target: ev.target,
-            clientX: ev.changedTouches[0].pageX,
-            clientY: ev.changedTouches[0].pageY
-          });
-          ev.preventDefault();
-          return;
-        }
-        if (distance < 64) {
-          return;
-        }
-        const angleUpperBound = Math.PI * 0.25 * 0.5;
-        const swipeRight = angle < angleUpperBound;
-        if (swipeRight === false && angle < Math.PI - angleUpperBound) {
-          return;
-        }
-        if (ev.cancelable) {
-          ev.preventDefault();
-        }
-        if (swipeRight === false) {
-          if (pickerRoot.classList.contains("paused")) {
-            pickerRoot.classList.remove("hide");
-            pickerRoot.classList.add("show");
-          }
-          return;
-        }
-        if (pickerRoot.classList.contains("zap") && svgIslands.getAttribute("d") !== NoPaths) {
-          pickerContentPort.postMessage({
-            what: "unhighlight"
-          });
-          return;
-        } else if (pickerRoot.classList.contains("paused") && pickerRoot.classList.contains("show")) {
-          pickerRoot.classList.remove("show");
-          pickerRoot.classList.add("hide");
-          return;
-        }
-        quitPicker();
-      };
-    })();
-    const onCandidateChanged = function() {
-      const filter = filterFromTextarea();
-      const bad = filter === "!";
-      $stor("section").classList.toggle("invalidFilter", bad);
-      if (bad) {
-        $id("resultsetCount").textContent = "E";
-        $id("create").setAttribute("disabled", "");
-      }
-      const text = rawFilterFromTextarea();
-      $id("resultsetModifiers").classList.toggle(
-        "hide",
-        text === "" || text !== computedCandidate
-      );
-      pickerContentPort.postMessage({
-        what: "dialogSetFilter",
-        filter,
-        compiled: reCosmeticAnchor.test(filter) ? staticFilteringParser.result.compiled : void 0
+      const timer = vAPI.defer.create(() => {
+        curline = cmEditor.getCursor().line;
+        vAPI.localStorage.setItem("myFiltersCursorPosition", curline);
       });
-    };
-    const onPreviewClicked = function() {
-      const state = pickerRoot.classList.toggle("preview");
-      pickerContentPort.postMessage({
-        what: "togglePreview",
-        state
-      });
-    };
-    const onCreateClicked = function() {
-      const candidate = filterFromTextarea();
-      const filter = userFilterFromCandidate(candidate);
-      if (filter !== void 0) {
-        vAPI.messaging.send("elementPicker", {
-          what: "createUserFilter",
-          autoComment: true,
-          filters: filter,
-          docURL: docURL.href,
-          killCache: reCosmeticAnchor.test(candidate) === false
-        });
-      }
-      pickerContentPort.postMessage({
-        what: "dialogCreate",
-        filter: candidate,
-        compiled: reCosmeticAnchor.test(candidate) ? staticFilteringParser.result.compiled : void 0
-      });
-    };
-    const onPickClicked = function() {
-      unpausePicker();
-    };
-    const onQuitClicked = function() {
-      quitPicker();
-    };
-    const onDepthChanged = function() {
-      const input = $stor("#resultsetDepth input");
-      const max = parseInt(input.max, 10);
-      const value = parseInt(input.value, 10);
-      const text = candidateFromFilterChoice({
-        filters: cosmeticFilterCandidates,
-        slot: max - value
-      });
-      if (text === void 0) {
-        return;
-      }
-      cmEditor.setValue(text);
-      cmEditor.clearHistory();
-      onCandidateChanged();
-    };
-    const onSpecificityChanged = function() {
-      renderRange("resultsetSpecificity");
-      if (rawFilterFromTextarea() !== computedCandidate) {
-        return;
-      }
-      const depthInput = $stor("#resultsetDepth input");
-      const slot = parseInt(depthInput.max, 10) - parseInt(depthInput.value, 10);
-      const i = parseInt($stor("#resultsetSpecificity input").value, 10);
-      const candidates = computedSpecificityCandidates.get(slot);
-      computedCandidate = candidates[i];
-      cmEditor.setValue(computedCandidate);
-      cmEditor.clearHistory();
-      onCandidateChanged();
-    };
-    const onCandidateClicked = function(ev) {
-      let li = ev.target.closest("li");
-      if (li === null) {
-        return;
-      }
-      const ul2 = li.closest(".changeFilter");
-      if (ul2 === null) {
-        return;
-      }
-      const choice = {
-        filters: Array.from(ul2.querySelectorAll("li")).map((a) => a.textContent),
-        slot: 0
-      };
-      while (li.previousElementSibling !== null) {
-        li = li.previousElementSibling;
-        choice.slot += 1;
-      }
-      const text = candidateFromFilterChoice(choice);
-      if (text === void 0) {
-        return;
-      }
-      cmEditor.setValue(text);
-      cmEditor.clearHistory();
-      onCandidateChanged();
-    };
-    const onKeyPressed = function(ev) {
-      if ((ev.key === "Delete" || ev.key === "Backspace") && pickerRoot.classList.contains("zap")) {
-        pickerContentPort.postMessage({
-          what: "zapElementAtPoint",
-          options: { stay: true }
-        });
-        return;
-      }
-      if (ev.key === "Escape" || ev.which === 27) {
-        onQuitClicked();
-        return;
-      }
-    };
-    const onStartMoving = /* @__PURE__ */ (() => {
-      let isTouch = false;
-      let mx0 = 0, my0 = 0;
-      let mx1 = 0, my1 = 0;
-      let pw = 0, ph2 = 0;
-      let dw = 0, dh2 = 0;
-      let cx0 = 0, cy0 = 0;
-      let timer;
-      const eatEvent = function(ev) {
-        ev.stopPropagation();
-        ev.preventDefault();
-      };
-      const move = () => {
-        timer = void 0;
-        const cx1 = cx0 + mx1 - mx0;
-        const cy1 = cy0 + my1 - my0;
-        if (cx1 < pw / 2) {
-          dialog.style.setProperty("left", `${Math.max(cx1 - dw / 2, 2)}px`);
-          dialog.style.removeProperty("right");
-        } else {
-          dialog.style.removeProperty("left");
-          dialog.style.setProperty("right", `${Math.max(pw - cx1 - dw / 2, 2)}px`);
-        }
-        if (cy1 < ph2 / 2) {
-          dialog.style.setProperty("top", `${Math.max(cy1 - dh2 / 2, 2)}px`);
-          dialog.style.removeProperty("bottom");
-        } else {
-          dialog.style.removeProperty("top");
-          dialog.style.setProperty("bottom", `${Math.max(ph2 - cy1 - dh2 / 2, 2)}px`);
-        }
-      };
-      const moveAsync = (ev) => {
-        if (timer !== void 0) {
-          return;
-        }
-        if (isTouch) {
-          const touch = ev.touches[0];
-          mx1 = touch.pageX;
-          my1 = touch.pageY;
-        } else {
-          mx1 = ev.pageX;
-          my1 = ev.pageY;
-        }
-        timer = self.requestAnimationFrame(move);
-      };
-      const stop = (ev) => {
-        if (dialog.classList.contains("moving") === false) {
-          return;
-        }
-        dialog.classList.remove("moving");
-        if (isTouch) {
-          self.removeEventListener("touchmove", moveAsync, { capture: true });
-        } else {
-          self.removeEventListener("mousemove", moveAsync, { capture: true });
-        }
-        eatEvent(ev);
-      };
-      return (ev) => {
-        const target = dialog.querySelector("#move");
-        if (ev.target !== target) {
-          return;
-        }
-        if (dialog.classList.contains("moving")) {
-          return;
-        }
-        isTouch = ev.type.startsWith("touch");
-        if (isTouch) {
-          const touch = ev.touches[0];
-          mx0 = touch.pageX;
-          my0 = touch.pageY;
-        } else {
-          mx0 = ev.pageX;
-          my0 = ev.pageY;
-        }
-        const rect = dialog.getBoundingClientRect();
-        dw = rect.width;
-        dh2 = rect.height;
-        cx0 = rect.x + dw / 2;
-        cy0 = rect.y + dh2 / 2;
-        pw = pickerRoot.clientWidth;
-        ph2 = pickerRoot.clientHeight;
-        dialog.classList.add("moving");
-        if (isTouch) {
-          self.addEventListener("touchmove", moveAsync, { capture: true });
-          self.addEventListener("touchend", stop, { capture: true, once: true });
-        } else {
-          self.addEventListener("mousemove", moveAsync, { capture: true });
-          self.addEventListener("mouseup", stop, { capture: true, once: true });
-        }
-        eatEvent(ev);
-      };
-    })();
-    const svgListening = /* @__PURE__ */ (() => {
-      let on2 = false;
-      let timer;
-      let mx = 0, my = 0;
-      const onTimer = () => {
-        timer = void 0;
-        pickerContentPort.postMessage({
-          what: "highlightElementAtPoint",
-          mx,
-          my
-        });
-      };
-      const onHover = (ev) => {
-        mx = ev.clientX;
-        my = ev.clientY;
-        if (timer === void 0) {
-          timer = self.requestAnimationFrame(onTimer);
-        }
-      };
-      return (state) => {
-        if (state === on2) {
-          return;
-        }
-        on2 = state;
-        if (on2) {
-          document.addEventListener("mousemove", onHover, { passive: true });
-          return;
-        }
-        document.removeEventListener("mousemove", onHover, { passive: true });
-        if (timer !== void 0) {
-          self.cancelAnimationFrame(timer);
-          timer = void 0;
-        }
-      };
-    })();
-    const populateCandidates = function(candidates, selector) {
-      const root = dialog.querySelector(selector);
-      const ul2 = root.querySelector("ul");
-      while (ul2.firstChild !== null) {
-        ul2.firstChild.remove();
-      }
-      for (let i = 0; i < candidates.length; i++) {
-        const li = document.createElement("li");
-        li.textContent = candidates[i];
-        ul2.appendChild(li);
-      }
-      if (candidates.length !== 0) {
-        root.style.removeProperty("display");
-      } else {
-        root.style.setProperty("display", "none");
-      }
-    };
-    const showDialog = function(details) {
-      pausePicker();
-      const { netFilters, cosmeticFilters, filter } = details;
-      needBody = cosmeticFilters.length !== 0 && cosmeticFilters[cosmeticFilters.length - 1] === "##body";
-      if (needBody) {
-        cosmeticFilters.pop();
-      }
-      cosmeticFilterCandidates = cosmeticFilters;
-      docURL.href = details.url;
-      populateCandidates(netFilters, "#netFilters");
-      populateCandidates(cosmeticFilters, "#cosmeticFilters");
-      computedSpecificityCandidates.clear();
-      const depthInput = $stor("#resultsetDepth input");
-      depthInput.max = cosmeticFilters.length - 1;
-      depthInput.value = depthInput.max;
-      dialog.querySelector("ul").style.display = netFilters.length || cosmeticFilters.length ? "" : "none";
-      $id("create").setAttribute("disabled", "");
-      if (typeof filter !== "object" || filter === null) {
-        cmEditor.setValue("");
-        return;
-      }
-      const filterChoice = {
-        filters: filter.filters,
-        slot: filter.slot
-      };
-      const text = candidateFromFilterChoice(filterChoice);
-      if (text === void 0) {
-        return;
-      }
-      cmEditor.setValue(text);
-      onCandidateChanged();
-    };
-    const pausePicker = function() {
-      dom.cl.add(pickerRoot, "paused");
-      dom.cl.remove(pickerRoot, "minimized");
-      svgListening(false);
-    };
-    const unpausePicker = function() {
-      dom.cl.remove(pickerRoot, "paused", "preview");
-      dom.cl.add(pickerRoot, "minimized");
-      pickerContentPort.postMessage({
-        what: "togglePreview",
-        state: false
-      });
-      svgListening(true);
-    };
-    const startPicker = function() {
-      self.addEventListener("keydown", onKeyPressed, true);
-      const svg = $stor("svg#sea");
-      svg.addEventListener("click", onSvgClicked);
-      svg.addEventListener("touchstart", onSvgTouch);
-      svg.addEventListener("touchend", onSvgTouch);
-      unpausePicker();
-      $id("quit").addEventListener("click", onQuitClicked);
-      if (pickerRoot.classList.contains("zap")) {
-        return;
-      }
-      cmEditor.on("changes", onCandidateChanged);
-      $id("preview").addEventListener("click", onPreviewClicked);
-      $id("create").addEventListener("click", onCreateClicked);
-      $id("pick").addEventListener("click", onPickClicked);
-      $id("minimize").addEventListener("click", () => {
-        if (dom.cl.has(pickerRoot, "paused") === false) {
-          pausePicker();
-          onCandidateChanged();
-        } else {
-          dom.cl.toggle(pickerRoot, "minimized");
-        }
-      });
-      $id("move").addEventListener("mousedown", onStartMoving);
-      $id("move").addEventListener("touchstart", onStartMoving);
-      $id("candidateFilters").addEventListener("click", onCandidateClicked);
-      $stor("#resultsetDepth input").addEventListener("input", onDepthChanged);
-      $stor("#resultsetSpecificity input").addEventListener("input", onSpecificityChanged);
-      staticFilteringParser = new AstFilterParser({
-        interactive: true,
-        nativeCssHas: vAPI.webextFlavor.env.includes("native_css_has")
-      });
-    };
-    const quitPicker = function() {
-      pickerContentPort.postMessage({ what: "quitPicker" });
-      pickerContentPort.close();
-      pickerContentPort = void 0;
-    };
-    const onPickerMessage = function(msg) {
+    }
+    onBroadcast((msg) => {
       switch (msg.what) {
-        case "candidatesOptimized":
-          onCandidatesOptimized(msg);
-          break;
-        case "showDialog":
-          showDialog(msg);
-          break;
-        case "resultsetDetails": {
-          resultsetOpt = msg.opt;
-          $id("resultsetCount").textContent = msg.count;
-          if (msg.count !== 0) {
-            $id("create").removeAttribute("disabled");
-          } else {
-            $id("create").setAttribute("disabled", "");
-          }
-          break;
-        }
-        case "svgPaths": {
-          let { ocean, islands } = msg;
-          ocean += islands;
-          svgOcean.setAttribute("d", ocean);
-          svgIslands.setAttribute("d", islands || NoPaths);
+        case "userFiltersUpdated": {
+          cmEditor.startOperation();
+          const scroll = cmEditor.getScrollInfo();
+          const selections = cmEditor.listSelections();
+          const shouldMerge = self.hasUnsavedData();
+          const beforeContent = getEditorText();
+          renderUserFilters().then(() => {
+            if (shouldMerge) {
+              setEditorText(threeWayMerge(beforeContent));
+              userFiltersChanged({ changed: true });
+            }
+            cmEditor.clearHistory();
+            cmEditor.setSelection(selections[0].anchor, selections[0].head);
+            cmEditor.scrollTo(scroll.left, scroll.top);
+            cmEditor.endOperation();
+          });
           break;
         }
         default:
           break;
       }
-    };
-    let pickerContentPort;
-    globalThis.addEventListener("message", (ev) => {
-      const msg = ev.data || {};
-      if (msg.what !== "epickerStart") {
-        return;
-      }
-      if (Array.isArray(ev.ports) === false) {
-        return;
-      }
-      if (ev.ports.length === 0) {
-        return;
-      }
-      pickerContentPort = ev.ports[0];
-      pickerContentPort.onmessage = (ev2) => {
-        const msg2 = ev2.data || {};
-        onPickerMessage(msg2);
-      };
-      pickerContentPort.onmessageerror = () => {
-        quitPicker();
-      };
-      startPicker();
-      pickerContentPort.postMessage({ what: "start" });
-    }, { once: true });
+    });
   })();
+  cmEditor.on("changes", userFiltersChanged);
+  CodeMirror.commands.save = applyChanges;
 })();
-/*! Home: https://github.com/gorhill/publicsuffixlist.js -- GPLv3 APLv2 */
-/*! https://mths.be/punycode v1.3.2 by @mathias */
