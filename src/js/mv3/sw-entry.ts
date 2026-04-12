@@ -1524,6 +1524,9 @@ const loadPopupState = async () => {
     
     popupState.initialized = true;
     
+    // Load filter lists on startup
+    await reloadAllFilterLists();
+    
     // Sync all DNR rules on startup after state is loaded
     void syncFirewallDnrRules();
     void syncHostnameSwitchDnrRules();
