@@ -61,6 +61,14 @@ export const INLINE_ANY = ResourceType.INLINE_FONT | ResourceType.INLINE_SCRIPT;
 export const PING_ANY = ResourceType.BEACON | ResourceType.CSP_REPORT | ResourceType.PING;
 export const SCRIPT_ANY = ResourceType.SCRIPT | ResourceType.INLINE_SCRIPT;
 
+export const FONT = ResourceType.FONT;
+export const IMAGE = ResourceType.IMAGE;
+export const MEDIA = ResourceType.MEDIA;
+export const WEBSOCKET = ResourceType.WEBSOCKET;
+export const XMLHTTPREQUEST = ResourceType.XMLHTTPREQUEST;
+export const METHOD_GET = HttpMethod.GET;
+export const METHOD_POST = HttpMethod.POST;
+
 const typeStrToIntMap: Record<string, ResourceType> = {
     'no_type': ResourceType.NO_TYPE,
     'beacon': ResourceType.BEACON,

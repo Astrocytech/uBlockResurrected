@@ -23,7 +23,6 @@ const entries = [
   'src/js/dashboard-common.ts',
   'src/js/dashboard.ts',
   'src/js/messaging.ts',
-  'src/js/cloud-ui.ts',
   'src/js/contentscript.ts',
   'src/js/about.ts',
   'src/js/support.ts',

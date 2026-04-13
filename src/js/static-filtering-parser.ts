@@ -100,6 +100,7 @@ export const AST_ERROR_OPTION_BADVALUE                = 1 << iota++;
 export const AST_ERROR_OPTION_EXCLUDED                = 1 << iota++;
 export const AST_ERROR_IF_TOKEN_UNKNOWN               = 1 << iota++;
 export const AST_ERROR_UNTRUSTED_SOURCE               = 1 << iota++;
+export const AST_ERROR_UNSUPPORTED                   = 0;
 
 iota = 0;
 const NODE_RIGHT_INDEX                                = iota++;

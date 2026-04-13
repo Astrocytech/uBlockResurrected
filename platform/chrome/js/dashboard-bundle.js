@@ -16,15 +16,15 @@
     return Array.from(target);
   };
   var makeEventHandler = (selector, callback) => {
-    return function(event) {
-      const dispatcher = event.currentTarget;
+    return function(event2) {
+      const dispatcher = event2.currentTarget;
       if (dispatcher instanceof HTMLElement === false || typeof dispatcher.querySelectorAll !== "function") {
         return;
       }
-      const receiver = event.target;
+      const receiver = event2.target;
       const ancestor = receiver?.closest(selector);
       if (ancestor === receiver && ancestor !== dispatcher && dispatcher.contains(ancestor)) {
-        callback.call(receiver, event);
+        callback.call(receiver, event2);
       }
     };
   };
@@ -198,171 +198,146 @@
   dom.head = document.head;
   dom.body = document.body;
 
-  // src/js/dashboard-common.ts
-  self.uBlockDashboard = self.uBlockDashboard || {};
-  self.uBlockDashboard.mergeNewLines = function(text, newText) {
-    const fromDict = /* @__PURE__ */ new Map();
-    let lineBeg = 0;
-    let textEnd = text.length;
-    while (lineBeg < textEnd) {
-      let lineEnd = text.indexOf("\n", lineBeg);
-      if (lineEnd === -1) {
-        lineEnd = text.indexOf("\r", lineBeg);
-        if (lineEnd === -1) {
-          lineEnd = textEnd;
-        }
-      }
-      const line = text.slice(lineBeg, lineEnd).trim();
-      lineBeg = lineEnd + 1;
-      if (line.length === 0) {
-        continue;
-      }
-      const hash = line.slice(0, 8);
-      const bucket = fromDict.get(hash);
-      if (bucket === void 0) {
-        fromDict.set(hash, line);
-      } else if (typeof bucket === "string") {
-        fromDict.set(hash, [bucket, line]);
-      } else {
-        bucket.push(line);
-      }
+  // src/js/dashboard.ts
+  function discardUnsavedData(synchronous = false) {
+    const paneFrame = qs$("#iframe");
+    const paneWindow = paneFrame.contentWindow;
+    if (typeof paneWindow.hasUnsavedData !== "function" || paneWindow.hasUnsavedData() === false) {
+      return true;
     }
-    const out = [""];
-    lineBeg = 0;
-    textEnd = newText.length;
-    while (lineBeg < textEnd) {
-      let lineEnd = newText.indexOf("\n", lineBeg);
-      if (lineEnd === -1) {
-        lineEnd = newText.indexOf("\r", lineBeg);
-        if (lineEnd === -1) {
-          lineEnd = textEnd;
-        }
-      }
-      const line = newText.slice(lineBeg, lineEnd).trim();
-      lineBeg = lineEnd + 1;
-      if (line.length === 0) {
-        if (out[out.length - 1] !== "") {
-          out.push("");
-        }
-        continue;
-      }
-      const bucket = fromDict.get(line.slice(0, 8));
-      if (bucket === void 0) {
-        out.push(line);
-        continue;
-      }
-      if (typeof bucket === "string" && line !== bucket) {
-        out.push(line);
-        continue;
-      }
-      if (bucket.indexOf(line) === -1) {
-        out.push(line);
-      }
+    if (synchronous) {
+      return false;
     }
-    const append = out.join("\n").trim();
-    if (text !== "" && append !== "") {
-      text += "\n\n";
-    }
-    return text + append;
-  };
-  self.uBlockDashboard.dateNowToSensibleString = function() {
-    const now = new Date(Date.now() - (/* @__PURE__ */ new Date()).getTimezoneOffset() * 6e4);
-    return now.toISOString().replace(/\.\d+Z$/, "").replace(/:/g, ".").replace("T", "_");
-  };
-  self.uBlockDashboard.patchCodeMirrorEditor = function() {
-    let grabFocusTarget;
-    const grabFocus = function() {
-      if (grabFocusTarget) {
-        grabFocusTarget.focus();
-      }
-      grabFocusTarget = void 0;
-    };
-    const grabFocusTimer = vAPI.defer.create(grabFocus);
-    const grabFocusAsync = function(cm) {
-      grabFocusTarget = cm;
-      grabFocusTimer.on(1);
-    };
-    const patchSelectAll = function(cm, details) {
-      const vp = cm.getViewport();
-      if (details.ranges.length !== 1) {
-        return;
-      }
-      const range = details.ranges[0];
-      let lineFrom = range.anchor.line;
-      let lineTo = range.head.line;
-      if (lineTo === lineFrom) {
-        return;
-      }
-      if (range.head.ch !== 0) {
-        lineTo += 1;
-      }
-      if (lineFrom !== vp.from || lineTo !== vp.to) {
-        return;
-      }
-      details.update([
-        {
-          anchor: { line: 0, ch: 0 },
-          head: { line: cm.lineCount(), ch: 0 }
+    return new Promise((resolve) => {
+      const modal = qs$("#unsavedWarning");
+      dom.cl.add(modal, "on");
+      modal.focus();
+      const onDone = (status) => {
+        dom.cl.remove(modal, "on");
+        dom.off(document, "click", onClick, true);
+        resolve(status);
+      };
+      const onClick = (ev) => {
+        const target = ev.target;
+        if (target.matches('[data-i18n="dashboardUnsavedWarningStay"]')) {
+          return onDone(false);
         }
-      ]);
-      grabFocusAsync(cm);
-    };
-    let lastGutterClick = 0;
-    let lastGutterLine = 0;
-    const onGutterClicked = function(cm, line, gutter) {
-      if (gutter !== "CodeMirror-linenumbers") {
-        return;
-      }
-      grabFocusAsync(cm);
-      const delta = Date.now() - lastGutterClick;
-      if (delta >= 500 || line !== lastGutterLine) {
-        cm.setSelection(
-          { line, ch: 0 },
-          { line: line + 1, ch: 0 }
-        );
-        lastGutterClick = Date.now();
-        lastGutterLine = line;
-        return;
-      }
-      let lineFrom = 0;
-      let lineTo = cm.lineCount();
-      const foldFn = cm.getHelper({ line, ch: 0 }, "fold");
-      if (foldFn instanceof Function) {
-        const range = foldFn(cm, { line, ch: 0 });
-        if (range !== void 0) {
-          lineFrom = range.from.line;
-          lineTo = range.to.line + 1;
+        if (target.matches('[data-i18n="dashboardUnsavedWarningIgnore"]')) {
+          return onDone(true);
         }
-      }
-      cm.setSelection(
-        { line: lineFrom, ch: 0 },
-        { line: lineTo, ch: 0 },
-        { scroll: false }
-      );
-      lastGutterClick = 0;
-    };
-    return function(cm) {
-      if (cm.options.inputStyle === "contenteditable") {
-        cm.on("beforeSelectionChange", patchSelectAll);
-      }
-      cm.on("gutterClick", onGutterClicked);
-    };
-  }();
-  self.uBlockDashboard.openOrSelectPage = function(url, options = {}) {
-    let ev;
-    if (url instanceof MouseEvent) {
-      ev = url;
-      url = dom.attr(ev.target, "href");
-    }
-    const details = Object.assign({ url, select: true, index: -1 }, options);
-    vAPI.messaging.send("default", {
-      what: "gotoURL",
-      details
+        if (qs$(modal, '[data-i18n="dashboardUnsavedWarning"]').contains(target)) {
+          return;
+        }
+        onDone(false);
+      };
+      dom.on(document, "click", onClick, true);
     });
-    if (ev) {
-      ev.preventDefault();
+  }
+  function loadDashboardPanel(pane, first) {
+    const tabButton = qs$(`[data-pane="${pane}"]`);
+    if (tabButton === null || dom.cl.has(tabButton, "selected")) {
+      return;
     }
-  };
-  dom.attr("a", "target", "_blank");
-  dom.attr('a[href*="dashboard.html"]', "target", "_parent");
+    const loadPane = () => {
+      self.location.replace(`#${pane}`);
+      dom.cl.remove(".tabButton.selected", "selected");
+      dom.cl.add(tabButton, "selected");
+      tabButton.scrollIntoView();
+      const iframe = qs$("#iframe");
+      iframe.contentWindow.location.replace(pane);
+      if (pane !== "no-dashboard.html") {
+        iframe.addEventListener("load", () => {
+          const wikilink = iframe.contentWindow.wikilink;
+          const link = qs$(".wikilink");
+          if (link) {
+            link.href = wikilink || "";
+          }
+        }, { once: true });
+        vAPI.localStorage.setItem("dashboardLastVisitedPane", pane);
+      }
+    };
+    if (first) {
+      return loadPane();
+    }
+    const r = discardUnsavedData();
+    if (r === false) {
+      return;
+    }
+    if (r === true) {
+      return loadPane();
+    }
+    r.then((status) => {
+      if (status === false) {
+        return;
+      }
+      loadPane();
+    });
+  }
+  function onTabClickHandler(ev) {
+    const target = ev.target;
+    const pane = dom.attr(target, "data-pane");
+    if (pane) {
+      loadDashboardPanel(pane, false);
+    }
+  }
+  if (self.location.hash.slice(1) === "no-dashboard.html") {
+    dom.cl.add(dom.body, "noDashboard");
+  }
+  (async () => {
+    await new Promise((resolve) => {
+      const check = async () => {
+        try {
+          const response = await vAPI.messaging.send("dashboard", {
+            what: "readyToFilter"
+          });
+          if (response) {
+            return resolve(true);
+          }
+          const iframe = qs$("#iframe");
+          if (iframe.src !== "") {
+            iframe.src = "";
+          }
+        } catch {
+        }
+        vAPI.defer.once(250).then(() => check());
+      };
+      check();
+    });
+    dom.cl.remove(dom.body, "notReady");
+    const results = await Promise.all([
+      vAPI.messaging.send("dashboard", { what: "dashboardConfig" }),
+      vAPI.localStorage.getItemAsync("dashboardLastVisitedPane")
+    ]);
+    {
+      const details = results[0] || {};
+      if (details.noDashboard) {
+        self.location.hash = "#no-dashboard.html";
+        dom.cl.add(dom.body, "noDashboard");
+      } else if (self.location.hash === "#no-dashboard.html") {
+        self.location.hash = "";
+      }
+    }
+    {
+      let pane = results[1] || null;
+      if (self.location.hash !== "") {
+        pane = self.location.hash.slice(1) || null;
+      }
+      loadDashboardPanel(pane !== null ? pane : "settings.html", true);
+      dom.on(".tabButton", "click", onTabClickHandler);
+      dom.on(self, "beforeunload", () => {
+        if (discardUnsavedData(true)) {
+          return;
+        }
+        event.preventDefault();
+        event.returnValue = "";
+      });
+      dom.on(self, "hashchange", () => {
+        const pane2 = self.location.hash.slice(1);
+        if (pane2 === "") {
+          return;
+        }
+        loadDashboardPanel(pane2);
+      });
+    }
+  })();
 })();
