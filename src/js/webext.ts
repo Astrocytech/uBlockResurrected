@@ -12,11 +12,22 @@ const webext = {
         }
     },
     storage: {
-        local: chrome.storage.local,
-        session: chrome.storage.session,
-        sync: chrome.storage.sync,
+        local: undefined as typeof chrome.storage.local,
+        session: undefined as typeof chrome.storage.session,
+        sync: undefined as typeof chrome.storage.sync,
     }
 };
+
+// Initialize storage APIs - these may not be available in all contexts
+try {
+    if (typeof chrome !== 'undefined' && chrome.storage) {
+        webext.storage.local = chrome.storage.local;
+        webext.storage.session = chrome.storage.session;
+        webext.storage.sync = chrome.storage.sync;
+    }
+} catch (e) {
+    // Storage not available in this context
+}
 
 // Export globally for other scripts
 (window as any).webext = webext;

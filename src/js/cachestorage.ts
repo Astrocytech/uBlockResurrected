@@ -30,7 +30,12 @@ import µb from './background.js';
 /******************************************************************************/
 
 const STORAGE_NAME = 'uBlock0CacheStorage';
-const extensionStorage = webext.storage.local;
+const extensionStorage = webext.storage?.local ?? {
+    get: async () => ({}),
+    set: async () => {},
+    remove: async () => {},
+    clear: async () => {},
+};
 const pendingWrite = new Map();
 
 const keysFromGetArg = arg => {

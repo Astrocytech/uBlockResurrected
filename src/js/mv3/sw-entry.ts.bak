@@ -131,10 +131,6 @@ import {
 } from './sw-picker.js';
 
 import {
-    applyPersistedHostnameSwitchesForTab,
-} from './sw-whitelist.js';
-
-import {
     registerYouTubeAdBlocker,
 } from './sw-youtube-blocker.js';
 
@@ -604,6 +600,10 @@ const handleDashboardMessage = createDashboardMessageHandler({
     getEngineState: getDashboardEngineState,
 });
 
+// Sync DNR rules based on per-site filtering state - existing function handles this
+// The syncPowerSwitchDnrRules function already exists and is called below
+
+// Messaging router - core messaging infrastructure extracted to sw-message-router.ts
 const Messaging = createMessagingRouter({
     getLegacyMessaging,
     handlePopupPanelMessage,
@@ -668,6 +668,7 @@ registerMessagingHandlers(Messaging, {
 
 // Content script handlers for MV3
 Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
+    console.log('[MV3] retrieveContentScriptParameters:', payload);
     try {
         const tabId = payload?._tabId;
         const url = payload?.url || '';
@@ -766,13 +767,16 @@ Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
             webextFlavor: 'chromium',
         };
         
+        console.log('[MV3] retrieveContentScriptParameters response:', response);
         if (callback) callback(response);
     } catch (e) {
+        console.error('[MV3] retrieveContentScriptParameters error:', e);
         if (callback) callback({ error: (e as Error).message });
     }
 });
 
 Messaging.on('retrieveGenericCosmeticSelectors', async (payload, callback) => {
+    console.log('[MV3] retrieveGenericCosmeticSelectors:', payload);
     try {
         const tabId = payload?._tabId;
         const hostname = payload?.hostname || '';
@@ -881,8 +885,10 @@ Messaging.on('retrieveGenericCosmeticSelectors', async (payload, callback) => {
             excepted,
         };
         
+        console.log('[MV3] retrieveGenericCosmeticSelectors result:', result);
         if (callback) callback({ result });
     } catch (e) {
+        console.error('[MV3] retrieveGenericCosmeticSelectors error:', e);
         if (callback) callback({ error: (e as Error).message });
     }
 });
@@ -951,6 +957,34 @@ Messaging.on('setWhitelist', async (payload, callback) => {
 });
 
 Messaging.on('documentBlocked', async (request, callback) => {
+    if ( request.what === 'listsFromNetFilter' ) {
+        const response: Record<string, any[]> = {};
+        const rawFilter = request.rawFilter as string;
+        if ( rawFilter ) {
+            const results = await findFilterListFromNetFilter(rawFilter);
+            if ( results.length > 0 ) {
+                response[rawFilter] = results;
+            }
+        }
+        if ( callback ) {
+            callback(response);
+        }
+        return response;
+    }
+    if ( request.what === 'listsFromCosmeticFilter' ) {
+        const response: Record<string, any[]> = {};
+        const rawFilter = request.rawFilter as string;
+        if ( rawFilter ) {
+            const results = await findFilterListFromCosmeticFilter(rawFilter);
+            if ( results.length > 0 ) {
+                response[rawFilter] = results;
+            }
+        }
+        if ( callback ) {
+            callback(response);
+        }
+        return response;
+    }
     if ( request.what === 'closeThisTab' ) {
         const tabId = request._sender?.tab?.id;
         if ( typeof tabId === 'number' ) {
@@ -1028,6 +1062,20 @@ Messaging.on('scriptlets', async (request, callback) => {
         }
         return { success: true };
     }
+    if ( request.what === 'createUserFilter' ) {
+        const filter = request.filter as string;
+        if ( filter ) {
+            const items = await chrome.storage.local.get('userFilters');
+            const currentFilters = items.userFilters || '';
+            const newFilters = currentFilters ? `${currentFilters}\n${filter}` : filter;
+            await chrome.storage.local.set({ userFilters: newFilters });
+            await reloadAllFilterLists(popupState, ensurePopupState);
+        }
+        if ( callback ) {
+            callback({ success: true });
+        }
+        return { success: true };
+    }
     if ( request.what === 'readHiddenSettings' ) {
         const items = await chrome.storage.local.get('hiddenSettings');
         const result = items.hiddenSettings || {};
@@ -1061,6 +1109,66 @@ Messaging.on('scriptlets', async (request, callback) => {
 });
 
 Messaging.on('default', async (request, callback) => {
+    if ( request.what === 'getAssetContent' ) {
+        const url = request.url as string;
+        if ( !url ) {
+            const result = { content: '', trustedSource: false };
+            if ( callback ) { callback(result); }
+            return result;
+        }
+        try {
+            const response = await fetch(url);
+            const content = await response.text();
+            const result = { content, trustedSource: false, sourceURL: url };
+            if ( callback ) { callback(result); }
+            return result;
+        } catch (e) {
+            const result = { content: '', trustedSource: false };
+            if ( callback ) { callback(result); }
+            return result;
+        }
+    }
+    if ( request.what === 'getURL' ) {
+        const result = chrome.runtime.getURL(request.path as string);
+        if ( callback ) { callback(result); }
+        return result;
+    }
+    if ( request.what === 'purgeAllCaches' ) {
+        try {
+            // Get bytes in use before
+            const bytesBefore = await chrome.storage.local.getBytesInUse(null);
+            
+            // Clear all cached data
+            const keys = await chrome.storage.local.get(null);
+            const cacheKeys = Object.keys(keys).filter(k => 
+                k.startsWith('assetCache_') || k.startsWith('cachedAsset_') || k === 'filterLists' || k === 'cachedAssets'
+            );
+            if (cacheKeys.length > 0) {
+                await chrome.storage.local.remove(cacheKeys);
+            }
+            
+            // Get bytes in use after
+            const bytesAfter = await chrome.storage.local.getBytesInUse(null);
+            
+            const formatBytes = (bytes: number): string => {
+                if (bytes >= 1048576) return (bytes / 1048576).toFixed(1) + ' MB';
+                if (bytes >= 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                return bytes + ' B';
+            };
+            
+            const result = { 
+                success: true,
+                before: formatBytes(bytesBefore),
+                after: formatBytes(bytesAfter),
+            };
+            if ( callback ) { callback(result); }
+            return result;
+        } catch (e) {
+            const result = { success: false, error: (e as Error).message };
+            if ( callback ) { callback(result); }
+            return result;
+        }
+    }
     if ( request.what === 'assetViewerRead' ) {
         const assetKey = request.assetKey as string;
         if ( assetKey ) {
@@ -1224,6 +1332,7 @@ Messaging.on('default', async (request, callback) => {
         if ( callback ) { callback({ success: true }); }
         return { success: true };
     }
+    // scriptlet handler - execute scriptlet in a tab
     if ( request.what === 'scriptlet' ) {
         const tabId = request.tabId as number;
         const scriptletSrc = request.scriptletSrc as string;
@@ -1244,11 +1353,14 @@ Messaging.on('default', async (request, callback) => {
                     injectImmediately: false,
                     runAt: 'document_end',
                 });
-            } catch (e) { /* ignore */ }
+            } catch (e) {
+                console.log('[MV3] scriptlet error:', e);
+            }
         }
         if ( callback ) { callback({ success: true }); }
         return { success: true };
     }
+    // createUserFilter - add filter from popup/picker
     if ( request.what === 'createUserFilter' ) {
         const filter = request.filter as string;
         if (filter) {
@@ -1258,11 +1370,14 @@ Messaging.on('default', async (request, callback) => {
                 const newFilters = userFilters + '\n' + filter;
                 await chrome.storage.local.set({ userFilters: newFilters });
                 await reloadAllFilterLists(popupState, ensurePopupState);
-            } catch (e) { /* ignore */ }
+            } catch (e) {
+                console.log('[MV3] createUserFilter error:', e);
+            }
         }
         if ( callback ) { callback({ success: true }); }
         return { success: true };
     }
+    // getTrustedScriptletTokens - get redirect engine tokens
     if ( request.what === 'getTrustedScriptletTokens' ) {
         const result: string[] = [];
         // Get tokens from redirect engine if available
@@ -1277,6 +1392,7 @@ Messaging.on('default', async (request, callback) => {
         if ( callback ) { callback(result); }
         return result;
     }
+    // listsFromNetFilter - find filter lists containing a network filter
     if ( request.what === 'listsFromNetFilter' ) {
         const rawFilter = request.rawFilter as string;
         if (rawFilter) {
@@ -1287,6 +1403,7 @@ Messaging.on('default', async (request, callback) => {
         if ( callback ) { callback({}); }
         return {};
     }
+    // listsFromCosmeticFilter - find filter lists containing a cosmetic filter
     if ( request.what === 'listsFromCosmeticFilter' ) {
         const rawFilter = request.rawFilter as string;
         if (rawFilter) {
@@ -1374,6 +1491,7 @@ Messaging.on('default', async (request, callback) => {
         if ( callback ) { callback(supportData); }
         return supportData;
     }
+    // DevTools handlers
     if ( request.what === 'snfeBenchmark' ) {
         const result = { duration: 0, count: 0 };
         try {
@@ -1391,7 +1509,9 @@ Messaging.on('default', async (request, callback) => {
                 result.duration = Date.now() - startTime;
                 result.count = count;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            console.log('[MV3] snfeBenchmark error:', e);
+        }
         if ( callback ) { callback(result); }
         return result;
     }
@@ -1411,7 +1531,9 @@ Messaging.on('default', async (request, callback) => {
                 result.duration = Date.now() - startTime;
                 result.count = count;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            console.log('[MV3] cfeBenchmark error:', e);
+        }
         if ( callback ) { callback(result); }
         return result;
     }
@@ -1426,7 +1548,9 @@ Messaging.on('default', async (request, callback) => {
                 result.duration = Date.now() - startTime;
                 result.count = count;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            console.log('[MV3] sfeBenchmark error:', e);
+        }
         if ( callback ) { callback(result); }
         return result;
     }
@@ -1503,7 +1627,9 @@ Messaging.on('default', async (request, callback) => {
                     };
                 }
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            console.log('[MV3] snfeDump error:', e);
+        }
         if ( callback ) { callback(result); }
         return result;
     }
@@ -1535,7 +1661,9 @@ Messaging.on('default', async (request, callback) => {
                         filterCount: staticNetFilteringEngine.acceptedCount || 0,
                     };
                 }
-            } catch (e) { /* ignore */ }
+            } catch (e) {
+                console.log('[MV3] snfeQuery error:', e);
+            }
         }
         if ( callback ) { callback(result); }
         return result;
@@ -1561,7 +1689,9 @@ Messaging.on('default', async (request, callback) => {
                 result.netSelectorCacheCount = cosmeticFilteringEngine.netSelectorCacheCountMax || 0;
                 result.proceduralFilterCount = cosmeticFilteringEngine.proceduralFilters?.size || 0;
             }
-        } catch (e) { /* ignore */ }
+        } catch (e) {
+            console.log('[MV3] cfeDump error:', e);
+        }
         if ( callback ) { callback(result); }
         return result;
     }
@@ -1900,7 +2030,9 @@ ${dark ? `
                     matchAboutBlank: true,
                     runAt: 'document_start',
                 });
-            } catch (e) { /* ignore */ }
+            } catch (e) {
+                console.log('[MV3] launchElementPicker error:', e);
+            }
         }
         if ( callback ) { callback({ success: true }); }
         return { success: true };
@@ -1935,7 +2067,9 @@ ensurePopupState()
         syncHostnameSwitchDnrRules();
         syncWhitelistDnrRules();
     })
-    .catch(() => { /* ignore */ });
+    .catch(error => {
+        console.error('Failed to initialize popup/firewall state', error);
+    });
 
 (self as any).µBlockMV3 = {
     userSettings: popupState.userSettings,
@@ -1947,6 +2081,7 @@ ensurePopupState()
 (self as any).Zapper = Zapper;
 (self as any).Picker = Picker;
 
+// elementPickerExec - called from context menu to launch the element picker
 (self as any).µb = {
     elementPickerExec: async function(tabId: number, frameId: number, target?: string) {
         const point = getPickerContextPoint(tabId, 0) || getPickerContextPoint(tabId, frameId);
@@ -2078,4 +2213,5 @@ ensurePopupState()
     pageStoreFromTabId: pageStoreFromTabId,
 };
 
+// Initialize context menu
 initContextMenu(popupState.userSettings);

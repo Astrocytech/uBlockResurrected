@@ -82,6 +82,7 @@ export type LegacyMessagingAPI = {
     defaultHandler: null | ((request: any, sender: any, callback: (response?: any) => void) => any);
     PRIVILEGED_ORIGIN: string;
     UNHANDLED: string;
+    on?: (topic: string, handler: any) => void;
     onFrameworkMessage?: (request: any, port: chrome.runtime.Port, callback: (response?: any) => void) => void;
     onPortDisconnect?: (port: chrome.runtime.Port) => void;
 };

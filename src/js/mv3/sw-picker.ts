@@ -131,5 +131,3 @@ export const createPicker = (messaging: LegacyMessagingAPI, zapper: {
         createFilter,
     };
 };
-
-export const Picker = createPicker({} as LegacyMessagingAPI, { isActive: () => false, getTabId: () => null });

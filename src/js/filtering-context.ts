@@ -471,6 +471,10 @@ export class FilteringContext {
         return methodStrToBitMap[a] || 0;
     }
 
+    static getMethod(a: string): HttpMethod {
+        return methodStrToBitMap[a] || 0;
+    }
+
     static getMethodName(a: HttpMethod): string {
         return methodBitToStrMap.get(a) || '';
     }

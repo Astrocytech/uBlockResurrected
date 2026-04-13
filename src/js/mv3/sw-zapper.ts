@@ -103,5 +103,3 @@ export const createZapper = (messaging: LegacyMessagingAPI) => {
         click,
     };
 };
-
-export const Zapper = createZapper({} as LegacyMessagingAPI);

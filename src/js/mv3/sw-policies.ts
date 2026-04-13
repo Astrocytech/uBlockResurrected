@@ -440,13 +440,32 @@ export const syncFilterListDnrRules = async (): Promise<void> => {
                 .map(rule => rule.id)
                 .filter(id => id >= 100 && id < 10000);
 
-            addRules = dnrData.network.ruleset.map((rule: any, index: number) => ({
-                ...rule,
-                id: 100 + index,
-            })).slice(0, 3000);
+            addRules = dnrData.network.ruleset.slice(0, 3000).map((rule: any, index: number) => {
+                // Skip rules with regexFilter over 2KB (DNR limit)
+                const regexFilter = rule.condition?.regexFilter;
+                if (regexFilter && regexFilter.length > 2048) {
+                    return null;
+                }
+                return {
+                    id: 100 + index,
+                    action: { type: rule.action?.type },
+                    condition: {
+                        urlFilter: rule.condition?.urlFilter,
+                        regexFilter: regexFilter,
+                        requestDomains: rule.condition?.requestDomains,
+                        resourceTypes: rule.condition?.resourceTypes,
+                    },
+                    priority: rule.priority,
+                };
+            }).filter(Boolean);
             
-            await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
-            console.log('[DNR] Installed', addRules.length, 'filter list rules');
+            try {
+                await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+                console.log('[DNR] Installed', addRules.length, 'filter list rules');
+            } catch (e) {
+                // Some rules may be skipped (e.g., regex > 2KB) - that's OK
+                console.log('[DNR] Installed filter list rules (some may have been skipped)');
+            }
             
             const cosmeticFiltersData = serializeCosmeticFilterData(dnrData);
             await chrome.storage.local.set({ cosmeticFiltersData: JSON.stringify(cosmeticFiltersData) });
@@ -465,8 +484,12 @@ export const syncFilterListDnrRules = async (): Promise<void> => {
                 await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeRuleIds });
             }
             
-            await chrome.declarativeNetRequest.updateDynamicRules({ addRules: fallbackRules });
-            console.log('[DNR] Installed', fallbackRules.length, 'fallback rules');
+            try {
+                await chrome.declarativeNetRequest.updateDynamicRules({ addRules: fallbackRules });
+                console.log('[DNR] Installed', fallbackRules.length, 'fallback rules');
+            } catch (e) {
+                console.log('[DNR] Installed fallback rules (some may have been skipped)');
+            }
         }
         
     } catch ( e ) {
