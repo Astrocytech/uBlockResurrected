@@ -1,164 +1,300 @@
 /*******************************************************************************
 
-    uBlock Origin - vAPI Common
-    https://github.com/gorhill/uBlock
+    uBlock Resurrected - a comprehensive, efficient content blocker
+    Copyright (C) 2014-2015 The uBlock Resurrected authors
+    Copyright (C) 2014-present Raymond Hill
 
-    Common utilities shared between vAPI modules.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-*******************************************************************************/
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-(function() {
-    'use strict';
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see {http://www.gnu.org/licenses/}.
 
-    var vAPI = window.vAPI || {};
+    Home: https://github.com/gorhill/uBlock
+*/
 
-    vAPI.DEVICE_RENAME_RATE = 1;
+// For background page or non-background pages
 
-    vAPI.responsive = {
-        LARGE: 'large',
-        MEDIUM: 'medium',
-        SMALL: 'small',
-        UNKOWN: 'unknown'
-    };
+/******************************************************************************/
 
-    vAPI.screen = {
-        width: window.screen.width,
-        height: window.screen.height
-    };
+vAPI.T0 = Date.now();
 
-    vAPI.devicePixelRatio = window.devicePixelRatio || 1;
+vAPI.setTimeout = vAPI.setTimeout || self.setTimeout.bind(self);
 
-    vAPI.responsiveBehavior = function() {
-        if (this.screen.width < 400) {
-            return this.responsive.SMALL;
+/******************************************************************************/
+
+vAPI.defer = {
+    create(callback) {
+        return new this.Client(callback);
+    },
+    once(delay, ...args) {
+        const delayInMs = vAPI.defer.normalizeDelay(delay);
+        return new Promise(resolve => {
+            vAPI.setTimeout(
+                (...args) => { resolve(...args); },
+                delayInMs,
+                ...args
+            );
+        });
+    },
+    Client: class {
+        constructor(callback) {
+            this.timer = null;
+            this.type = 0;
+            this.callback = callback;
         }
-        if (this.screen.width < 800) {
-            return this.responsive.MEDIUM;
+        on(delay, ...args) {
+            if ( this.timer !== null ) { return; }
+            const delayInMs = vAPI.defer.normalizeDelay(delay);
+            this.type = 0;
+            this.timer = vAPI.setTimeout(( ) => {
+                this.timer = null;
+                this.callback(...args);
+            }, delayInMs || 1);
         }
-        return this.responsive.LARGE;
-    };
-
-    vAPI.getSelectedElements = function() {
-        var selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0) {
-            return [];
+        offon(delay, ...args) {
+            this.off();
+            this.on(delay, ...args);
         }
-        var elements = [];
-        var range = selection.getRangeAt(0);
-        if (range && range.commonAncestorContainer) {
-            var node = range.commonAncestorContainer;
-            if (node.nodeType === Node.ELEMENT_NODE) {
-                elements.push(node);
-            } else if (node.parentNode && node.parentNode.nodeType === Node.ELEMENT_NODE) {
-                elements.push(node.parentNode);
+        onvsync(delay, ...args) {
+            if ( this.timer !== null ) { return; }
+            const delayInMs = vAPI.defer.normalizeDelay(delay);
+            if ( delayInMs !== 0 ) {
+                this.type = 0;
+                this.timer = vAPI.setTimeout(( ) => {
+                    this.timer = null;
+                    this.onraf(...args);
+                }, delayInMs);
+            } else {
+                this.onraf(...args);
             }
         }
-        return elements;
-    };
-
-    vAPI.getElementSelector = function(element) {
-        if (!element) return '';
-        
-        if (element.id) {
-            return '#' + CSS.escape(element.id);
-        }
-
-        var selector = element.tagName.toLowerCase();
-
-        if (element.className && typeof element.className === 'string') {
-            var classes = element.className.trim().split(/\s+/).slice(0, 2);
-            if (classes.length > 0 && classes[0]) {
-                selector += '.' + classes.map(function(c) {
-                    return CSS.escape(c);
-                }).join('.');
+        onidle(delay, options, ...args) {
+            if ( this.timer !== null ) { return; }
+            const delayInMs = vAPI.defer.normalizeDelay(delay);
+            if ( delayInMs !== 0 ) {
+                this.type = 0;
+                this.timer = vAPI.setTimeout(( ) => {
+                    this.timer = null;
+                    this.onric(options, ...args);
+                }, delayInMs);
+            } else {
+                this.onric(options, ...args);
             }
         }
-
-        if (element.parentNode && element.parentNode.tagName) {
-            var siblings = Array.from(element.parentNode.children).filter(function(el) {
-                return el.tagName === element.tagName;
+        off() {
+            if ( this.timer === null ) { return; }
+            switch ( this.type ) {
+            case 0:
+                self.clearTimeout(this.timer);
+                break;
+            case 1:
+                self.cancelAnimationFrame(this.timer);
+                break;
+            case 2:
+                self.cancelIdleCallback(this.timer);
+                break;
+            default:
+                break;
+            }
+            this.timer = null;
+        }
+        onraf(...args) {
+            if ( this.timer !== null ) { return; }
+            this.type = 1;
+            this.timer = requestAnimationFrame(( ) => {
+                this.timer = null;
+                this.callback(...args);
             });
-            if (siblings.length > 1) {
-                var index = siblings.indexOf(element) + 1;
-                selector += ':nth-of-type(' + index + ')';
+        }
+        onric(options, ...args) {
+            if ( this.timer !== null ) { return; }
+            this.type = 2;
+            this.timer = self.requestIdleCallback(deadline => {
+                this.timer = null;
+                this.callback(deadline, ...args);
+            }, options);
+        }
+        ongoing() {
+            return this.timer !== null;
+        }
+    },
+    normalizeDelay(delay = 0) {
+        if ( typeof delay === 'object' ) {
+            if ( delay.sec !== undefined ) {
+                return delay.sec * 1000;
+            } else if ( delay.min !== undefined ) {
+                return delay.min * 60000;
+            } else if ( delay.hr !== undefined ) {
+                return delay.hr * 3600000;
             }
         }
+        return delay;
+    }
+};
 
-        return selector;
+/******************************************************************************/
+
+// DEBUG: Test if vapi-common.js is loading
+console.log("[VAPI-COMMON] vapi-common.js starting...");
+
+/******************************************************************************/
+
+vAPI.webextFlavor = {
+    major: 0,
+    soup: new Set(),
+    get env() {
+        return Array.from(this.soup);
+    }
+};
+
+// https://bugzilla.mozilla.org/show_bug.cgi?id=1858743
+//   Add support for native `:has()` for Firefox 121+
+
+(( ) => {
+    const ua = navigator.userAgent;
+    const flavor = vAPI.webextFlavor;
+    const soup = flavor.soup;
+    const dispatch = function() {
+        window.dispatchEvent(new CustomEvent('webextFlavor'));
     };
 
-    vAPI.normalizeSelector = function(selector) {
-        if (!selector) return '';
-        
-        selector = selector.trim();
-        
-        selector = selector.replace(/\s+/g, ' ');
-        
-        selector = selector.replace(/\s*>\s*/g, '>');
-        selector = selector.replace(/\s*\+\s*/g, '+');
-        selector = selector.replace(/\s*~\s*/g, '~');
-        
-        return selector;
-    };
+    // This is always true.
+    soup.add('ublock').add('webext');
+    soup.add('ipaddress');
 
-    vAPI.CSSEscape = function(text) {
-        if (typeof CSS !== 'undefined' && CSS.escape) {
-            return CSS.escape(text);
+    // Whether this is a dev build.
+    const manifest = browser.runtime.getManifest();
+    const version = manifest.version_name || manifest.version;
+    if ( /^\d+\.\d+\.\d+\D/.test(version) ) {
+        soup.add('devbuild');
+    }
+
+    if ( /\bMobile\b/.test(ua) ) {
+        soup.add('mobile');
+    }
+
+    if ( CSS.supports('selector(a:has(b))') ) {
+        soup.add('native_css_has');
+    }
+
+    const extensionOrigin = browser.runtime.getURL('');
+
+    // Order of tests is important
+    flavor.isGecko = extensionOrigin.startsWith('moz-extension://');
+    if ( flavor.isGecko ) {
+        soup.add('firefox')
+            .add('user_stylesheet')
+            .add('html_filtering');
+        const match = /Firefox\/(\d+)/.exec(ua);
+        flavor.major = match && parseInt(match[1], 10) || 115;
+    } else {
+        const match = /\bChrom(?:e|ium)\/(\d+)/.exec(ua);
+        if ( match !== null ) {
+            soup.add('chromium')
+                .add('user_stylesheet');
         }
-        return text.replace(/([ !#$%&'()*+,.\/:;<=>?@\[\\\]^`{|}~"])/g, '\\$1');
-    };
+        flavor.major = match && parseInt(match[1], 10) || 120;
+    }
 
-    vAPI.withoutWhitespace = function(text) {
-        if (!text) return '';
-        return text.replace(/[\s\r\n]+/g, '');
-    };
-
-    vAPI.getPageHostname = function() {
-        return window.location.hostname || '';
-    };
-
-    vAPI.getPageURL = function() {
-        return window.location.href || '';
-    };
-
-    vAPI.getPageDomain = function() {
-        return window.location.hostname || '';
-    };
-
-    vAPI.isInternalPage = function() {
-        var url = window.location.href;
-        return url.startsWith('about:') ||
-               url.startsWith('chrome:') ||
-               url.startsWith('moz-extension:') ||
-               url.startsWith('chrome-extension:');
-    };
-
-    vAPI.normalizeRawURL = function(rawURL) {
-        if (!rawURL) return '';
-        
-        if (rawURL.indexOf('://') === -1) {
-            rawURL = 'https://' + rawURL;
-        }
-        
-        try {
-            var url = new URL(rawURL);
-            return url.href;
-        } catch (e) {
-            return rawURL;
-        }
-    };
-
-    vAPI.sanitizeHostname = function(hostname) {
-        if (!hostname) return '';
-        hostname = hostname.trim().toLowerCase();
-        hostname = hostname.replace(/^www\./, '');
-        return hostname;
-    };
-
-    vAPI.sanitizeDomain = vAPI.sanitizeHostname;
-
-    vAPI.webextFlavor = 'chromium';
-
-    window.vAPI = vAPI;
-
+    // Don't starve potential listeners
+    vAPI.setTimeout(dispatch, 97);
 })();
+
+/******************************************************************************/
+
+vAPI.download = function(details) {
+    if ( !details.url ) { return; }
+    const a = document.createElement('a');
+    a.href = details.url;
+    a.setAttribute('download', details.filename || '');
+    a.setAttribute('type', 'text/plain');
+    a.dispatchEvent(new MouseEvent('click'));
+};
+
+/******************************************************************************/
+
+vAPI.getURL = browser.runtime.getURL;
+
+/******************************************************************************/
+
+// https://github.com/gorhill/uBlock/issues/3057
+// - webNavigation.onCreatedNavigationTarget become broken on Firefox when we
+//   try to make the popup panel close itself using the original
+//   `window.open('', '_self').close()`. 
+
+vAPI.closePopup = function() {
+    if ( vAPI.webextFlavor.soup.has('firefox') ) {
+        window.close();
+        return;
+    }
+
+    // TODO: try to figure why this was used instead of a plain window.close().
+    // https://github.com/gorhill/uBlock/commit/b301ac031e0c2e9a99cb6f8953319d44e22f33d2#diff-bc664f26b9c453e0d43a9379e8135c6a
+    window.open('', '_self').close();
+};
+
+/******************************************************************************/
+
+// A localStorage-like object which should be accessible from the
+// background page or auxiliary pages.
+//
+// https://github.com/uBlockOrigin/uBlock-issues/issues/899
+//   Convert into asynchronous access API.
+
+vAPI.localStorage = {
+    clear: function() {
+        vAPI.messaging.send('vapi', {
+            what: 'localStorage',
+            fn: 'clear',
+        });
+    },
+    getItemAsync: function(key) {
+        return vAPI.messaging.send('vapi', {
+            what: 'localStorage',
+            fn: 'getItemAsync',
+            args: [ key ],
+        });
+    },
+    removeItem: function(key) {
+        return vAPI.messaging.send('vapi', {
+            what: 'localStorage',
+            fn: 'removeItem',
+            args: [ key ],
+        });
+    },
+    setItem: function(key, value = undefined) {
+        return vAPI.messaging.send('vapi', {
+            what: 'localStorage',
+            fn: 'setItem',
+            args: [ key, value ]
+        });
+    },
+};
+
+
+
+
+
+
+
+
+/*******************************************************************************
+
+    DO NOT:
+    - Remove the following code
+    - Add code beyond the following code
+    Reason:
+    - https://github.com/gorhill/uBlock/pull/3721
+    - uBR never uses the return value from injected content scripts
+
+**/
+
+void 0;

@@ -1,5 +1,5 @@
 (() => {
-  // src/js/dom.ts
+  // dom.ts
   var normalizeTarget = (target) => {
     if (typeof target === "string") {
       return Array.from(qsa$(target));
@@ -198,7 +198,7 @@
   dom.head = document.head;
   dom.body = document.body;
 
-  // src/js/i18n.ts
+  // i18n.ts
   var i18n = null;
   if (typeof self.browser !== "undefined" && self.browser instanceof Object && !(self.browser instanceof Element)) {
     i18n = self.browser.i18n;
@@ -572,7 +572,7 @@
     i18n.render();
   }
 
-  // src/js/popup-zapper.ts
+  // popup-zapper.ts
   var resolvePopupTabId = async (popupData2, chromeApi) => {
     if (typeof popupData2.tabId === "number") {
       return popupData2.tabId;
@@ -605,7 +605,7 @@
     return true;
   };
 
-  // src/js/popup-picker.ts
+  // popup-picker.ts
   var launchElementPicker = async (popupData2, chromeApi) => {
     if (chromeApi.scripting === void 0) {
       return false;
@@ -638,7 +638,7 @@
     return typeof tabId === "number" ? tabId : null;
   };
 
-  // src/lib/punycode.js
+  // ../lib/punycode.js
   var punycode_default = function() {
     var punycode, maxInt = 2147483647, base = 36, tMin = 1, tMax = 26, skew = 38, damp = 700, initialBias = 72, initialN = 128, delimiter = "-", regexPunycode = /^xn--/, regexNonASCII = /[^\x20-\x7E]/, regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g, errors = {
       "overflow": "Overflow: input needs wider integers to process",
@@ -869,7 +869,7 @@
     return punycode;
   }();
 
-  // src/js/popup-fenix.ts
+  // popup-fenix.ts
   var popupFontSize = "unset";
   Promise.resolve(vAPI.localStorage?.getItemAsync?.("popupFontSize")).then((value) => {
     if (typeof value !== "string" || value === "unset") {
@@ -1061,7 +1061,10 @@
       blocked = counts.blocked.any;
       total = blocked + counts.allowed.any;
     }
-    const text2 = total === 0 ? formatNumber(0) : statsStr.replace("{{count}}", formatNumber(blocked)).replace("{{percent}}", formatNumber(Math.floor(blocked * 100 / total)));
+    const text2 = total === 0 ? formatNumber(0) : statsStr.replace("{{count}}", formatNumber(blocked)).replace(
+      "{{percent}}",
+      formatNumber(Math.floor(blocked * 100 / total))
+    );
     dom.text('[data-i18n^="popupBlockedOnThisPage"] + span', text2);
   };
   var safePunycodeToUnicode = function(hn) {
@@ -1104,7 +1107,11 @@
       }
     }
   };
-  updateFirewallCellRule.actionNames = { "1": "block", "2": "allow", "3": "noop" };
+  updateFirewallCellRule.actionNames = {
+    "1": "block",
+    "2": "allow",
+    "3": "noop"
+  };
   var updateAllFirewallCells = function(doRules = true, doCounts = true) {
     const { pageDomain } = popupData;
     const rowContainer = qs$("#firewall");
@@ -1155,7 +1162,11 @@
       updateFirewallCellCount([cells[0]], allowed.any, blocked.any);
       const { totals } = hnDetails;
       if (totals !== void 0) {
-        updateFirewallCellCount([cells[1]], totals.allowed.any, totals.blocked.any);
+        updateFirewallCellCount(
+          [cells[1]],
+          totals.allowed.any,
+          totals.blocked.any
+        );
       }
       if (hnDetails.domain === pageDomain) {
         a1pScript += allowed.script;
@@ -1171,7 +1182,11 @@
       const fromType = (type) => qsa$(`#firewall > [data-des="*"][data-type="${type}"] > [data-src="."]`);
       updateFirewallCellCount(fromType("1p-script"), a1pScript, b1pScript);
       updateFirewallCellCount(fromType("3p-script"), a3pScript, b3pScript);
-      dom.cl.toggle(rowContainer, "has3pScript", a3pScript !== 0 || b3pScript !== 0);
+      dom.cl.toggle(
+        rowContainer,
+        "has3pScript",
+        a3pScript !== 0 || b3pScript !== 0
+      );
       updateFirewallCellCount(fromType("3p-frame"), a3pFrame, b3pFrame);
       dom.cl.toggle(rowContainer, "has3pFrame", a3pFrame !== 0 || b3pFrame !== 0);
     }
@@ -1333,18 +1348,26 @@
         if (dom.cl.has(target, "on") === false) {
           break;
         }
-        dom.cl.remove('#firewall .filterExpressions span[data-expr="allowed"]', "on");
+        dom.cl.remove(
+          '#firewall .filterExpressions span[data-expr="allowed"]',
+          "on"
+        );
         break;
       case "allowed":
         if (dom.cl.has(target, "on") === false) {
           break;
         }
-        dom.cl.remove('#firewall .filterExpressions span[data-expr="blocked"]', "on");
+        dom.cl.remove(
+          '#firewall .filterExpressions span[data-expr="blocked"]',
+          "on"
+        );
         break;
     }
     filterFirewallRows();
     const elems = qsa$("#firewall .filterExpressions span[data-expr]");
-    const filters = Array.from(elems).map((el) => dom.cl.has(el, "on") ? "1" : "0");
+    const filters = Array.from(elems).map(
+      (el) => dom.cl.has(el, "on") ? "1" : "0"
+    );
     filters.unshift("00");
     vAPI.localStorage.setItem("firewallFilters", filters.join(" "));
   });
@@ -1411,7 +1434,11 @@
   var updateHnSwitches = function() {
     dom.cl.toggle("#no-popups", "on", popupData.noPopups === true);
     dom.cl.toggle("#no-large-media", "on", popupData.noLargeMedia === true);
-    dom.cl.toggle("#no-cosmetic-filtering", "on", popupData.noCosmeticFiltering === true);
+    dom.cl.toggle(
+      "#no-cosmetic-filtering",
+      "on",
+      popupData.noCosmeticFiltering === true
+    );
     dom.cl.toggle("#no-remote-fonts", "on", popupData.noRemoteFonts === true);
     dom.cl.toggle("#no-scripting", "on", popupData.noScripting === true);
   };
@@ -1420,8 +1447,26 @@
       document.title = popupData.appName + " - " + popupData.tabTitle;
     }
     const isFiltering = popupData.netFilteringSwitch;
-    dom.cl.toggle(dom.body, "advancedUser", popupData.advancedUserEnabled === true);
-    dom.cl.toggle(dom.body, "off", popupData.pageURL === "" || isFiltering !== true);
+    console.log(
+      "[Popup] netFilteringSwitch =",
+      isFiltering,
+      "pageURL =",
+      popupData.pageURL
+    );
+    dom.cl.toggle(
+      dom.body,
+      "advancedUser",
+      popupData.advancedUserEnabled === true
+    );
+    dom.cl.toggle(
+      dom.body,
+      "off",
+      popupData.pageURL === "" || isFiltering !== true
+    );
+    console.log(
+      "[Popup] body.off class added:",
+      popupData.pageURL === "" || isFiltering !== true
+    );
     dom.cl.toggle(dom.body, "needSave", popupData.matrixIsDirty === true);
     {
       const [elemHn, elemDn] = qs$("#hostname").children;
@@ -1430,7 +1475,9 @@
         dom.text(elemDn, safePunycodeToUnicode(pageDomain));
         dom.text(
           elemHn,
-          pageHostname !== pageDomain ? safePunycodeToUnicode(pageHostname.slice(0, -pageDomain.length - 1)) + "." : ""
+          pageHostname !== pageDomain ? safePunycodeToUnicode(
+            pageHostname.slice(0, -pageDomain.length - 1)
+          ) + "." : ""
         );
       } else {
         dom.text(elemDn, "");
@@ -1439,7 +1486,11 @@
     }
     const canPick = popupData.canElementPicker && isFiltering;
     dom.cl.toggle("#gotoZap", "canPick", canPick);
-    dom.cl.toggle("#gotoPick", "canPick", canPick && popupData.userFiltersAreEnabled);
+    dom.cl.toggle(
+      "#gotoPick",
+      "canPick",
+      canPick && popupData.userFiltersAreEnabled
+    );
     dom.cl.toggle("#gotoReport", "canPick", canPick);
     dom.cl.toggle("#gotoZap", "hidden", isFiltering === false);
     dom.cl.toggle("#gotoPick", "hidden", isFiltering === false);
@@ -1454,7 +1505,10 @@
     if (total === 0) {
       text = formatNumber(0);
     } else {
-      text = statsStr.replace("{{count}}", formatNumber(blocked)).replace("{{percent}}", formatNumber(Math.floor(blocked * 100 / total)));
+      text = statsStr.replace("{{count}}", formatNumber(blocked)).replace(
+        "{{percent}}",
+        formatNumber(Math.floor(blocked * 100 / total))
+      );
     }
     dom.text('[data-i18n^="popupBlockedSinceInstall"] + span', text);
     renderPrivacyExposure();
@@ -1635,36 +1689,19 @@
       renderCosmeticBadge();
     };
   })();
-  var toggleNetFilteringSwitch = async function(ev) {
-    console.log("[POPUP-FENIX] toggleNetFilteringSwitch called, popupData:", popupData);
+  var toggleNetFilteringSwitch = function(ev) {
     if (!popupData || !popupData.pageURL) {
-      const fallbackTabId = (popupData?.tabId ?? parseInt(new URL(self.location.href).searchParams.get("tabId"), 10)) || null;
-      try {
-        await getPopupData(fallbackTabId);
-      } catch (error) {
-        console.log("[POPUP-FENIX] Failed to refresh popup data before toggle:", error);
-      }
-      if (!popupData || !popupData.pageURL) {
-        console.log("[POPUP-FENIX] No popupData or pageURL, returning early");
-        return;
-      }
+      return;
     }
-    const nextEnabled = dom.cl.toggle(dom.body, "off") === false;
-    const msg = {
+    const newState = dom.cl.toggle(dom.body, "off") === false;
+    popupData.netFilteringSwitch = newState;
+    messaging.send("popupPanel", {
       what: "toggleNetFiltering",
       url: popupData.pageURL,
       scope: ev.ctrlKey || ev.metaKey ? "page" : "",
-      state: nextEnabled,
+      state: newState,
       tabId: popupData.tabId
-    };
-    console.log("[POPUP-FENIX] Sending popupPanel message:", msg);
-    const response = await messaging.send("popupPanel", msg);
-    console.log("[POPUP-FENIX] toggleNetFiltering response:", response);
-    if (response && typeof response === "object") {
-      cachePopupData(normalizeMessagingResponse(response));
-      renderPopup();
-      renderPopupLazy();
-    }
+    });
     renderTooltips("#switch");
     hashFromPopupData(true);
   };
@@ -1677,7 +1714,11 @@
     };
     const reportedStates = [
       { name: "enabled", prop: "netFilteringSwitch", expected: true },
-      { name: "no-cosmetic-filtering", prop: "noCosmeticFiltering", expected: false },
+      {
+        name: "no-cosmetic-filtering",
+        prop: "noCosmeticFiltering",
+        expected: false
+      },
       { name: "no-large-media", prop: "noLargeMedia", expected: false },
       { name: "no-popups", prop: "noPopups", expected: false },
       { name: "no-remote-fonts", prop: "noRemoteFonts", expected: false },
@@ -1692,7 +1733,9 @@
     }
     if (hostnameToSortableTokenMap.size !== 0) {
       const network = {};
-      const hostnames = Array.from(hostnameToSortableTokenMap.keys()).sort(hostnameCompare);
+      const hostnames = Array.from(hostnameToSortableTokenMap.keys()).sort(
+        hostnameCompare
+      );
       for (const hostname of hostnames) {
         const entry = popupData.hostnameDict[hostname];
         const count = entry.counts.blocked.any;
@@ -1897,33 +1940,38 @@
   dom.on("#refresh", "click", (ev) => {
     reloadTab(ev.ctrlKey || ev.metaKey || ev.shiftKey);
   });
-  dom.on(document, "keydown", (ev) => {
-    if (ev.isComposing) {
-      return;
-    }
-    let bypassCache = false;
-    switch (ev.key) {
-      case "F5":
-        bypassCache = ev.ctrlKey || ev.metaKey || ev.shiftKey;
-        break;
-      case "r":
-        if ((ev.ctrlKey || ev.metaKey) !== true) {
-          return;
-        }
-        break;
-      case "R":
-        if ((ev.ctrlKey || ev.metaKey) !== true) {
-          return;
-        }
-        bypassCache = true;
-        break;
-      default:
+  dom.on(
+    document,
+    "keydown",
+    (ev) => {
+      if (ev.isComposing) {
         return;
-    }
-    reloadTab(bypassCache);
-    ev.preventDefault();
-    ev.stopPropagation();
-  }, { capture: true });
+      }
+      let bypassCache = false;
+      switch (ev.key) {
+        case "F5":
+          bypassCache = ev.ctrlKey || ev.metaKey || ev.shiftKey;
+          break;
+        case "r":
+          if ((ev.ctrlKey || ev.metaKey) !== true) {
+            return;
+          }
+          break;
+        case "R":
+          if ((ev.ctrlKey || ev.metaKey) !== true) {
+            return;
+          }
+          bypassCache = true;
+          break;
+        default:
+          return;
+      }
+      reloadTab(bypassCache);
+      ev.preventDefault();
+      ev.stopPropagation();
+    },
+    { capture: true }
+  );
   var expandExceptions = /* @__PURE__ */ new Set();
   vAPI.localStorage.getItemAsync("popupExpandExceptions").then((exceptions) => {
     try {
@@ -1993,16 +2041,21 @@
     }
     setGlobalExpand(dom.cl.has("#firewall", "expanded") === false);
   });
-  dom.on("#firewall", "click", '.isDomain[data-type="*"] > span:first-of-type', (ev) => {
-    const div = ev.target.closest("[data-des]");
-    if (div === null) {
-      return;
+  dom.on(
+    "#firewall",
+    "click",
+    '.isDomain[data-type="*"] > span:first-of-type',
+    (ev) => {
+      const div = ev.target.closest("[data-des]");
+      if (div === null) {
+        return;
+      }
+      setSpecificExpand(
+        dom.attr(div, "data-des"),
+        dom.cl.has(div, "expandException") === false
+      );
     }
-    setSpecificExpand(
-      dom.attr(div, "data-des"),
-      dom.cl.has(div, "expandException") === false
-    );
-  });
+  );
   var saveFirewallRules = async function() {
     const response = await messaging.send("popupPanel", {
       what: "saveFirewallRules",
@@ -2103,10 +2156,12 @@
     return poll;
   })();
   var getPopupData = async function(tabId, first = false) {
-    const response = normalizeMessagingResponse(await messaging.send("popupPanel", {
-      what: "getPopupData",
-      tabId
-    }));
+    const response = normalizeMessagingResponse(
+      await messaging.send("popupPanel", {
+        what: "getPopupData",
+        tabId
+      })
+    );
     cachePopupData(response);
     renderOnce();
     renderPopup();
@@ -2174,15 +2229,25 @@
     };
     getPopupData(tabId, true).then(() => {
       if (document.readyState !== "complete") {
-        dom.on(self, "load", () => {
-          checkViewport();
-        }, { once: true });
+        dom.on(
+          self,
+          "load",
+          () => {
+            checkViewport();
+          },
+          { once: true }
+        );
       } else {
         checkViewport();
       }
     });
   }
   dom.on("#switch", "click", toggleNetFilteringSwitch);
+  dom.on("#switch", "keypress", (ev) => {
+    if (ev.key === "Enter" || ev.key === " ") {
+      toggleNetFilteringSwitch(ev);
+    }
+  });
   dom.on("#gotoZap", "click", gotoZap);
   dom.on("#gotoPick", "click", gotoPick);
   dom.on("#gotoReport", "click", gotoReport);
