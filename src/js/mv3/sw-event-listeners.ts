@@ -92,60 +92,20 @@ export const registerEventListeners = (messaging: LegacyMessagingAPI) => {
         }
     });
 
-    // YouTube early injection
+// Video platform hostname switch application
     chrome.webNavigation?.onCommitted?.addListener(async (details) => {
         if (details.frameId !== 0) { return; }
         await applyPersistedHostnameSwitchesForTab(details.tabId, details.url);
-        
+    });
+
+    // Navigation listener for same-page navigation (including video platforms)
+    chrome.webNavigation?.onHistoryStateUpdated?.addListener(async (details) => {
+        if (details.frameId !== 0) { return; }
         const url = details.url;
-        if (!url || !url.includes('youtube.com')) { return; }
-        
-        if (chrome.scripting?.executeScript === undefined) {
-            console.log('[MV3] chrome.scripting not available');
-            return;
-        }
-        
-        console.log('[MV3] Injecting YouTube ad blocker early into tab', details.tabId);
-        
-        try {
-            await chrome.scripting.executeScript({
-                target: { tabId: details.tabId },
-                world: 'MAIN',
-                func: () => {
-                    console.log('[YT-MAIN] Early page context injection');
-                    
-                    const originalFetch = window.fetch;
-                    window.fetch = function(...args) {
-                        const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
-                        if (url && url.includes('youtube.com/youtubei/v1/player')) {
-                            console.log('[YT-MAIN] Fetch to player API');
-                        }
-                        return originalFetch.apply(this, args).then((response: Response) => {
-                            if (url && url.includes('youtube.com/youtubei/v1/player') && response.ok) {
-                                return response.clone().text().then((text: string) => {
-                                    if (text.includes('"adPlacements"') || text.includes('"playerAds"') || text.includes('"adSlots"')) {
-                                        console.log('[YT-MAIN] Stripping ad data from fetch');
-                                        try {
-                                            const json = JSON.parse(text);
-                                            const stripAdData = (obj: any): any => {
-                                                if (obj === null || obj === undefined) return obj;
-                                                if (typeof obj !== 'object') return obj;
-                                                const newObj: any = Array.isArray(obj) ? [] : {};
-                                                for (const key of Object.keys(obj)) {
-                                                    if (['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams', 'adServerLogger', 'adBreakOverlays'].includes(key)) {
-                                                        console.log('[YT-MAIN] Stripping:', key);
-                                                        continue;
-                                                    }
-                                                    try { newObj[key] = stripAdData(obj[key]); } catch { newObj[key] = obj[key]; }
-                                                }
-                                                return newObj;
-                                            };
-                                            const stripped = stripAdData(json);
-                                            return new Response(JSON.stringify(stripped), {
-                                                status: response.status,
-                                                statusText: response.statusText,
-                                                headers: response.headers
-                                            });
+        if (!url) { return; }
+        // Re-apply hostname switches for SPA navigation
+        await applyPersistedHostnameSwitchesForTab(details.tabId, url);
+    });
                                         } catch {}
                                     }
                                     return response;
