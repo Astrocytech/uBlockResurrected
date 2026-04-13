@@ -262,6 +262,22 @@ const µBlock = {  // jshint ignore:line
     blockingProfileColorCache: new Map(),
     parsedTrustedListPrefixes: [],
     uiAccentStylesheet: '',
+
+    openNewTab(details) {
+        const url = details.url;
+        const tabId = details.tabId;
+        if (details.newTab) {
+            chrome.tabs.create({ url, active: true });
+        } else if (typeof tabId === 'number') {
+            chrome.tabs.update(tabId, { url, active: true });
+        } else {
+            chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+                if (tabs[0]?.id) {
+                    chrome.tabs.update(tabs[0].id, { url, active: true });
+                }
+            });
+        }
+    },
 };
 
 µBlock.isReadyPromise = new Promise(resolve => {

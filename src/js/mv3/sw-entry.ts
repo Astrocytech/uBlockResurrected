@@ -539,6 +539,22 @@ const toggleHostnameSwitch = (request: PopupRequest) => getToggleHandlers().togg
 const toggleNetFiltering = (request: PopupRequest) => getToggleHandlers().toggleNetFiltering(request);
 
 const handlePopupPanelMessage = (request: PopupRequest) => {
+    // Handle gotoURL directly
+    if (request.what === 'gotoURL') {
+        const url = request.details?.url || request.url;
+        if (url) {
+            chrome.tabs.create({ url, active: true });
+            return { success: true };
+        }
+        return { success: false };
+    }
+    
+    // Handle launchReporter - open support page
+    if (request.what === 'launchReporter') {
+        chrome.tabs.create({ url: 'https://github.com/gorhill/uBlock/issues', active: true });
+        return { success: true };
+    }
+    
     return createMessageHandlers({
         popupState,
         getPopupData,
@@ -1061,7 +1077,35 @@ Messaging.on('scriptlets', async (request, callback) => {
 });
 
 Messaging.on('default', async (request, callback) => {
-    if ( request.what === 'assetViewerRead' ) {
+    const what = request.what || request?.details?.what;
+    
+    if ( what === 'gotoURL' ) {
+        const details = request.details || request;
+        const url = details.url as string;
+        const tabId = details.tabId as number;
+        const newTab = details.newTab as boolean;
+        
+        if ( newTab ) {
+            const created = await chrome.tabs.create({ url, active: true });
+            if ( callback ) { callback({ tabId: created.id }); }
+            return { tabId: created.id };
+        } else if ( typeof tabId === 'number' ) {
+            await chrome.tabs.update(tabId, { url, active: true });
+            if ( callback ) { callback({ tabId }); }
+            return { tabId };
+        } else {
+            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+            if ( tabs[0]?.id ) {
+                await chrome.tabs.update(tabs[0].id, { url, active: true });
+                if ( callback ) { callback({ tabId: tabs[0].id }); }
+                return { tabId: tabs[0].id };
+            }
+        }
+        if ( callback ) { callback({ success: false }); }
+        return { success: false };
+    }
+    
+    if ( what === 'assetViewerRead' ) {
         const assetKey = request.assetKey as string;
         if ( assetKey ) {
             const items = await chrome.storage.local.get('assetViewerReadList');
@@ -1077,9 +1121,10 @@ Messaging.on('default', async (request, callback) => {
         return { success: true };
     }
     if ( request.what === 'gotoURL' ) {
-        const url = request.url as string;
-        const tabId = request.tabId as number;
-        const newTab = request.newTab as boolean;
+        const details = request.details || request;
+        const url = details.url as string;
+        const tabId = details.tabId as number;
+        const newTab = details.newTab as boolean;
         
         if ( newTab ) {
             const created = await chrome.tabs.create({ url, active: true });
