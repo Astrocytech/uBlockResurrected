@@ -131,6 +131,14 @@ import {
 } from './sw-picker.js';
 
 import {
+    registerYouTubeAdBlocker,
+} from './sw-youtube-blocker.js';
+
+import {
+    registerChromeEventHandlers,
+} from './sw-chrome-events.js';
+
+import {
     pageStoreFromTabId,
     mustLookup,
     pageStores,
@@ -163,6 +171,15 @@ import {
     collectTabHostnameData,
     getMatchedBlockedRequestCountForTab,
 } from './sw-request-handlers.js';
+
+import {
+    findFilterListFromNetFilter,
+    findFilterListFromCosmeticFilter,
+} from './sw-filter-finders.js';
+
+import {
+    getPopupData,
+} from './sw-popup-data.js';
 
 import type { LegacyMessagingAPI } from './sw-types.js';
 import { userSettingsDefault, reWhitelistBadHostname, reWhitelistHostnameExtractor, hostnameSwitchNames, HOSTNAME_SWITCHES_SCHEMA_VERSION } from './sw-types.js';
@@ -492,176 +509,7 @@ const applyRuleTextDelta = (
     }
 };
 
-const modifyDashboardRuleset = (payload: {
-    permanent?: boolean;
-    toAdd?: string;
-    toRemove?: string;
-}) => {
-    return modifyDashboardRulesetFromModule(
-        payload,
-        popupState,
-        ensurePopupState,
-        persistPermanentFirewall,
-        syncFirewallDnrRules,
-    );
-};
-
-const resetDashboardRules = () => {
-    return resetDashboardRulesFromModule(
-        popupState,
-        ensurePopupState,
-        syncFirewallDnrRules,
-    );
-};
-
-const getPopupData = async (request: PopupRequest) => {
-    await ensurePopupState();
-    const tab = await getTabForRequest(request.tabId);
-    const tabId = tab?.id ?? 0;
-    const pageURL = tab?.url || '';
-    const pageTitle = tab?.title || '';
-    const pageHostname = (() => {
-        try {
-            return pageURL ? new URL(pageURL).hostname : '';
-        } catch {
-            return '';
-        }
-    })();
-    const pageDomain = domainFromHostname(pageHostname);
-
-    const pageStore = tabId > 0 ? await pageStoreFromTabId(tabId) : null;
-
-    const trackedState = typeof tabId === 'number'
-        ? await loadTabRequestStateWithRetry(tabId)
-        : undefined;
-    const liveState = typeof tabId === 'number' && pageHostname !== ''
-        ? await collectTabHostnameData(tabId, pageHostname)
-        : undefined;
-
-    const hostnameDict: Record<string, HostnameDetails> = {};
-    if ( pageHostname !== '' ) {
-        hostnameDict[pageHostname] = zeroHostnameDetails(pageHostname);
-    }
-    if ( pageStore ) {
-        const hostnameDetailsMap = pageStore.getAllHostnameDetails();
-        if ( hostnameDetailsMap ) {
-            for ( const [ hostname, details ] of hostnameDetailsMap ) {
-                hostnameDict[hostname] = cloneHostnameDetails({
-                    domain: (details as any).domain || hostname,
-                    counts: (details as any).counts || createCounts(),
-                    cname: (details as any).cname,
-                });
-            }
-        }
-    }
-    if ( trackedState?.hostnameDict ) {
-        for ( const [ hostname, details ] of Object.entries(trackedState.hostnameDict) ) {
-            if ( hostnameDict[hostname] === undefined ) {
-                hostnameDict[hostname] = cloneHostnameDetails(details);
-            }
-        }
-    }
-    if ( liveState?.hostnameDict ) {
-        for ( const [ hostname, details ] of Object.entries(liveState.hostnameDict) ) {
-            if ( hostnameDict[hostname] === undefined ) {
-                hostnameDict[hostname] = cloneHostnameDetails(details);
-                continue;
-            }
-            if ( trackedState === undefined ) {
-                mergeCounts(hostnameDict[hostname].counts, details.counts);
-            }
-        }
-    }
-
-    let pageCounts = pageStore?.counts 
-        ? { blocked: { ...pageStore.counts.blocked }, allowed: { ...pageStore.counts.allowed } }
-        : createCounts();
-    if ( trackedState?.pageCounts ) {
-        mergeCounts(pageCounts, trackedState.pageCounts);
-    }
-    if ( trackedState === undefined && liveState?.pageCounts ) {
-        mergeCounts(pageCounts, liveState.pageCounts);
-    }
-    if ( tabId > 0 ) {
-        const matchedBlockedCount = await getMatchedBlockedRequestCountForTab(
-            tabId,
-            trackedState?.startedAt || 0,
-        );
-        if ( typeof matchedBlockedCount === 'number' && matchedBlockedCount > pageCounts.blocked.any ) {
-            pageCounts.blocked.any = matchedBlockedCount;
-        }
-    }
-
-    const netFilteringSwitch = pageStore 
-        ? pageStore.getNetFilteringSwitch()
-        : true;
-
-    const hostnameSwitches = popupState.sessionHostnameSwitches;
-    const noPopups = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-popups'] === true;
-    const noCosmeticFiltering = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-cosmetic-filtering'] === true;
-    const noLargeMedia = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-large-media'] === true;
-    const noRemoteFonts = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-remote-fonts'] === true;
-    const noScripting = pageHostname !== '' && hostnameSwitches[pageHostname]?.['no-scripting'] === true;
-    const switchMetrics = tabId > 0
-        ? await getTabSwitchMetrics(tabId)
-        : {
-            popupBlockedCount: 0,
-            largeMediaCount: 0,
-            remoteFontCount: 0,
-            scriptCount: 0,
-        };
-
-    const contentLastModified = pageStore?.contentLastModified || 0;
-    const largeMediaCount = pageStore?.largeMediaCount ?? switchMetrics.largeMediaCount;
-    const remoteFontCount = pageStore?.remoteFontCount ?? switchMetrics.remoteFontCount;
-    const popupBlockedCount = pageStore?.popupBlockedCount ?? switchMetrics.popupBlockedCount;
-
-    return {
-        advancedUserEnabled: popupState.userSettings.advancedUserEnabled,
-        appName: chrome.runtime.getManifest().name,
-        appVersion: chrome.runtime.getManifest().version,
-        colorBlindFriendly: popupState.userSettings.colorBlindFriendly,
-        contentLastModified,
-        cosmeticFilteringSwitch: noCosmeticFiltering !== true,
-        firewallPaneMinimized: popupState.userSettings.firewallPaneMinimized,
-        firewallRules: getFirewallRulesForPopup(pageHostname, hostnameDict),
-        godMode: popupState.userSettings.filterAuthorMode === true,
-        globalAllowedRequestCount: popupState.globalAllowedRequestCount,
-        globalBlockedRequestCount: popupState.globalBlockedRequestCount,
-        hasUnprocessedRequest: (() => {
-            const vAPINet = (globalThis as any).vAPI?.net;
-            if (vAPINet?.hasUnprocessedRequest) {
-                return vAPINet.hasUnprocessedRequest(tabId) === true;
-            }
-            return popupState.tabMetrics?.[tabId]?.hasUnprocessedRequest === true;
-        })(),
-        hostnameDict,
-        pageCounts,
-        pageDomain,
-        pageHostname,
-        pageURL,
-        popupBlockedCount,
-        popupPanelDisabledSections: 0,
-        popupPanelHeightMode: 0,
-        popupPanelLockedSections: 0,
-        popupPanelOrientation: '',
-        popupPanelSections: popupState.userSettings.popupPanelSections,
-        rawURL: pageURL,
-        tabId,
-        tabTitle: pageTitle,
-        tooltipsDisabled: popupState.userSettings.tooltipsDisabled,
-        netFilteringSwitch,
-        largeMediaCount,
-        remoteFontCount,
-        noPopups,
-        noLargeMedia,
-        noRemoteFonts,
-        noScripting,
-        userSettings: popupState.userSettings,
-        whitelist: popupState.whitelist,
-        whitelistDefault: popupState.userSettings.netWhitelistDefault || [],
-    };
-};
+// Use getPopupData from sw-popup-data module (imported above)
 
 const getToggleHandlers = () => createToggleHandlers({
     popupState,
@@ -765,23 +613,70 @@ const Messaging = createMessagingRouter({
 const Zapper = createZapper(Messaging as unknown as LegacyMessagingAPI);
 const Picker = createPicker(Messaging as unknown as LegacyMessagingAPI, Zapper);
 
-Messaging.on('ping', (_, callback) => {
-    if (callback) callback({ pong: true, timestamp: Date.now() });
+const getHostnameSwitchState = (): Record<string, Record<string, boolean>> => {
+    return popupState.sessionHostnameSwitches;
+};
+
+const getWhitelist = async () => {
+    await ensurePopupState();
+    return {
+        whitelist: popupState.whitelist || [],
+        whitelistDefault: userSettingsDefault.netWhitelistDefault || [],
+        reBadHostname: reWhitelistBadHostname.source,
+        reHostnameExtractor: reWhitelistHostnameExtractor.source,
+    };
+};
+
+const setWhitelist = async (payload: { whitelist: string }) => {
+    const whitelist = typeof payload?.whitelist === 'string' 
+        ? payload.whitelist.split('\n').filter(Boolean) 
+        : [];
+    await ensurePopupState();
+    popupState.whitelist = whitelist;
+    await chrome.storage.local.set({ whitelist: whitelist.join('\n') });
+    return { success: true };
+};
+
+registerMessagingHandlers(Messaging, {
+    popupState,
+    handlePopupPanelMessage,
+    handleDashboardMessage,
+    getHostnameSwitchState,
+    parseStoredCosmeticFilterData,
+    buildSpecificCosmeticPayload,
+    getTabSwitchMetrics,
+    getHiddenElementCountForTab: getHiddenElementCountForTabFromModule,
+    getFilterListState,
+    applyFilterListSelection,
+    reloadAllFilterLists,
+    updateFilterListsNow,
+    getDashboardRules: () => getPopupData({ what: 'getDashboardRules' }),
+    modifyDashboardRuleset: modifyDashboardRulesetFromModule,
+    resetDashboardRules: resetDashboardRulesFromModule,
+    getLocalData,
+    backupUserData,
+    restoreUserData,
+    resetUserData,
+    getWhitelist,
+    setWhitelist,
+    pageStoreFromTabId,
 });
 
-    // Handle popupPanel messages (including toggleNetFiltering)
-    console.log('[MV3] Registering popupPanel handler');
-    Messaging.on('popupPanel', async (payload, callback) => {
-        console.log('[MV3] popupPanel message received:', payload);
-        try {
-            const result = await handlePopupPanelMessage(payload);
-            console.log('[MV3] popupPanel result:', result);
-            if (callback) callback(result);
-        } catch (e) {
-            console.error('[MV3] popupPanel error:', e);
-            if (callback) callback({ error: (e as Error).message });
-        }
-    });
+// Use ping from sw-messaging-handlers module
+
+// Handle popupPanel messages (including toggleNetFiltering)
+console.log('[MV3] Registering popupPanel handler');
+Messaging.on('popupPanel', async (payload, callback) => {
+    console.log('[MV3] popupPanel message received:', payload);
+    try {
+        const result = await handlePopupPanelMessage(payload);
+        console.log('[MV3] popupPanel result:', result);
+        if (callback) callback(result);
+    } catch (e) {
+        console.error('[MV3] popupPanel error:', e);
+        if (callback) callback({ error: (e as Error).message });
+    }
+});
 
 // Content script handlers for MV3
 Messaging.on('retrieveContentScriptParameters', async (payload, callback) => {
@@ -1010,41 +905,18 @@ Messaging.on('retrieveGenericCosmeticSelectors', async (payload, callback) => {
     }
 });
 
-Messaging.on('getTabId', (_, callback) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (callback) {
-            callback({ tabId: tabs[0]?.id ?? null });
-        }
-    });
-});
+// Use getTabId from sw-messaging-handlers module
 
-Messaging.on('userSettings', (_, callback) => {
-    chrome.storage.local.get('userSettings', (items) => {
-        if (callback) {
-            callback(items.userSettings || {});
-        }
-    });
-});
-
-Messaging.on('setUserSettings', (payload, callback) => {
-    chrome.storage.local.get('userSettings', (items) => {
-        const settings = { ...(items.userSettings || {}), ...payload };
-        chrome.storage.local.set({ userSettings: settings }, () => {
-            if (callback) callback({ success: true });
-        });
-    });
-});
-
-Messaging.on('dashboardGetRules', async (_, callback) => {
-    const details = await getDashboardRules();
-    if ( callback ) {
-        callback(details);
-    }
-    return details;
-});
+// Use userSettings, setUserSettings, dashboardGetRules from sw-messaging-handlers module
 
 Messaging.on('dashboardModifyRuleset', async (payload, callback) => {
-    const details = await modifyDashboardRuleset(payload || {});
+    const details = await modifyDashboardRulesetFromModule(
+        payload || {},
+        popupState,
+        ensurePopupState,
+        persistPermanentFirewall,
+        syncFirewallDnrRules,
+    );
     if ( callback ) {
         callback(details);
     }
@@ -1052,7 +924,11 @@ Messaging.on('dashboardModifyRuleset', async (payload, callback) => {
 });
 
 Messaging.on('dashboardResetRules', async (_, callback) => {
-    const details = await resetDashboardRules();
+    const details = await resetDashboardRulesFromModule(
+        popupState,
+        ensurePopupState,
+        syncFirewallDnrRules,
+    );
     if ( callback ) {
         callback(details);
     }
@@ -1260,19 +1136,7 @@ Messaging.on('getAutoCompleteDetails', async (_, callback) => {
     return result;
 });
 
-Messaging.on('getTrustedScriptletTokens', async (_, callback) => {
-    const result: string[] = [];
-    try {
-        const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
-        if (redirectEngine?.getTrustedScriptletTokens) {
-            result.push(...redirectEngine.getTrustedScriptletTokens());
-        } else if (redirectEngine?.tokens) {
-            result.push(...redirectEngine.tokens);
-        }
-    } catch (e) {}
-    if ( callback ) { callback(result); }
-    return result;
-});
+// Use getTrustedScriptletTokens from sw-messaging-handlers module
 
 Messaging.on('scriptlets', async (request, callback) => {
     if ( request.what === 'applyFilterListSelection' ) {
@@ -2292,337 +2156,20 @@ ${dark ? `
     return undefined;
 });
 
-const findFilterListFromNetFilter = async (rawFilter: string): Promise<any[]> => {
-    const results: any[] = [];
-    if (!rawFilter || rawFilter.trim() === '') {
-        return results;
-    }
-    
-    // Normalize the filter for searching
-    const normalizedFilter = rawFilter.trim().toLowerCase();
-    const isWhitelist = normalizedFilter.startsWith('@@');
-    const filterPattern = isWhitelist ? normalizedFilter.slice(2) : normalizedFilter;
-    
-    try {
-        const stored = await chrome.storage.local.get(['filterLists', 'selectedFilterLists', 'userFilters']);
-        const selectedFilterLists = stored.selectedFilterLists || [];
-        const filterLists = stored.filterLists || {};
-        
-        // Also check user filters
-        const userFiltersContent = stored.userFilters || '';
-        
-        // Check user filters first
-        if (userFiltersContent.toLowerCase().includes(filterPattern)) {
-            results.push({
-                assetKey: 'user',
-                title: 'My filters',
-                supportURL: '',
-                type: 'user',
-            });
-        }
-        
-        // Check selected filter lists
-        for (const listKey of selectedFilterLists) {
-            const listInfo = filterLists[listKey as string] as any;
-            if (listInfo && listInfo.title && listInfo.content) {
-                const content = listInfo.content.toLowerCase();
-                // Check for exact match or partial match
-                if (content.includes(filterPattern) || content.includes(normalizedFilter)) {
-                    results.push({
-                        assetKey: listKey,
-                        title: listInfo.title,
-                        supportURL: listInfo.supportURL || '',
-                        description: listInfo.description || '',
-                        type: 'list',
-                    });
-                }
-            }
-        }
-        
-    } catch (e) {
-        console.error('[MV3] findFilterListFromNetFilter error:', e);
-    }
-    return results;
-};
+// Use findFilterListFromNetFilter from sw-filter-finders module
+// Use findFilterListFromCosmeticFilter from sw-filter-finders module
+// Use pickerContextMenuPoint from sw-messaging-handlers module
 
-const findFilterListFromCosmeticFilter = async (rawFilter: string): Promise<any[]> => {
-    const results: any[] = [];
-    if (!rawFilter || rawFilter.trim() === '') {
-        return results;
-    }
-    
-    // Normalize cosmetic filter for searching
-    // Remove ## or #@# prefix
-    const normalizedFilter = rawFilter.trim()
-        .replace(/^##/, '')
-        .replace(/^#@#/, '')
-        .replace(/^#@/, '')
-        .replace(/^##/, '')
-        .toLowerCase();
-    
-    try {
-        const stored = await chrome.storage.local.get(['filterLists', 'selectedFilterLists', 'userFilters']);
-        const selectedFilterLists = stored.selectedFilterLists || [];
-        const filterLists = stored.filterLists || {};
-        
-        // Check user filters for cosmetic rules
-        const userFiltersContent = stored.userFilters || '';
-        if (userFiltersContent.toLowerCase().includes(normalizedFilter) || 
-            userFiltersContent.toLowerCase().includes(rawFilter.trim().toLowerCase())) {
-            results.push({
-                assetKey: 'user',
-                title: 'My filters',
-                supportURL: '',
-                type: 'user',
-            });
-        }
-        
-        // Check selected filter lists for cosmetic rules
-        for (const listKey of selectedFilterLists) {
-            const listInfo = filterLists[listKey as string] as any;
-            if (listInfo && listInfo.title && listInfo.content) {
-                const content = listInfo.content.toLowerCase();
-                // Look for cosmetic filter patterns
-                if (content.includes(`##${normalizedFilter}`) || 
-                    content.includes(`#@#${normalizedFilter}`) ||
-                    content.includes(rawFilter.trim().toLowerCase())) {
-                    results.push({
-                        assetKey: listKey,
-                        title: listInfo.title,
-                        supportURL: listInfo.supportURL || '',
-                        description: listInfo.description || '',
-                        type: 'list',
-                    });
-                }
-            }
-        }
-        
-    } catch (e) {
-        console.error('[MV3] findFilterListFromCosmeticFilter error:', e);
-    }
-    return results;
-};
-
-Messaging.on('pickerContextMenuPoint', (payload, callback) => {
-    const tabId = typeof payload?._tabId === 'number' ? payload._tabId : payload?._sender?.tab?.id;
-    const frameId = typeof payload?._sender?.frameId === 'number' ? payload._sender.frameId : 0;
-    if (
-        typeof tabId === 'number' &&
-        typeof payload?.x === 'number' &&
-        typeof payload?.y === 'number'
-    ) {
-        pickerContextPoints.set(pickerContextPointKey(tabId, frameId), {
-            tabId,
-            frameId,
-            x: payload.x,
-            y: payload.y,
-            timestamp: Date.now(),
-            target: payload?.target && typeof payload.target.selector === 'string'
-                ? { selector: payload.target.selector }
-                : undefined,
-        });
-    }
-    if ( callback ) {
-        callback({ success: true });
-    }
-    return { success: true };
-});
-
-chrome.commands.onCommand.addListener((command) => {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        const tabId = tabs[0]?.id;
-        if (!tabId) return;
-
-        switch (command) {
-            case 'launch-element-zapper':
-                Zapper.activate(tabId);
-                break;
-            case 'launch-element-picker':
-                Picker.activate(tabId);
-                break;
-            case 'open-dashboard':
-                chrome.runtime.openOptionsPage();
-                break;
-            case 'launch-logger':
-                chrome.tabs.create({ url: 'logger-ui.html' });
-                break;
-        }
-    });
-});
-
-chrome.webRequest.onBeforeRequest.addListener(
-    details => {
-        trackPendingRequest(details as chrome.webRequest.WebRequestBodyDetails);
-    },
-    { urls: [ '<all_urls>' ] },
-);
-
-chrome.webRequest.onCompleted.addListener(
-    details => {
-        void finalizeTrackedRequest(details, false);
-    },
-    { urls: [ '<all_urls>' ] },
-);
-
-chrome.webRequest.onErrorOccurred.addListener(
-    details => {
-        void finalizeTrackedRequest(details, true);
-    },
-    { urls: [ '<all_urls>' ] },
-);
-
-chrome.tabs.onRemoved.addListener(tabId => {
-    void clearTabRequestState(tabId);
-    const pageStore = pageStores.get(tabId);
-    if (pageStore) {
-        pageStore.disposeFrameStores();
-        pageStores.delete(tabId);
-    }
-});
-
-// Inject YouTube ad blocking script into page context immediately
-chrome.webNavigation?.onCommitted?.addListener(async (details) => {
-    if (details.frameId !== 0) { return; }
-    await applyPersistedHostnameSwitchesForTab(details.tabId, details.url);
-    
-    const url = details.url;
-    if (!url || !url.includes('youtube.com')) { return; }
-    
-    if (chrome.scripting?.executeScript === undefined) {
-        console.log('[MV3] chrome.scripting not available');
-        return;
-    }
-    
-    console.log('[MV3] Injecting YouTube ad blocker early into tab', details.tabId);
-    
-    try {
-        await chrome.scripting.executeScript({
-            target: { tabId: details.tabId },
-            world: 'MAIN',
-            func: () => {
-                // This runs in the page context at document_start
-                console.log('[YT-MAIN] Early page context injection');
-                
-                // Patch fetch immediately
-                const originalFetch = window.fetch;
-                window.fetch = function(...args) {
-                    const url = typeof args[0] === 'string' ? args[0] : args[0]?.url;
-                    if (url && url.includes('youtube.com/youtubei/v1/player')) {
-                        console.log('[YT-MAIN] Fetch to player API');
-                    }
-                    return originalFetch.apply(this, args).then((response: Response) => {
-                        if (url && url.includes('youtube.com/youtubei/v1/player') && response.ok) {
-                            return response.clone().text().then((text: string) => {
-                                if (text.includes('"adPlacements"') || text.includes('"playerAds"') || text.includes('"adSlots"')) {
-                                    console.log('[YT-MAIN] Stripping ad data from fetch');
-                                    try {
-                                        const json = JSON.parse(text);
-                                        const stripAdData = (obj: any): any => {
-                                            if (obj === null || obj === undefined) return obj;
-                                            if (typeof obj !== 'object') return obj;
-                                            const newObj: any = Array.isArray(obj) ? [] : {};
-                                            for (const key of Object.keys(obj)) {
-                                                if (['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams', 'adServerLogger', 'adBreakOverlays'].includes(key)) {
-                                                    console.log('[YT-MAIN] Stripping:', key);
-                                                    continue;
-                                                }
-                                                try { newObj[key] = stripAdData(obj[key]); } catch { newObj[key] = obj[key]; }
-                                            }
-                                            return newObj;
-                                        };
-                                        const stripped = stripAdData(json);
-                                        return new Response(JSON.stringify(stripped), {
-                                            status: response.status,
-                                            statusText: response.statusText,
-                                            headers: response.headers
-                                        });
-                                    } catch {}
-                                }
-                                return response;
-                            });
-                        }
-                        return response;
-                    });
-                };
-                
-                // Patch XHR immediately
-                const originalOpen = XMLHttpRequest.prototype.open;
-                XMLHttpRequest.prototype.open = function(method: string, url: string) {
-                    (this as any)._isYtPlayer = url && (url.includes('youtube.com/youtubei/v1/player') || url.includes('youtube.com/apiManifest'));
-                    return originalOpen.apply(this, arguments);
-                };
-                
-                const originalSend = XMLHttpRequest.prototype.send;
-                XMLHttpRequest.prototype.send = function(body?: any) {
-                    if ((this as any)._isYtPlayer) {
-                        console.log('[YT-MAIN] XHR to player API');
-                        this.addEventListener('load', function() {
-                            const text = this.responseText;
-                            if (text && (text.includes('"adPlacements"') || text.includes('"playerAds"') || text.includes('"adSlots"'))) {
-                                console.log('[YT-MAIN] Stripping ad data from XHR');
-                                try {
-                                    const json = JSON.parse(text);
-                                    const stripAdData = (obj: any): any => {
-                                        if (obj === null || obj === undefined) return obj;
-                                        if (typeof obj !== 'object') return obj;
-                                        const newObj: any = Array.isArray(obj) ? [] : {};
-                                        for (const key of Object.keys(obj)) {
-                                            if (['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams', 'adServerLogger', 'adBreakOverlays'].includes(key)) continue;
-                                            try { newObj[key] = stripAdData(obj[key]); } catch { newObj[key] = obj[key]; }
-                                        }
-                                        return newObj;
-                                    };
-                                    const stripped = JSON.stringify(stripAdData(json));
-                                    Object.defineProperty(this, 'responseText', { value: stripped, writable: false, configurable: true });
-                                    Object.defineProperty(this, 'response', { value: stripped, writable: false, configurable: true });
-                                } catch {}
-                            }
-                        });
-                    }
-                    return originalSend.apply(this, arguments);
-                };
-                
-                // Patch JSON.parse immediately  
-                const originalJSONParse = JSON.parse;
-                JSON.parse = function(text: string, reviver?: (key: string, value: any) => any) {
-                    const result = originalJSONParse.call(this, text, reviver);
-                    if (text && (text.includes('"adPlacements"') || text.includes('"playerAds"') || text.includes('"adSlots"'))) {
-                        console.log('[YT-MAIN] JSON.parse catching ad data');
-                        try {
-                            const stripAdData = (obj: any): any => {
-                                if (obj === null || obj === undefined) return obj;
-                                if (typeof obj !== 'object') return obj;
-                                const newObj: any = Array.isArray(obj) ? [] : {};
-                                for (const key of Object.keys(obj)) {
-                                    if (['adPlacements', 'playerAds', 'adSlots', 'adBreakHeartbeatParams', 'adServerLogger', 'adBreakOverlays'].includes(key)) continue;
-                                    try { newObj[key] = stripAdData(obj[key]); } catch { newObj[key] = obj[key]; }
-                                }
-                                return newObj;
-                            };
-                            return stripAdData(result);
-                        } catch {}
-                    }
-                    return result;
-                };
-                
-                console.log('[YT-MAIN] All patches applied');
-            },
-        });
-        console.log('[MV3] Early injection complete for tab', details.tabId);
-    } catch (e) {
-        console.error('[MV3] Failed to inject:', e);
-    }
-}, { url: [{ urlContains: 'youtube.com' }] });
-
-chrome.runtime.onInstalled.addListener((details) => {
-    if (details.reason === 'install') {
-        console.log('uBlock Origin installed');
-    } else if (details.reason === 'update') {
-        console.log('uBlock Origin updated');
-    }
-});
-
-console.log('uBlock Origin MV3 Service Worker started');
+    registerChromeEventHandlers(
+        trackPendingRequest,
+        finalizeTrackedRequest,
+        clearTabRequestState,
+        pageStores,
+        Zapper,
+        Picker,
+        applyPersistedHostnameSwitchesForTab,
+        registerYouTubeAdBlocker,
+    );
 
 ensurePopupState()
     .then(() => {
@@ -2779,62 +2326,5 @@ ensurePopupState()
     pageStoreFromTabId: pageStoreFromTabId,
 };
 
-// Create context menu for "Block element..."
-function createContextMenu() {
-    if (typeof chrome.contextMenus === 'undefined') {
-        console.log('[MV3] chrome.contextMenus not available');
-        return;
-    }
-    
-    chrome.contextMenus.removeAll(() => {
-        if ( popupState.userSettings.contextMenuEnabled === false ) {
-            return;
-        }
-        chrome.contextMenus.create({
-            id: 'uBlock0-blockElement',
-            title: 'Block element...',
-            contexts: ['all'],
-            documentUrlPatterns: ['http://*/*', 'https://*/*']
-        }, () => {
-            console.log('[MV3] Context menu created');
-        });
-    });
-}
-
-chrome.contextMenus?.onClicked?.addListener((details, tab) => {
-    if (details.menuItemId === 'uBlock0-blockElement' && tab) {
-        const tabId = tab.id;
-        if ( typeof tabId !== 'number' ) { return; }
-        const frameId = typeof details.frameId === 'number' ? details.frameId : 0;
-        let target = '';
-        
-        // Build target from context menu details
-        if (details.linkUrl) {
-            target = `a\t${details.linkUrl}`;
-        } else if (details.srcUrl) {
-            if (details.mediaType === 'image') {
-                target = `img\t${details.srcUrl}`;
-            } else if (details.mediaType === 'video') {
-                target = `video\t${details.srcUrl}`;
-            } else if (details.mediaType === 'audio') {
-                target = `audio\t${details.srcUrl}`;
-            } else {
-                target = `${details.tagName || 'img'}\t${details.srcUrl}`;
-            }
-        } else if (details.frameUrl) {
-            target = `iframe\t${details.frameUrl}`;
-        } else if (details.tagName) {
-            target = details.tagName;
-        }
-        
-        console.log('[MV3] Context menu clicked - target:', target);
-        
-        // Call elementPickerExec
-        void (self as any).µb.elementPickerExec(tabId, frameId, target).catch(error => {
-            console.error('[MV3] Failed to launch picker from context menu', error);
-        });
-    }
-});
-
-// Create context menu on service worker startup
-createContextMenu();
+// Initialize context menu
+initContextMenu(popupState.userSettings);
