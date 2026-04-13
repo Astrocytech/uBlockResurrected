@@ -102,8 +102,9 @@ export class MV3PageStore {
 
     try {
       const url = new URL(tab.url);
-      this.rawURL = url.href;
+      this.rawURL = tab.url;
       this.hostname = url.hostname;
+      this.tabId = tab.id;
 
       const parts = this.hostname.split(".");
       if (parts.length >= 2) {
@@ -114,13 +115,32 @@ export class MV3PageStore {
         this.rootDomain = this.hostname;
       }
 
+      // Read perSiteFiltering from storage and use it
       const storedFiltering =
         await chrome.storage.local.get("perSiteFiltering");
       const perSiteFiltering = storedFiltering?.perSiteFiltering || {};
       const pageKey = `${this.hostname}:${this.rawURL}`;
+      const hostnameKey = this.hostname;
       this.netFilteringSwitch =
-        perSiteFiltering[this.hostname] !== false &&
-        perSiteFiltering[pageKey] !== false;
+        perSiteFiltering[pageKey] !== false &&
+        perSiteFiltering[hostnameKey] !== false;
+
+      // Force re-read from storage on every initialization to get latest state
+      // In case pageStore was cached from a previous load
+      const latestFiltering =
+        await chrome.storage.local.get("perSiteFiltering");
+      const latestPerSite = latestFiltering?.perSiteFiltering || {};
+      this.netFilteringSwitch =
+        latestPerSite[pageKey] !== false &&
+        latestPerSite[hostnameKey] !== false;
+      console.log(
+        "[MV3] MV3PageStore.initialize: hostname =",
+        this.hostname,
+        "netFilteringSwitch =",
+        this.netFilteringSwitch,
+        "perSiteFiltering =",
+        perSiteFiltering,
+      );
 
       const storedVersions = await chrome.storage.local.get(
         "popupContentVersions",
@@ -196,6 +216,15 @@ export const pageStoreFromTabId = async (
 ): Promise<MV3PageStore | null> => {
   let pageStore = pageStores.get(tabId);
   if (pageStore) {
+    // Re-initialize to get the latest state from storage
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab) {
+        await pageStore.initialize(tab);
+      }
+    } catch (e) {
+      // Ignore errors, keep existing pageStore
+    }
     pageStoresToken += 1;
     return pageStore;
   }

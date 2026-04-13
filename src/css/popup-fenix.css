@@ -137,7 +137,7 @@ body.off #switch {
 .rulesetTools [id] > svg {
     fill: var(--ink-4);
     }
-body.needReload #refresh,
+#refresh,
 body.needSave #saveRules,
 body.needSave #revertRules {
     visibility: visible;

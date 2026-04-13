@@ -779,6 +779,13 @@ const renderPopup = function () {
 
   const isFiltering = popupData.netFilteringSwitch;
 
+  console.log(
+    "[Popup] netFilteringSwitch =",
+    isFiltering,
+    "pageURL =",
+    popupData.pageURL,
+  );
+
   dom.cl.toggle(
     dom.body,
     "advancedUser",
@@ -787,6 +794,10 @@ const renderPopup = function () {
   dom.cl.toggle(
     dom.body,
     "off",
+    popupData.pageURL === "" || isFiltering !== true,
+  );
+  console.log(
+    "[Popup] body.off class added:",
     popupData.pageURL === "" || isFiltering !== true,
   );
   dom.cl.toggle(dom.body, "needSave", popupData.matrixIsDirty === true);

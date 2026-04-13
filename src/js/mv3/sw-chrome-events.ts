@@ -18,6 +18,38 @@ export const registerChromeEventHandlers = (
   ) => Promise<void>,
   registerVideoAdBlocker: () => void,
 ) => {
+  // Update toolbar icon when tab URL changes (e.g., page reload)
+  chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (
+      changeInfo.status === "complete" &&
+      tab?.url &&
+      tab.url.startsWith("http")
+    ) {
+      try {
+        const hostname = new URL(tab.url).hostname;
+        const pageKey = `${hostname}:${tab.url}`;
+        const storedFiltering =
+          await chrome.storage.local.get("perSiteFiltering");
+        const perSiteFiltering = storedFiltering?.perSiteFiltering || {};
+        const isFilteringEnabled =
+          perSiteFiltering[pageKey] !== false &&
+          perSiteFiltering[hostname] !== false;
+
+        if (!isFilteringEnabled) {
+          await chrome.action.setBadgeText({ text: "off", tabId });
+          await chrome.action.setBadgeBackgroundColor({
+            color: "#888888",
+            tabId,
+          });
+        } else {
+          await chrome.action.setBadgeText({ text: "", tabId });
+        }
+      } catch (e) {
+        // Ignore errors
+      }
+    }
+  });
+
   chrome.commands.onCommand.addListener((command) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tabId = tabs[0]?.id;
