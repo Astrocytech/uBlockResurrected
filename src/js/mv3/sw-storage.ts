@@ -5,10 +5,11 @@
 
     This file contains storage operations and popup state management.
 
-******************************************************************************/
+*******************************************************************************/
 
 import { userSettingsDefault } from './sw-types.js';
 import { DynamicFirewallRules } from './sw-classes.js';
+import { updateToolbarIcon } from './sw-helpers.js';
 
 export interface PopupState {
     userSettings: typeof userSettingsDefault;
@@ -48,6 +49,18 @@ export const ensurePopupState = async (): Promise<void> => {
 
 export const persistUserSettings = async (): Promise<void> => {
     await chrome.storage.local.set({ userSettings: popupState.userSettings });
+};
+
+export const persistPermanentFirewall = async (): Promise<void> => {
+    await chrome.storage.local.set({
+        dynamicFilteringString: popupState.permanentFirewall.toString(),
+    });
+};
+
+export const persistPermanentHostnameSwitches = async (): Promise<void> => {
+    await chrome.storage.local.set({
+        permanentSwitches: popupState.permanentHostnameSwitches,
+    });
 };
 
 export const getModifiedSettings = (current: Record<string, unknown>, defaults: Record<string, unknown>): Record<string, unknown> => {
@@ -104,4 +117,18 @@ export const resetUserData = async (): Promise<void> => {
         whitelist: '',
         dynamicRules: [],
     });
+};
+
+export const cloneHostnameSwitchState = (state: Record<string, Record<string, boolean>>): Record<string, Record<string, boolean>> => {
+    const cloned: Record<string, Record<string, boolean>> = {};
+    for (const hostname of Object.keys(state)) {
+        cloned[hostname] = { ...state[hostname] };
+    }
+    return cloned;
+};
+
+export const applyImmediateHostnameSwitchEffects = async (tabId: number, name: string, enabled: boolean): Promise<void> => {
+    if (name === 'no-popups' || name === 'no-cosmetic-filtering') {
+        await updateToolbarIcon(tabId, { filtering: enabled });
+    }
 };

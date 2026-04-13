@@ -248,3 +248,9 @@ export const createToggleHandlers = (deps: ToggleHandlersDeps) => {
         toggleNetFiltering,
     };
 };
+
+export const toggleHostnameSwitch = createToggleHandlers({} as ToggleHandlersDeps).toggleHostnameSwitch;
+export const toggleNetFiltering = createToggleHandlers({} as ToggleHandlersDeps).toggleNetFiltering;
+export const toggleFirewallRule = createToggleHandlers({} as ToggleHandlersDeps).toggleFirewallRule;
+export const saveFirewallRules = createToggleHandlers({} as ToggleHandlersDeps).saveFirewallRules;
+export const revertFirewallRules = createToggleHandlers({} as ToggleHandlersDeps).revertFirewallRules;

@@ -190,6 +190,23 @@ export const revertFirewallRules = async (): Promise<void> => {
     await syncFirewallDnrRules();
 };
 
+export const applyRuleTextDelta = (
+    ruleset: any,
+    text: string,
+    method: 'addFromRuleParts' | 'removeFromRuleParts',
+) => {
+    for ( const rawRule of text.split(/\s*[\n\r]+\s*/) ) {
+        const rule = rawRule.trim();
+        if ( rule === '' ) { continue; }
+        const parts = rule.split(/\s+/);
+        if ( method === 'addFromRuleParts' ) {
+            ruleset.addFromRuleParts(parts as [string, string, string, string]);
+        } else {
+            ruleset.removeFromRuleParts(parts as [string, string, string, string]);
+        }
+    }
+};
+
 export const getFirewallRulesForPopup = (srcHostname: string, hostnameDict: Record<string, any>): Record<string, string> => {
     const firewallRules: Record<string, string> = {};
     const firewallRuleTypes = ['*', 'image', '3p', 'inline-script', '1p-script', '3p-script', '3p-frame'];

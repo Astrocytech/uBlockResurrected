@@ -46,6 +46,10 @@ import {
 } from './sw-context-menu.js';
 
 import {
+    setEngineReferences as setSharedEngineReferences,
+} from './sw-engine-references.js';
+
+import {
     legacyBackendState,
     epickerArgs,
     getLegacyMessaging,
@@ -82,7 +86,24 @@ import {
 import {
     popupState,
     ensurePopupState,
+    persistPermanentFirewall,
+    persistPermanentHostnameSwitches,
+    getLocalData,
+    backupUserData,
+    restoreUserData,
+    resetUserData,
+    cloneHostnameSwitchState,
+    applyImmediateHostnameSwitchEffects,
 } from './sw-storage.js';
+
+import {
+    modifyDashboardRuleset as modifyDashboardRulesetFromModule,
+    resetDashboardRules as resetDashboardRulesFromModule,
+} from './sw-initialization.js';
+
+import {
+    setUserSetting,
+} from './sw-settings-handler.js';
 
 import {
     createToggleHandlers,
@@ -95,6 +116,11 @@ import {
 import {
     createMessagingRouter,
 } from './sw-message-router.js';
+
+import {
+    createZapper,
+    createPicker,
+} from './sw-zapper.js';
 
 import {
     pageStoreFromTabId,
@@ -129,6 +155,15 @@ import {
     collectTabHostnameData,
     getMatchedBlockedRequestCountForTab,
 } from './sw-request-handlers.js';
+
+import {
+    findFilterListFromNetFilter,
+    findFilterListFromCosmeticFilter,
+} from './sw-filter-finders.js';
+
+import {
+    ensureLegacyBackend,
+} from './sw-legacy-backend.js';
 
 import type { LegacyMessagingAPI } from './sw-types.js';
 import { userSettingsDefault, reWhitelistBadHostname, reWhitelistHostnameExtractor, hostnameSwitchNames, HOSTNAME_SWITCHES_SCHEMA_VERSION } from './sw-types.js';
@@ -232,538 +267,58 @@ let io: any = null;
 let publicSuffixList: any = null;
 
 const setEngineReferences = () => {
-    try {
-        cosmeticFilteringEngine = (globalThis as any).vAPI?.cosmeticFilteringEngine || (globalThis as any).cosmeticFilteringEngine;
-        staticNetFilteringEngine = (globalThis as any).vAPI?.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
-        staticExtFilteringEngine = (globalThis as any).vAPI?.staticExtFilteringEngine || (globalThis as any).staticExtFilteringEngine;
-        logger = (globalThis as any).vAPI?.logger || (globalThis as any).logger;
-        µb = (globalThis as any).vAPI?.µb || (globalThis as any).µb;
-        filteringContext = (globalThis as any).vAPI?.filteringContext || (globalThis as any).filteringContext;
-        filteringEngines = (globalThis as any).vAPI?.filteringEngines || (globalThis as any).filteringEngines;
-        io = (globalThis as any).vAPI?.io || (globalThis as any).io;
-        publicSuffixList = (globalThis as any).vAPI?.publicSuffixList || (globalThis as any).publicSuffixList;
-        
-        // Additional engine references for full emulation
-        const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
-        const staticFilteringReverseLookup = (globalThis as any).vAPI?.staticFilteringReverseLookup;
-        const scriptletFilteringEngine = (globalThis as any).vAPI?.scriptletFilteringEngine;
-        const htmlFilteringEngine = (globalThis as any).vAPI?.htmlFilteringEngine;
-        const permanentURLFiltering = (globalThis as any).vAPI?.permanentURLFiltering;
-        const sessionURLFiltering = (globalThis as any).vAPI?.sessionURLFiltering;
-        const webRequest = (globalThis as any).vAPI?.webRequest;
-        
-        // Expose these engines to globalThis.vAPI for handlers to use
-        (globalThis as any).vAPI.redirectEngine = redirectEngine;
-        (globalThis as any).vAPI.staticFilteringReverseLookup = staticFilteringReverseLookup;
-        (globalThis as any).vAPI.scriptletFilteringEngine = scriptletFilteringEngine;
-        (globalThis as any).vAPI.htmlFilteringEngine = htmlFilteringEngine;
-        (globalThis as any).vAPI.permanentURLFiltering = permanentURLFiltering;
-        (globalThis as any).vAPI.sessionURLFiltering = sessionURLFiltering;
-        (globalThis as any).vAPI.webRequest = webRequest;
-        
-        // Create a simple filteringContext wrapper if not available
-        if (!filteringContext) {
-            const createFilterContext = (init?: Partial<{
-                hostname: string; url: string; origin: string; type: string; realm: string; filter: unknown;
-            }>) => {
-                const state = init || {};
-                const ctx = {
-                    duplicate: () => createFilterContext(state),
-                    fromTabId: async (tabId: number) => {
-                        try {
-                            const tab = await chrome.tabs.get(tabId);
-                            if (tab?.url) {
-                                const url = new URL(tab.url);
-                                const newState = { ...state, hostname: url.hostname, url: url.href, origin: url.origin };
-                                return createFilterContext(newState);
-                            }
-                        } catch (e) {}
-                        return createFilterContext({});
-                    },
-                    setType: (type: string) => {
-                        return createFilterContext({ ...state, type });
-                    },
-                    setURL: (url: string) => {
-                        try {
-                            const parsed = new URL(url);
-                            return createFilterContext({ ...state, url: parsed.href, hostname: parsed.hostname, origin: parsed.origin });
-                        } catch {
-                            return ctx;
-                        }
-                    },
-                    setDocOriginFromURL: (url: string) => {
-                        try {
-                            const parsed = new URL(url);
-                            return createFilterContext({ ...state, origin: parsed.origin });
-                        } catch {
-                            return ctx;
-                        }
-                    },
-                    setRealm: (realm: string) => {
-                        return createFilterContext({ ...state, realm });
-                    },
-                    setFilter: (filter: unknown) => {
-                        return createFilterContext({ ...state, filter });
-                    },
-                    toLogger: () => {
-                        if (logger?.enabled) {
-                            logger.writeOne({
-                                tabId: 0,
-                                realm: state.realm || 'network',
-                                type: 'filter',
-                                text: state.url || '',
-                                filter: state.filter,
-                            });
-                        }
-                    },
-                    // Accessors
-                    get hostname() { return state.hostname || ''; },
-                    get url() { return state.url || ''; },
-                    get origin() { return state.origin || ''; },
-                    get type() { return state.type || ''; },
-                    get realm() { return state.realm || 'network'; },
-                    get filter() { return state.filter; },
-                };
-                return ctx;
-            };
-            
-            const createRootFilterContext = () => {
-                const state: any = {};
-                
-                const ctx = {
-                    duplicate: () => createFilterContext({ ...state }),
-                    fromTabId: async (tabId: number) => {
-                        try {
-                            const tab = await chrome.tabs.get(tabId);
-                            if (tab?.url) {
-                                const url = new URL(tab.url);
-                                return createFilterContext({ hostname: url.hostname, url: url.href, origin: url.origin });
-                            }
-                        } catch (e) {}
-                        return createFilterContext({});
-                    },
-                    setRealm: function(this: any, realm: string) {
-                        state.realm = realm;
-                        return this;
-                    },
-                    setType: function(this: any, type: string) {
-                        state.type = type;
-                        return this;
-                    },
-                    setURL: function(this: any, url: string) {
-                        state.url = url;
-                        try {
-                            const parsed = new URL(url);
-                            state.hostname = parsed.hostname;
-                            state.origin = parsed.origin;
-                        } catch (e) {}
-                        return this;
-                    },
-                    setDocOriginFromURL: function(this: any, url: string) {
-                        try {
-                            const parsed = new URL(url);
-                            state.docOrigin = parsed.origin;
-                        } catch (e) {}
-                        return this;
-                    },
-                toLogger: function() {
-                    if (logger?.log) {
-                        logger.log(state);
-                    }
-                },
-                    get hostname() { return state.hostname || ''; },
-                    get url() { return state.url || ''; },
-                    get origin() { return state.origin || ''; },
-                    get type() { return state.type || ''; },
-                    get realm() { return state.realm || 'network'; },
-                    get filter() { return state.filter; },
-                };
-                return ctx;
-            };
-            
-            filteringContext = createRootFilterContext();
-        }
-    } catch (e) {
-        console.log('[MV3] Could not get engine references:', e);
-    }
+    const refs = setSharedEngineReferences();
+    if ( refs == null ) { return; }
+    cosmeticFilteringEngine = refs.cosmeticFilteringEngine;
+    staticNetFilteringEngine = refs.staticNetFilteringEngine;
+    staticExtFilteringEngine = refs.staticExtFilteringEngine;
+    logger = refs.logger;
+    µb = refs.µb;
+    filteringContext = refs.filteringContext;
+    filteringEngines = refs.filteringEngines;
+    io = refs.io;
+    publicSuffixList = refs.publicSuffixList;
 };
 
 // Duplicate variables/objects - now imported from sw-messaging.js and sw-helpers.js
 // Duplicate variables removed - now imported from sw-types.js
 
-// Element picker state
-const epickerArgs = {
-    target: '',
-    mouse: '',
-    zap: false,
-    eprom: null as any,
-};
+// Element picker state - imported from sw-messaging.js
 
-const getLegacyMessaging = (): LegacyMessagingAPI | undefined => {
-    return (globalThis as any).vAPI?.messaging;
-};
+// getLegacyMessaging - imported from sw-messaging.js
 
 // Duplicate functions removed - using imported versions from sw-messaging.ts
 
-const ensureLegacyBackend = async (): Promise<void> => {
-    if ( legacyBackendState.initialized ) { return; }
-    if ( legacyBackendState.initializing ) { return legacyBackendState.initializing; }
+// ensureLegacyBackend - imported from sw-legacy-backend.js
 
-    legacyBackendState.initializing = withDisabledRuntimeOnConnect(async () => {
-        if ( typeof (globalThis as any).window === 'undefined' ) {
-            (globalThis as any).window = globalThis;
-        }
-        const vAPI = ((globalThis as any).vAPI ||= {});
-        if ( typeof (globalThis as any).window.vAPI === 'undefined' ) {
-            (globalThis as any).window.vAPI = vAPI;
-        }
-        if ( typeof vAPI.T0 !== 'number' ) {
-            vAPI.T0 = Date.now();
-        }
-        if ( typeof vAPI.sessionId !== 'string' ) {
-            vAPI.sessionId = 'mv3-sw';
-        }
-        if ( typeof vAPI.getURL !== 'function' ) {
-            vAPI.getURL = (path = '') => chrome.runtime.getURL(path);
-        }
-        if ( typeof vAPI.setTimeout !== 'function' ) {
-            vAPI.setTimeout = globalThis.setTimeout.bind(globalThis);
-        }
-        if ( typeof vAPI.clearTimeout !== 'function' ) {
-            vAPI.clearTimeout = globalThis.clearTimeout.bind(globalThis);
-        }
-        if ( typeof vAPI.localStorage !== 'object' || vAPI.localStorage === null ) {
-            const storageMap = new Map<string, string>();
-            vAPI.localStorage = {
-                getItem(key: string) {
-                    return Promise.resolve(storageMap.has(key) ? storageMap.get(key) : null);
-                },
-                setItem(key: string, value: string) {
-                    storageMap.set(key, `${value}`);
-                    return Promise.resolve();
-                },
-                removeItem(key: string) {
-                    storageMap.delete(key);
-                    return Promise.resolve();
-                },
-                clear() {
-                    storageMap.clear();
-                    return Promise.resolve();
-                },
-            };
-        }
-        if (
-            typeof vAPI.webextFlavor !== 'object' ||
-            vAPI.webextFlavor === null ||
-            typeof vAPI.webextFlavor.soup?.has !== 'function'
-        ) {
-            vAPI.webextFlavor = {
-                major: 120,
-                env: [],
-                soup: new Set([ 'chromium', 'mv3', 'ublock' ]),
-            };
-        } else {
-            vAPI.webextFlavor.major ??= 120;
-            vAPI.webextFlavor.env ??= [];
-            if ( typeof vAPI.webextFlavor.soup?.add === 'function' ) {
-                vAPI.webextFlavor.soup.add('chromium');
-                vAPI.webextFlavor.soup.add('mv3');
-                vAPI.webextFlavor.soup.add('ublock');
-            }
-        }
-        if ( typeof (globalThis as any).screen === 'undefined' ) {
-            (globalThis as any).screen = { width: 1280, height: 720 };
-        }
-        if ( typeof (globalThis as any).window.screen === 'undefined' ) {
-            (globalThis as any).window.screen = (globalThis as any).screen;
-        }
-        if ( typeof (globalThis as any).document === 'undefined' ) {
-            const noop = () => {};
-            const nullFn = () => null;
-            (globalThis as any).document = {
-                body: null,
-                head: null,
-                documentElement: null,
-                hidden: true,
-                visibilityState: 'hidden',
-                readyState: 'complete',
-                addEventListener: noop,
-                removeEventListener: noop,
-                dispatchEvent: noop,
-                createElement: () => ({
-                    style: {},
-                    setAttribute: noop,
-                    removeAttribute: noop,
-                    addEventListener: noop,
-                    removeEventListener: noop,
-                    appendChild: noop,
-                    remove: noop,
-                    classList: {
-                        add: noop,
-                        remove: noop,
-                        contains: () => false,
-                    },
-                }),
-                querySelector: nullFn,
-                querySelectorAll: () => [],
-                getElementById: nullFn,
-            };
-        }
-        if ( typeof (globalThis as any).window.document === 'undefined' ) {
-            (globalThis as any).window.document = (globalThis as any).document;
-        }
-        if ( typeof (globalThis as any).Image === 'undefined' ) {
-            (globalThis as any).Image = class {
-                onload: null | (() => void) = null;
-                onerror: null | (() => void) = null;
-                width = 0;
-                height = 0;
-                complete = false;
-                private listeners = new Map<string, Set<() => void>>();
-                addEventListener(type: string, listener: () => void) {
-                    const bucket = this.listeners.get(type) || new Set<() => void>();
-                    bucket.add(listener);
-                    this.listeners.set(type, bucket);
-                }
-                removeEventListener(type: string, listener: () => void) {
-                    this.listeners.get(type)?.delete(listener);
-                }
-                set src(_value: string) {
-                    this.complete = true;
-                    queueMicrotask(() => {
-                        if ( typeof this.onload === 'function' ) {
-                            this.onload();
-                        }
-                        for ( const listener of this.listeners.get('load') || [] ) {
-                            listener();
-                        }
-                    });
-                }
-            };
-        }
-        await import('../start.ts');
-        const backgroundModule = await import('../background.js');
-        const legacyBackground = backgroundModule.default as { isReadyPromise?: Promise<unknown> };
-        if ( legacyBackground?.isReadyPromise instanceof Promise ) {
-            await legacyBackground.isReadyPromise.catch(() => {});
-        }
-        legacyBackendState.initialized = true;
-        setEngineReferences();
-    });
-
-    try {
-        await legacyBackendState.initializing;
-    } finally {
-        legacyBackendState.initializing = null;
-    }
-};
-
-const registerLegacyPort = (port: chrome.runtime.Port): LegacyPortDetails | undefined => {
-    const messaging = getLegacyMessaging();
-    if ( messaging === undefined ) { return; }
-
-    const sender = port.sender || {};
-    const { origin, tab, url } = sender;
-    const details: LegacyPortDetails = {
-        port,
-        frameId: sender.frameId,
-        frameURL: url,
-        privileged: origin !== undefined
-            ? origin === messaging.PRIVILEGED_ORIGIN
-            : typeof url === 'string' && url.startsWith(messaging.PRIVILEGED_ORIGIN),
-    };
-    if ( tab ) {
-        details.tabId = tab.id;
-        details.tabURL = tab.url;
-    }
-    messaging.ports.set(port.name, details);
-    return details;
-};
+// registerLegacyPort - imported from sw-messaging.js
 
 // Duplicate userSettingsDefault - now imported from sw-types.ts
 
 // Duplicate regexes - now imported from sw-types.ts
 
-const applyRuleTextDelta = (
-    ruleset: DynamicFirewallRules,
-    text: string,
-    method: 'addFromRuleParts' | 'removeFromRuleParts',
-) => {
-    for ( const rawRule of text.split(/\s*[\n\r]+\s*/) ) {
-        const rule = rawRule.trim();
-        if ( rule === '' ) { continue; }
-        const parts = rule.split(/\s+/);
-        if ( method === 'addFromRuleParts' ) {
-            ruleset.addFromRuleParts(parts as [string, string, string, string]);
-        } else {
-            ruleset.removeFromRuleParts(parts as [string, string, string, string]);
-        }
-    }
-};
+// applyRuleTextDelta - imported from sw-firewall.js
 
-const modifyDashboardRuleset = async (payload: {
+const modifyDashboardRuleset = (payload: {
     permanent?: boolean;
     toAdd?: string;
     toRemove?: string;
 }) => {
-    await ensurePopupState();
-    const ruleset = payload.permanent ? popupState.permanentFirewall : popupState.sessionFirewall;
-    applyRuleTextDelta(ruleset, payload.toRemove || '', 'removeFromRuleParts');
-    applyRuleTextDelta(ruleset, payload.toAdd || '', 'addFromRuleParts');
-
-    if ( payload.permanent ) {
-        await persistPermanentFirewall();
-    }
-
-    await syncFirewallDnrRules();
-
-    return {
-        permanentRules: popupState.permanentFirewall.toArray(),
-        sessionRules: popupState.sessionFirewall.toArray(),
-    };
+    return modifyDashboardRulesetFromModule(
+        payload,
+        popupState,
+        ensurePopupState,
+        persistPermanentFirewall,
+        syncFirewallDnrRules,
+    );
 };
 
-const resetDashboardRules = async () => {
-    await ensurePopupState();
-    popupState.sessionFirewall.assign(popupState.permanentFirewall);
-    await syncFirewallDnrRules();
-    return {
-        permanentRules: popupState.permanentFirewall.toArray(),
-        sessionRules: popupState.sessionFirewall.toArray(),
-    };
-};
-
-const setUserSetting = async (request: PopupRequest) => {
-    await ensurePopupState();
-    if ( typeof request.name === 'string' ) {
-        (popupState.userSettings as Record<string, any>)[request.name] = request.value;
-        await persistUserSettings();
-        if ( request.name === 'contextMenuEnabled' ) {
-            createContextMenu();
-        }
-    }
-    
-    // Get vAPI.net capabilities
-    const vAPINet = (globalThis as any).vAPI?.net;
-    const canUncloakCnames = vAPINet?.canUncloakCnames === true;
-    
-    // Build response with conditional fields
-    const response: Record<string, any> = { ...popupState.userSettings };
-    
-    // Only include cnameUncloakEnabled if CNAME uncloaking is available
-    if (!canUncloakCnames) {
-        delete response.cnameUncloakEnabled;
-    }
-    
-    // Only include canLeakLocalIPAddresses if the feature is available  
-    if (!vAPINet?.canLeakLocalIPAddresses) {
-        delete response.canLeakLocalIPAddresses;
-    }
-    
-    return response;
-};
-
-const toggleHostnameSwitch = async (request: PopupRequest) => {
-    await ensurePopupState();
-    const name = request.name || '';
-    const hostname = request.srcHostname || request.hostname || '';
-    const tabId = request.tabId ?? undefined;
-    const enabled = request.state === true;
-
-    if ( hostname === '' || hostnameSwitchNames.has(name) === false ) {
-        return getPopupData(request);
-    }
-
-    const hostnameSwitches = cloneHostnameSwitchState(popupState.sessionHostnameSwitches);
-    const current = { ...(hostnameSwitches[hostname] || {}) };
-    if ( enabled ) {
-        current[name] = true;
-        hostnameSwitches[hostname] = current;
-    } else {
-        delete current[name];
-        if ( Object.keys(current).length === 0 ) {
-            delete hostnameSwitches[hostname];
-        } else {
-            hostnameSwitches[hostname] = current;
-        }
-    }
-
-    popupState.sessionHostnameSwitches = hostnameSwitches;
-    await syncHostnameSwitchDnrRules();
-
-    if ( typeof tabId === 'number' ) {
-        await applyImmediateHostnameSwitchEffects(tabId, name, enabled);
-    }
-
-    return getPopupData(request);
-};
-
-const toggleNetFiltering = async (request: PopupRequest) => {
-    await ensurePopupState();
-    const tabId = request.tabId ?? 0;
-    const url = request.url || '';
-    const scope = request.scope || 'page';
-    const state = request.state !== false;
-    
-    if (!tabId || !url) {
-        return getPopupData(request);
-    }
-    
-    try {
-        const pageStore = await pageStoreFromTabId(tabId);
-        if (pageStore) {
-            await pageStore.toggleNetFilteringSwitch(url, scope, state);
-        } else {
-            const hostname = new URL(url).hostname;
-            const storedFiltering = await chrome.storage.local.get('perSiteFiltering');
-            const perSiteFiltering: Record<string, boolean> = storedFiltering?.perSiteFiltering || {};
-            const key = scope === 'page' ? `${hostname}:${url}` : hostname;
-            if (state) {
-                delete perSiteFiltering[key];
-            } else {
-                perSiteFiltering[key] = false;
-            }
-            await chrome.storage.local.set({ perSiteFiltering });
-        }
-        
-        // Toggle associated switches
-        const hostnameSwitches = cloneHostnameSwitchState(popupState.sessionHostnameSwitches);
-        const hostname = new URL(url).hostname;
-        const current = hostnameSwitches[hostname] || {};
-        
-        if (!state) {
-            current['no-popups'] = true;
-            current['no-cosmetic-filtering'] = true;
-            current['no-large-media'] = true;
-            current['no-remote-fonts'] = true;
-            current['no-scripting'] = true;
-        } else {
-            delete current['no-popups'];
-            delete current['no-cosmetic-filtering'];
-            delete current['no-large-media'];
-            delete current['no-remote-fonts'];
-            delete current['no-scripting'];
-        }
-        
-        if (Object.keys(current).length > 0) {
-            hostnameSwitches[hostname] = current;
-        } else {
-            delete hostnameSwitches[hostname];
-        }
-        
-        popupState.sessionHostnameSwitches = hostnameSwitches;
-        await syncHostnameSwitchDnrRules();
-        await syncPowerSwitchDnrRules();
-        
-        if (typeof tabId === 'number') {
-            await updateToolbarIcon(tabId, { filtering: state });
-        }
-        
-    } catch (e) {
-        console.error('[MV3] toggleNetFiltering error:', e);
-    }
-    
-    return getPopupData(request);
+const resetDashboardRules = () => {
+    return resetDashboardRulesFromModule(
+        popupState,
+        ensurePopupState,
+        syncFirewallDnrRules,
+    );
 };
 
 const getPopupData = async (request: PopupRequest) => {
@@ -915,43 +470,58 @@ const getPopupData = async (request: PopupRequest) => {
     };
 };
 
-const handlePopupPanelMessage = async (request: PopupRequest) => {
-    switch ( request.what ) {
-    case 'getPopupData':
-        return getPopupData(request);
-    case 'toggleNetFiltering':
-        return toggleNetFiltering(request);
-    case 'toggleFirewallRule':
-        return toggleFirewallRule(request);
-    case 'saveFirewallRules':
-        return saveFirewallRules(request);
-    case 'revertFirewallRules':
-        return revertFirewallRules(request);
-    case 'getScriptCount':
-        return request.tabId ? (await getTabSwitchMetrics(request.tabId)).scriptCount : 0;
-    case 'getHiddenElementCount':
-        return request.tabId ? await getHiddenElementCountForTab(request.tabId) : 0;
-    case 'toggleHostnameSwitch':
-        return toggleHostnameSwitch(request);
-    case 'userSettings':
-        return setUserSetting(request);
-    case 'readyToFilter':
-        return popupState.initialized;
-    case 'clickToLoad': {
-        const tabId = request.tabId as number;
-        const frameId = request.frameId as number;
-        const frameURL = request.frameURL as string;
-        if (tabId && frameId && frameURL) {
-            const pageStore = await pageStoreFromTabId(tabId);
-            if (pageStore) {
-                await pageStore.clickToLoad(frameId, frameURL);
-            }
-        }
-        return { success: true };
-    }
-    default:
-        return undefined;
-    }
+const getToggleHandlers = () => createToggleHandlers({
+    popupState,
+    ensurePopupState,
+    getPopupData,
+    persistPermanentFirewall,
+    persistPermanentHostnameSwitches,
+    cloneHostnameSwitchState,
+    hostnameSwitchNames,
+    applyImmediateHostnameSwitchEffects,
+    pageStoreFromTabId,
+    updateToolbarIcon,
+    cosmeticFilteringEngine,
+    syncFirewallDnrRules,
+    syncHostnameSwitchDnrRules,
+    syncPowerSwitchDnrRules,
+});
+
+const toggleFirewallRule = (request: PopupRequest) => getToggleHandlers().toggleFirewallRule(request);
+const saveFirewallRules = (request: PopupRequest) => getToggleHandlers().saveFirewallRules(request);
+const revertFirewallRules = (request: PopupRequest) => getToggleHandlers().revertFirewallRules(request);
+const toggleHostnameSwitch = (request: PopupRequest) => getToggleHandlers().toggleHostnameSwitch(request);
+const toggleNetFiltering = (request: PopupRequest) => getToggleHandlers().toggleNetFiltering(request);
+
+const handlePopupPanelMessage = (request: PopupRequest) => {
+    return createMessageHandlers({
+        popupState,
+        getPopupData,
+        getTabSwitchMetrics,
+        getHiddenElementCountForTab,
+        pageStoreFromTabId,
+        setUserSetting,
+        getLocalData,
+        backupUserData,
+        restoreUserData,
+        resetUserData,
+        reloadAllFilterLists,
+        getDeviceName,
+        encodeCloudData,
+        decodeCloudData,
+        cloudPull,
+        cloudPush,
+        toggleNetFiltering,
+        toggleFirewallRule,
+        saveFirewallRules,
+        revertFirewallRules,
+        toggleHostnameSwitch,
+        getFirewallRulesForPopup,
+        hostnameSwitchNames,
+        updateToolbarIcon,
+        µb,
+        redirectEngine: (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine,
+    }).handlePopupPanelMessage(request);
 };
 
 const handleDashboardMessage = async (request: PopupRequest) => {
@@ -3583,117 +3153,10 @@ ${dark ? `
     return undefined;
 });
 
-const findFilterListFromNetFilter = async (rawFilter: string): Promise<any[]> => {
-    const results: any[] = [];
-    if (!rawFilter || rawFilter.trim() === '') {
-        return results;
-    }
-    
-    // Normalize the filter for searching
-    const normalizedFilter = rawFilter.trim().toLowerCase();
-    const isWhitelist = normalizedFilter.startsWith('@@');
-    const filterPattern = isWhitelist ? normalizedFilter.slice(2) : normalizedFilter;
-    
-    try {
-        const stored = await chrome.storage.local.get(['filterLists', 'selectedFilterLists', 'userFilters']);
-        const selectedFilterLists = stored.selectedFilterLists || [];
-        const filterLists = stored.filterLists || {};
-        
-        // Also check user filters
-        const userFiltersContent = stored.userFilters || '';
-        
-        // Check user filters first
-        if (userFiltersContent.toLowerCase().includes(filterPattern)) {
-            results.push({
-                assetKey: 'user',
-                title: 'My filters',
-                supportURL: '',
-                type: 'user',
-            });
-        }
-        
-        // Check selected filter lists
-        for (const listKey of selectedFilterLists) {
-            const listInfo = filterLists[listKey as string] as any;
-            if (listInfo && listInfo.title && listInfo.content) {
-                const content = listInfo.content.toLowerCase();
-                // Check for exact match or partial match
-                if (content.includes(filterPattern) || content.includes(normalizedFilter)) {
-                    results.push({
-                        assetKey: listKey,
-                        title: listInfo.title,
-                        supportURL: listInfo.supportURL || '',
-                        description: listInfo.description || '',
-                        type: 'list',
-                    });
-                }
-            }
-        }
-        
-    } catch (e) {
-        console.error('[MV3] findFilterListFromNetFilter error:', e);
-    }
-    return results;
-};
+// findFilterListFromNetFilter - imported from sw-filter-finders.js
+// findFilterListFromCosmeticFilter - imported from sw-filter-finders.js
 
-const findFilterListFromCosmeticFilter = async (rawFilter: string): Promise<any[]> => {
-    const results: any[] = [];
-    if (!rawFilter || rawFilter.trim() === '') {
-        return results;
-    }
-    
-    // Normalize cosmetic filter for searching
-    // Remove ## or #@# prefix
-    const normalizedFilter = rawFilter.trim()
-        .replace(/^##/, '')
-        .replace(/^#@#/, '')
-        .replace(/^#@/, '')
-        .replace(/^##/, '')
-        .toLowerCase();
-    
-    try {
-        const stored = await chrome.storage.local.get(['filterLists', 'selectedFilterLists', 'userFilters']);
-        const selectedFilterLists = stored.selectedFilterLists || [];
-        const filterLists = stored.filterLists || {};
-        
-        // Check user filters for cosmetic rules
-        const userFiltersContent = stored.userFilters || '';
-        if (userFiltersContent.toLowerCase().includes(normalizedFilter) || 
-            userFiltersContent.toLowerCase().includes(rawFilter.trim().toLowerCase())) {
-            results.push({
-                assetKey: 'user',
-                title: 'My filters',
-                supportURL: '',
-                type: 'user',
-            });
-        }
-        
-        // Check selected filter lists for cosmetic rules
-        for (const listKey of selectedFilterLists) {
-            const listInfo = filterLists[listKey as string] as any;
-            if (listInfo && listInfo.title && listInfo.content) {
-                const content = listInfo.content.toLowerCase();
-                // Look for cosmetic filter patterns
-                if (content.includes(`##${normalizedFilter}`) || 
-                    content.includes(`#@#${normalizedFilter}`) ||
-                    content.includes(rawFilter.trim().toLowerCase())) {
-                    results.push({
-                        assetKey: listKey,
-                        title: listInfo.title,
-                        supportURL: listInfo.supportURL || '',
-                        description: listInfo.description || '',
-                        type: 'list',
-                    });
-                }
-            }
-        }
-        
-    } catch (e) {
-        console.error('[MV3] findFilterListFromCosmeticFilter error:', e);
-    }
-    return results;
-};
-
+// Final initialization and exports
 Messaging.on('pickerContextMenuPoint', (payload, callback) => {
     const tabId = typeof payload?._tabId === 'number' ? payload._tabId : payload?._sender?.tab?.id;
     const frameId = typeof payload?._sender?.frameId === 'number' ? payload._sender.frameId : 0;

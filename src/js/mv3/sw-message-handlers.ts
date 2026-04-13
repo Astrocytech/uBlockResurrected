@@ -411,3 +411,32 @@ export const createMessageHandlers = (deps: MessageHandlersDeps) => {
         handleDashboardMessage,
     };
 };
+
+export const handleDashboardMessage = createMessageHandlers({
+    popupState: {} as any,
+    getPopupData: async () => ({}),
+    getTabSwitchMetrics: async () => ({ scriptCount: 0 }),
+    getHiddenElementCountForTab: async () => 0,
+    pageStoreFromTabId: async () => null,
+    setUserSetting: async () => ({}),
+    getLocalData: async () => ({}),
+    backupUserData: async () => {},
+    restoreUserData: async () => {},
+    resetUserData: async () => {},
+    reloadAllFilterLists: async () => ({}),
+    getDeviceName: async () => '',
+    encodeCloudData: async () => '',
+    decodeCloudData: async () => ({}),
+    cloudPull: async () => ({}),
+    cloudPush: async () => {},
+    toggleNetFiltering: async () => ({}),
+    toggleFirewallRule: async () => ({}),
+    saveFirewallRules: async () => ({}),
+    revertFirewallRules: async () => ({}),
+    toggleHostnameSwitch: async () => ({}),
+    getFirewallRulesForPopup: () => ({}),
+    hostnameSwitchNames: new Set<string>(),
+    updateToolbarIcon: async () => {},
+    µb: null,
+    redirectEngine: null,
+} as MessageHandlersDeps).handleDashboardMessage;
