@@ -23105,7 +23105,16 @@
       case "3p":
         return ["image", "script", "sub_frame"];
       case "*":
-        return ["image", "script", "sub_frame", "xmlhttprequest", "media", "font", "object", "other"];
+        return [
+          "image",
+          "script",
+          "sub_frame",
+          "xmlhttprequest",
+          "media",
+          "font",
+          "object",
+          "other"
+        ];
       default:
         return [];
     }
@@ -23129,11 +23138,13 @@
           priority: 2e6 + (actionName === "allow" || actionName === "noop" ? 1e4 : 0) + (src !== "*" ? 1e3 : 0),
           action: {
             type: "modifyHeaders",
-            responseHeaders: [{
-              header: "content-security-policy",
-              operation: "set",
-              value: actionName === "block" ? "script-src 'self' 'unsafe-eval' http: https: data: blob:; object-src 'none'; base-uri 'self'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; object-src 'none'; base-uri 'self'"
-            }]
+            responseHeaders: [
+              {
+                header: "content-security-policy",
+                operation: "set",
+                value: actionName === "block" ? "script-src 'self' 'unsafe-eval' http: https: data: blob:; object-src 'none'; base-uri 'self'" : "script-src 'self' 'unsafe-inline' 'unsafe-eval' http: https: data: blob:; object-src 'none'; base-uri 'self'"
+              }
+            ]
           },
           condition
         });
@@ -23142,7 +23153,9 @@
       for (const resourceType of resourceTypes) {
         if (nextRuleId > FIREWALL_RULE_ID_MAX) break;
         const condition = {
-          resourceTypes: [resourceType]
+          resourceTypes: [
+            resourceType
+          ]
         };
         if (src !== "*") {
           condition.initiatorDomains = [src];
@@ -23173,26 +23186,36 @@
     const existing = await chrome.declarativeNetRequest.getDynamicRules();
     const toRemove = existing.map((r) => r.id).filter((id) => id >= FIREWALL_RULE_ID_MIN && id < POWER_RULE_ID_MIN);
     if (toRemove.length > 0) {
-      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: toRemove });
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: toRemove
+      });
     }
     if (addRules.length > 0) {
       await chrome.declarativeNetRequest.updateDynamicRules({ addRules });
     }
   };
   var compilePowerSwitchDnrRules = async (perSiteFiltering) => {
+    const entries = Object.entries(perSiteFiltering);
+    const falseCount = entries.filter(([, v2]) => v2 === false).length;
+    if (entries.length > 0 && falseCount / entries.length > 0.5) {
+      console.log("[DNR] Global filtering appears OFF, skipping per-site rules");
+      return [];
+    }
     const rules = [];
     let ruleId = POWER_RULE_ID_MIN;
-    for (const [domain, enabled] of Object.entries(perSiteFiltering)) {
+    for (const [domain, enabled] of entries) {
       if (ruleId > POWER_RULE_ID_MAX) break;
-      rules.push({
-        id: ruleId++,
-        priority: 1,
-        action: { type: enabled ? "allow" : "block" },
-        condition: {
-          urlFilter: ".*",
-          requestDomains: [domain]
-        }
-      });
+      if (enabled === false) {
+        rules.push({
+          id: ruleId++,
+          priority: 1,
+          action: { type: "allow" },
+          condition: {
+            urlFilter: ".*",
+            requestDomains: [domain]
+          }
+        });
+      }
     }
     return rules;
   };
@@ -23200,10 +23223,17 @@
     const stored = await chrome.storage.local.get("perSiteFiltering");
     const perSite = stored?.perSiteFiltering || {};
     const rules = await compilePowerSwitchDnrRules(perSite);
+    const settings = await chrome.storage.local.get("userSettings");
+    const globalSwitchOff = settings?.userSettings?.netFilteringEnabled === false;
+    if (globalSwitchOff) {
+      console.log("[DNR] Global filtering OFF, clearing power switch rules");
+    }
     const existing = await chrome.declarativeNetRequest.getDynamicRules();
     const toRemove = existing.map((r) => r.id).filter((id) => id >= POWER_RULE_ID_MIN && id < 93e5);
     if (toRemove.length > 0) {
-      await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: toRemove });
+      await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds: toRemove
+      });
     }
     if (rules.length > 0) {
       await chrome.declarativeNetRequest.updateDynamicRules({ addRules: rules });
@@ -23211,23 +23241,47 @@
   };
   var getFirewallRulesForPopup = (srcHostname, hostnameDict) => {
     const firewallRules = {};
-    const firewallRuleTypes2 = ["*", "image", "3p", "inline-script", "1p-script", "3p-script", "3p-frame"];
+    const firewallRuleTypes2 = [
+      "*",
+      "image",
+      "3p",
+      "inline-script",
+      "1p-script",
+      "3p-script",
+      "3p-frame"
+    ];
     for (const type of firewallRuleTypes2) {
-      const globalRule = popupState.sessionFirewall.lookupRuleData("*", "*", type);
+      const globalRule = popupState.sessionFirewall.lookupRuleData(
+        "*",
+        "*",
+        type
+      );
       if (globalRule !== void 0) {
         firewallRules[`/ * ${type}`] = globalRule;
       }
-      const localRule = popupState.sessionFirewall.lookupRuleData(srcHostname, "*", type);
+      const localRule = popupState.sessionFirewall.lookupRuleData(
+        srcHostname,
+        "*",
+        type
+      );
       if (localRule !== void 0) {
         firewallRules[`. * ${type}`] = localRule;
       }
     }
     for (const desHostname of Object.keys(hostnameDict)) {
-      const globalRule = popupState.sessionFirewall.lookupRuleData("*", desHostname, "*");
+      const globalRule = popupState.sessionFirewall.lookupRuleData(
+        "*",
+        desHostname,
+        "*"
+      );
       if (globalRule !== void 0) {
         firewallRules[`/ ${desHostname} *`] = globalRule;
       }
-      const localRule = popupState.sessionFirewall.lookupRuleData(srcHostname, desHostname, "*");
+      const localRule = popupState.sessionFirewall.lookupRuleData(
+        srcHostname,
+        desHostname,
+        "*"
+      );
       if (localRule !== void 0) {
         firewallRules[`. ${desHostname} *`] = localRule;
       }
@@ -23264,14 +23318,21 @@
     if (chrome.declarativeNetRequest === void 0) {
       return;
     }
-    const addRules = compileHostnameSwitchDnrRules(popupState.sessionHostnameSwitches);
+    const addRules = compileHostnameSwitchDnrRules(
+      popupState.sessionHostnameSwitches
+    );
     const MAX_DNR_RULES = 3e4;
     if (addRules.length > MAX_DNR_RULES) {
       addRules.length = MAX_DNR_RULES;
     }
     const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-    const removeRuleIds = existingRules.map((rule) => rule.id).filter((id) => id >= HOSTNAME_SWITCH_RULE_ID_MIN && id <= HOSTNAME_SWITCH_RULE_ID_MAX);
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+    const removeRuleIds = existingRules.map((rule) => rule.id).filter(
+      (id) => id >= HOSTNAME_SWITCH_RULE_ID_MIN && id <= HOSTNAME_SWITCH_RULE_ID_MAX
+    );
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds,
+      addRules
+    });
   };
   var compileWhitelistRulesToDnr = (whitelist) => {
     const rules = [];
@@ -23303,7 +23364,10 @@
     const addRules = compileWhitelistRulesToDnr(whitelist);
     const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
     const removeRuleIds = existingRules.map((rule) => rule.id).filter((id) => id >= WHITELIST_RULE_ID_MIN && id <= WHITELIST_RULE_ID_MAX);
-    await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
+    await chrome.declarativeNetRequest.updateDynamicRules({
+      removeRuleIds,
+      addRules
+    });
   };
 
   // src/js/mv3/sw-tab-metrics.ts
