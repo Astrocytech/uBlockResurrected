@@ -517,7 +517,7 @@
 :root.classic:not(.dark) {
     --notice-ink: rgb(var(--ink-80));
     --notice-surface: rgb(var(--yellow-5));
-    --popup-power-ink-rgb: 0 110 254;
+    --popup-power-ink-rgb: 37 99 235;
     --popup-ruleset-tool-ink: var(--ink-1);
     --popup-ruleset-tool-surface: rgb(var(--yellow-5) / 50%);
     --popup-ruleset-tool-surface-hover: rgb(var(--yellow-5) / 75%);

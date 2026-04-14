@@ -245,8 +245,11 @@ body.advancedUser #firewall > div > span.noopRule,
 
 /* Element 3: Power Button */
 #switch .fa-icon svg {
-    fill: #3b86ff;
-}
+    fill: var(--popup-power-ink);
+    }
+body.off #switch .fa-icon svg {
+    fill: var(--checkbox-ink);
+    }
 
 /* Internal CSS values */
 :root body {
@@ -352,9 +355,8 @@ hr {
     stroke-width: 64;
     }
 body.off #switch {
-    color: var(--checkbox-ink);
     fill: var(--checkbox-ink);
-    stroke: var(--checkbox-ink);
+    stroke: none;
     }
 .rulesetTools {
     background-color: transparent;
@@ -1142,8 +1144,15 @@ body:not([data-more*="e"]) [data-more="e"] {
 :root.desktop body:not(.off) #switch:hover {
     fill: rgb(var(--popup-power-ink-rgb) / 90%);
     }
+:root.desktop body:not(.off) #switch:hover .fa-icon svg {
+    fill: rgb(var(--popup-power-ink-rgb) / 90%);
+    }
 :root.desktop body.off #switch:hover {
-    stroke: var(--popup-power-ink);
+    fill: var(--checkbox-ink);
+    stroke: none;
+    }
+:root.desktop body.off #switch:hover .fa-icon svg {
+    fill: var(--checkbox-ink);
     }
 :root.desktop .rulesetTools [id]:hover {
     background-color: var(--popup-ruleset-tool-surface-hover);
