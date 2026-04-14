@@ -1,5 +1,5 @@
 (() => {
-  // dom.ts
+  // src/js/dom.ts
   var normalizeTarget = (target) => {
     if (typeof target === "string") {
       return Array.from(qsa$(target));
@@ -198,7 +198,7 @@
   dom.head = document.head;
   dom.body = document.body;
 
-  // dashboard-common.ts
+  // src/js/dashboard-common.ts
   self.uBlockDashboard = self.uBlockDashboard || {};
   self.uBlockDashboard.mergeNewLines = function(text, newText) {
     const fromDict = /* @__PURE__ */ new Map();

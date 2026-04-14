@@ -1,5 +1,17 @@
 (() => {
-  // ../lib/csstree/css-tree.js
+  var __defProp = Object.defineProperty;
+  var __typeError = (msg) => {
+    throw TypeError(msg);
+  };
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+  var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
+  var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
+  var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+  var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), setter ? setter.call(obj, value) : member.set(obj, value), value);
+  var __privateMethod = (obj, member, method) => (__accessCheck(obj, member, "access private method"), method);
+
+  // src/lib/csstree/css-tree.js
   var ts = Object.create;
   var nr = Object.defineProperty;
   var rs = Object.getOwnPropertyDescriptor;
@@ -3795,7 +3807,7 @@
   }
   var { tokenize: ob, parse: ib, generate: ab, lexer: sb, createLexer: lb, walk: cb, find: ub, findLast: pb, findAll: hb, toPlainObject: mb, fromPlainObject: fb, fork: db } = Za;
 
-  // arglist-parser.ts
+  // src/js/arglist-parser.ts
   var ArglistParser = class {
     constructor(separatorChar = ",", mustQuote = false) {
       this.separatorChar = this.actualSeparatorChar = separatorChar;
@@ -3897,8 +3909,22 @@
     }
   };
 
-  // jsonpath.ts
-  var JSONPath = class _JSONPath {
+  // src/js/jsonpath.ts
+  var _UNDEFINED, _ROOT, _CURRENT, _CHILDREN, _DESCENDANTS, _reUnquotedIdentifier, _reExpr, _reIndice, _root, _compiled, _JSONPath_instances, compile_fn, evaluate_fn, getMatches_fn, getMatchesFromAll_fn, getMatchesFromKeys_fn, getMatchesFromExpr_fn, normalizeKey_fn, getDescendants_fn, consumeIdentifier_fn, consumeUnquotedIdentifier_fn, untilChar_fn, compileExpr_fn, resolvePath_fn, evaluateExpr_fn, modifyVal_fn;
+  var _JSONPath = class _JSONPath {
+    constructor() {
+      __privateAdd(this, _JSONPath_instances);
+      __privateAdd(this, _UNDEFINED, 0);
+      __privateAdd(this, _ROOT, 1);
+      __privateAdd(this, _CURRENT, 2);
+      __privateAdd(this, _CHILDREN, 3);
+      __privateAdd(this, _DESCENDANTS, 4);
+      __privateAdd(this, _reUnquotedIdentifier, /^[A-Za-z_][\w]*|^\*/);
+      __privateAdd(this, _reExpr, /^([!=^$*]=|[<>]=?)(.+?)\]/);
+      __privateAdd(this, _reIndice, /^-?\d+/);
+      __privateAdd(this, _root);
+      __privateAdd(this, _compiled);
+    }
     static create(query) {
       const jsonp = new _JSONPath();
       jsonp.compile(query);
@@ -3908,20 +3934,20 @@
       return (stringifier || JSON.stringify)(obj, ...args).replace(/\//g, "\\/");
     }
     get value() {
-      return this.#compiled && this.#compiled.rval;
+      return __privateGet(this, _compiled) && __privateGet(this, _compiled).rval;
     }
     set value(v2) {
-      if (this.#compiled === void 0) {
+      if (__privateGet(this, _compiled) === void 0) {
         return;
       }
-      this.#compiled.rval = v2;
+      __privateGet(this, _compiled).rval = v2;
     }
     get valid() {
-      return this.#compiled !== void 0;
+      return __privateGet(this, _compiled) !== void 0;
     }
     compile(query) {
-      this.#compiled = void 0;
-      const r = this.#compile(query, 0);
+      __privateSet(this, _compiled, void 0);
+      const r = __privateMethod(this, _JSONPath_instances, compile_fn).call(this, query, 0);
       if (r === void 0) {
         return;
       }
@@ -3944,45 +3970,45 @@
           return;
         }
       }
-      this.#compiled = r;
+      __privateSet(this, _compiled, r);
     }
     evaluate(root) {
       if (this.valid === false) {
         return [];
       }
-      this.#root = root;
-      const paths = this.#evaluate(this.#compiled.steps, []);
-      this.#root = null;
+      __privateSet(this, _root, root);
+      const paths = __privateMethod(this, _JSONPath_instances, evaluate_fn).call(this, __privateGet(this, _compiled).steps, []);
+      __privateSet(this, _root, null);
       return paths;
     }
     apply(root) {
       if (this.valid === false) {
         return;
       }
-      const { rval } = this.#compiled;
-      this.#root = { "$": root };
-      const paths = this.#evaluate(this.#compiled.steps, []);
+      const { rval } = __privateGet(this, _compiled);
+      __privateSet(this, _root, { "$": root });
+      const paths = __privateMethod(this, _JSONPath_instances, evaluate_fn).call(this, __privateGet(this, _compiled).steps, []);
       let i = paths.length;
       if (i === 0) {
-        this.#root = null;
+        __privateSet(this, _root, null);
         return;
       }
       while (i--) {
-        const { obj, key } = this.#resolvePath(paths[i]);
+        const { obj, key } = __privateMethod(this, _JSONPath_instances, resolvePath_fn).call(this, paths[i]);
         if (rval !== void 0) {
-          this.#modifyVal(obj, key);
+          __privateMethod(this, _JSONPath_instances, modifyVal_fn).call(this, obj, key);
         } else if (Array.isArray(obj) && typeof key === "number") {
           obj.splice(key, 1);
         } else {
           delete obj[key];
         }
       }
-      const result = this.#root["$"] ?? null;
-      this.#root = null;
+      const result = __privateGet(this, _root)["$"] ?? null;
+      __privateSet(this, _root, null);
       return result;
     }
     dump() {
-      return JSON.stringify(this.#compiled);
+      return JSON.stringify(__privateGet(this, _compiled));
     }
     toJSON(obj, ...args) {
       return _JSONPath.toJSON(obj, null, ...args);
@@ -3990,475 +4016,477 @@
     get [Symbol.toStringTag]() {
       return "JSONPath";
     }
-    #UNDEFINED = 0;
-    #ROOT = 1;
-    #CURRENT = 2;
-    #CHILDREN = 3;
-    #DESCENDANTS = 4;
-    #reUnquotedIdentifier = /^[A-Za-z_][\w]*|^\*/;
-    #reExpr = /^([!=^$*]=|[<>]=?)(.+?)\]/;
-    #reIndice = /^-?\d+/;
-    #root;
-    #compiled;
-    #compile(query, i) {
-      if (query.length === 0) {
-        return;
+  };
+  _UNDEFINED = new WeakMap();
+  _ROOT = new WeakMap();
+  _CURRENT = new WeakMap();
+  _CHILDREN = new WeakMap();
+  _DESCENDANTS = new WeakMap();
+  _reUnquotedIdentifier = new WeakMap();
+  _reExpr = new WeakMap();
+  _reIndice = new WeakMap();
+  _root = new WeakMap();
+  _compiled = new WeakMap();
+  _JSONPath_instances = new WeakSet();
+  compile_fn = function(query, i) {
+    if (query.length === 0) {
+      return;
+    }
+    const steps = [];
+    let c = query.charCodeAt(i);
+    if (c === 36) {
+      steps.push({ mv: __privateGet(this, _ROOT) });
+      i += 1;
+    } else if (c === 64) {
+      steps.push({ mv: __privateGet(this, _CURRENT) });
+      i += 1;
+    } else {
+      steps.push({ mv: i === 0 ? __privateGet(this, _ROOT) : __privateGet(this, _CURRENT) });
+    }
+    let mv = __privateGet(this, _UNDEFINED);
+    for (; ; ) {
+      if (i === query.length) {
+        break;
       }
-      const steps = [];
-      let c = query.charCodeAt(i);
-      if (c === 36) {
-        steps.push({ mv: this.#ROOT });
+      c = query.charCodeAt(i);
+      if (c === 32) {
         i += 1;
-      } else if (c === 64) {
-        steps.push({ mv: this.#CURRENT });
-        i += 1;
-      } else {
-        steps.push({ mv: i === 0 ? this.#ROOT : this.#CURRENT });
+        continue;
       }
-      let mv = this.#UNDEFINED;
-      for (; ; ) {
-        if (i === query.length) {
-          break;
-        }
-        c = query.charCodeAt(i);
-        if (c === 32) {
-          i += 1;
-          continue;
-        }
-        if (c === 46) {
-          if (mv !== this.#UNDEFINED) {
-            return;
-          }
-          if (query.startsWith("..", i)) {
-            mv = this.#DESCENDANTS;
-            i += 2;
-          } else {
-            mv = this.#CHILDREN;
-            i += 1;
-          }
-          continue;
-        }
-        if (c !== 91) {
-          if (mv === this.#UNDEFINED) {
-            const step = steps.at(-1);
-            if (step === void 0) {
-              return;
-            }
-            i = this.#compileExpr(query, step, i);
-            break;
-          }
-          const s = this.#consumeUnquotedIdentifier(query, i);
-          if (s === void 0) {
-            return;
-          }
-          steps.push({ mv, k: s });
-          i += s.length;
-          mv = this.#UNDEFINED;
-          continue;
-        }
-        if (query.startsWith("[?", i)) {
-          const not = query.charCodeAt(i + 2) === 33;
-          const j2 = i + 2 + (not ? 1 : 0);
-          const r2 = this.#compile(query, j2);
-          if (r2 === void 0) {
-            return;
-          }
-          if (query.startsWith("]", r2.i) === false) {
-            return;
-          }
-          if (not) {
-            r2.steps.at(-1).not = true;
-          }
-          steps.push({ mv: mv || this.#CHILDREN, steps: r2.steps });
-          i = r2.i + 1;
-          mv = this.#UNDEFINED;
-          continue;
-        }
-        if (query.startsWith("[*]", i)) {
-          mv ||= this.#CHILDREN;
-          steps.push({ mv, k: "*" });
-          i += 3;
-          mv = this.#UNDEFINED;
-          continue;
-        }
-        const r = this.#consumeIdentifier(query, i + 1);
-        if (r === void 0) {
+      if (c === 46) {
+        if (mv !== __privateGet(this, _UNDEFINED)) {
           return;
         }
-        mv ||= this.#CHILDREN;
-        steps.push({ mv, k: r.s });
-        i = r.i + 1;
-        mv = this.#UNDEFINED;
-      }
-      if (steps.length === 0) {
-        return;
-      }
-      if (mv !== this.#UNDEFINED) {
-        return;
-      }
-      return { steps, i };
-    }
-    #evaluate(steps, pathin) {
-      let resultset = [];
-      if (Array.isArray(steps) === false) {
-        return resultset;
-      }
-      for (const step of steps) {
-        switch (step.mv) {
-          case this.#ROOT:
-            resultset = [["$"]];
-            break;
-          case this.#CURRENT:
-            resultset = [pathin];
-            break;
-          case this.#CHILDREN:
-          case this.#DESCENDANTS:
-            resultset = this.#getMatches(resultset, step);
-            break;
-          default:
-            break;
+        if (query.startsWith("..", i)) {
+          mv = __privateGet(this, _DESCENDANTS);
+          i += 2;
+        } else {
+          mv = __privateGet(this, _CHILDREN);
+          i += 1;
         }
+        continue;
       }
-      return resultset;
-    }
-    #getMatches(listin, step) {
-      const listout = [];
-      for (const pathin of listin) {
-        const { value: owner } = this.#resolvePath(pathin);
-        if (step.k === "*") {
-          this.#getMatchesFromAll(pathin, step, owner, listout);
-        } else if (step.k !== void 0) {
-          this.#getMatchesFromKeys(pathin, step, owner, listout);
-        } else if (step.steps) {
-          this.#getMatchesFromExpr(pathin, step, owner, listout);
-        }
-      }
-      return listout;
-    }
-    #getMatchesFromAll(pathin, step, owner, out) {
-      const recursive = step.mv === this.#DESCENDANTS;
-      for (const { path } of this.#getDescendants(owner, recursive)) {
-        out.push([...pathin, ...path]);
-      }
-    }
-    #getMatchesFromKeys(pathin, step, owner, out) {
-      const kk = Array.isArray(step.k) ? step.k : [step.k];
-      for (const k2 of kk) {
-        const normalized = this.#evaluateExpr(step, owner, k2);
-        if (normalized === void 0) {
-          continue;
-        }
-        out.push([...pathin, normalized]);
-      }
-      if (step.mv !== this.#DESCENDANTS) {
-        return;
-      }
-      for (const { obj, key, path } of this.#getDescendants(owner, true)) {
-        for (const k2 of kk) {
-          const normalized = this.#evaluateExpr(step, obj[key], k2);
-          if (normalized === void 0) {
-            continue;
+      if (c !== 91) {
+        if (mv === __privateGet(this, _UNDEFINED)) {
+          const step = steps.at(-1);
+          if (step === void 0) {
+            return;
           }
-          out.push([...pathin, ...path, normalized]);
-        }
-      }
-    }
-    #getMatchesFromExpr(pathin, step, owner, out) {
-      const recursive = step.mv === this.#DESCENDANTS;
-      if (Array.isArray(owner) === false) {
-        const r = this.#evaluate(step.steps, pathin);
-        if (r.length !== 0) {
-          out.push(pathin);
-        }
-        if (recursive !== true) {
-          return;
-        }
-      }
-      for (const { obj, key, path } of this.#getDescendants(owner, recursive)) {
-        if (Array.isArray(obj[key])) {
-          continue;
-        }
-        const q2 = [...pathin, ...path];
-        const r = this.#evaluate(step.steps, q2);
-        if (r.length === 0) {
-          continue;
-        }
-        out.push(q2);
-      }
-    }
-    #normalizeKey(owner, key) {
-      if (typeof key === "number") {
-        if (Array.isArray(owner)) {
-          return key >= 0 ? key : owner.length + key;
-        }
-      }
-      return key;
-    }
-    #getDescendants(v2, recursive) {
-      const iterator = {
-        next() {
-          const n = this.stack.length;
-          if (n === 0) {
-            this.value = void 0;
-            this.done = true;
-            return this;
-          }
-          const details = this.stack[n - 1];
-          const entry = details.keys.next();
-          if (entry.done) {
-            this.stack.pop();
-            this.path.pop();
-            return this.next();
-          }
-          this.path[n - 1] = entry.value;
-          this.value = {
-            obj: details.obj,
-            key: entry.value,
-            path: this.path.slice()
-          };
-          const v3 = this.value.obj[this.value.key];
-          if (recursive) {
-            if (Array.isArray(v3)) {
-              this.stack.push({ obj: v3, keys: v3.keys() });
-            } else if (typeof v3 === "object" && v3 !== null) {
-              this.stack.push({ obj: v3, keys: Object.keys(v3).values() });
-            }
-          }
-          return this;
-        },
-        path: [],
-        value: void 0,
-        done: false,
-        stack: [],
-        [Symbol.iterator]() {
-          return this;
-        }
-      };
-      if (Array.isArray(v2)) {
-        iterator.stack.push({ obj: v2, keys: v2.keys() });
-      } else if (typeof v2 === "object" && v2 !== null) {
-        iterator.stack.push({ obj: v2, keys: Object.keys(v2).values() });
-      }
-      return iterator;
-    }
-    #consumeIdentifier(query, i) {
-      const keys = [];
-      for (; ; ) {
-        const c0 = query.charCodeAt(i);
-        if (c0 === 93) {
+          i = __privateMethod(this, _JSONPath_instances, compileExpr_fn).call(this, query, step, i);
           break;
         }
-        if (c0 === 44) {
-          i += 1;
-          continue;
-        }
-        if (c0 === 39) {
-          const r = this.#untilChar(query, 39, i + 1);
-          if (r === void 0) {
-            return;
-          }
-          keys.push(r.s);
-          i = r.i;
-          continue;
-        }
-        if (c0 === 45 || c0 >= 48 && c0 <= 57) {
-          const match = this.#reIndice.exec(query.slice(i));
-          if (match === null) {
-            return;
-          }
-          const indice = parseInt(query.slice(i), 10);
-          keys.push(indice);
-          i += match[0].length;
-          continue;
-        }
-        const s = this.#consumeUnquotedIdentifier(query, i);
+        const s = __privateMethod(this, _JSONPath_instances, consumeUnquotedIdentifier_fn).call(this, query, i);
         if (s === void 0) {
           return;
         }
-        keys.push(s);
+        steps.push({ mv, k: s });
         i += s.length;
+        mv = __privateGet(this, _UNDEFINED);
+        continue;
       }
-      return { s: keys.length === 1 ? keys[0] : keys, i };
-    }
-    #consumeUnquotedIdentifier(query, i) {
-      const match = this.#reUnquotedIdentifier.exec(query.slice(i));
-      if (match === null) {
-        return;
-      }
-      return match[0];
-    }
-    #untilChar(query, targetCharCode, i) {
-      const len = query.length;
-      const parts = [];
-      let beg = i, end = i;
-      for (; ; ) {
-        if (end === len) {
+      if (query.startsWith("[?", i)) {
+        const not = query.charCodeAt(i + 2) === 33;
+        const j2 = i + 2 + (not ? 1 : 0);
+        const r2 = __privateMethod(this, _JSONPath_instances, compile_fn).call(this, query, j2);
+        if (r2 === void 0) {
           return;
         }
-        const c = query.charCodeAt(end);
-        if (c === targetCharCode) {
-          parts.push(query.slice(beg, end));
-          end += 1;
-          break;
-        }
-        if (c === 92 && end + 1 < len) {
-          const d2 = query.charCodeAt(end + 1);
-          if (d2 === targetCharCode) {
-            parts.push(query.slice(beg, end));
-            end += 1;
-            beg = end;
-          }
-        }
-        end += 1;
-      }
-      return { s: parts.join(""), i: end };
-    }
-    #compileExpr(query, step, i) {
-      if (query.startsWith("=/", i)) {
-        const r = this.#untilChar(query, 47, i + 2);
-        if (r === void 0) {
-          return i;
-        }
-        const match2 = /^[i]/.exec(query.slice(r.i));
-        try {
-          step.rval = new RegExp(r.s, match2 && match2[0] || void 0);
-        } catch {
-          return i;
-        }
-        step.op = "re";
-        if (match2) {
-          r.i += match2[0].length;
-        }
-        return r.i;
-      }
-      const match = this.#reExpr.exec(query.slice(i));
-      if (match === null) {
-        return i;
-      }
-      try {
-        step.rval = JSON.parse(match[2]);
-        step.op = match[1];
-      } catch {
-      }
-      return i + match[1].length + match[2].length;
-    }
-    #resolvePath(path) {
-      if (path.length === 0) {
-        return { value: this.#root };
-      }
-      const key = path.at(-1);
-      let obj = this.#root;
-      for (let i = 0, n = path.length - 1; i < n; i++) {
-        obj = obj[path[i]];
-      }
-      return { obj, key, value: obj[key] };
-    }
-    #evaluateExpr(step, owner, key) {
-      if (owner === void 0 || owner === null) {
-        return;
-      }
-      if (typeof key === "number") {
-        if (Array.isArray(owner) === false) {
+        if (query.startsWith("]", r2.i) === false) {
           return;
         }
+        if (not) {
+          r2.steps.at(-1).not = true;
+        }
+        steps.push({ mv: mv || __privateGet(this, _CHILDREN), steps: r2.steps });
+        i = r2.i + 1;
+        mv = __privateGet(this, _UNDEFINED);
+        continue;
       }
-      const k2 = this.#normalizeKey(owner, key);
-      const hasOwn = Object.hasOwn(owner, k2);
-      if (step.op !== void 0 && hasOwn === false) {
+      if (query.startsWith("[*]", i)) {
+        mv || (mv = __privateGet(this, _CHILDREN));
+        steps.push({ mv, k: "*" });
+        i += 3;
+        mv = __privateGet(this, _UNDEFINED);
+        continue;
+      }
+      const r = __privateMethod(this, _JSONPath_instances, consumeIdentifier_fn).call(this, query, i + 1);
+      if (r === void 0) {
         return;
       }
-      const target = step.not !== true;
-      const v2 = owner[k2];
-      let outcome = false;
-      switch (step.op) {
-        case "==":
-          outcome = v2 === step.rval === target;
+      mv || (mv = __privateGet(this, _CHILDREN));
+      steps.push({ mv, k: r.s });
+      i = r.i + 1;
+      mv = __privateGet(this, _UNDEFINED);
+    }
+    if (steps.length === 0) {
+      return;
+    }
+    if (mv !== __privateGet(this, _UNDEFINED)) {
+      return;
+    }
+    return { steps, i };
+  };
+  evaluate_fn = function(steps, pathin) {
+    let resultset = [];
+    if (Array.isArray(steps) === false) {
+      return resultset;
+    }
+    for (const step of steps) {
+      switch (step.mv) {
+        case __privateGet(this, _ROOT):
+          resultset = [["$"]];
           break;
-        case "!=":
-          outcome = v2 !== step.rval === target;
+        case __privateGet(this, _CURRENT):
+          resultset = [pathin];
           break;
-        case "<":
-          outcome = v2 < step.rval === target;
-          break;
-        case "<=":
-          outcome = v2 <= step.rval === target;
-          break;
-        case ">":
-          outcome = v2 > step.rval === target;
-          break;
-        case ">=":
-          outcome = v2 >= step.rval === target;
-          break;
-        case "^=":
-          outcome = `${v2}`.startsWith(step.rval) === target;
-          break;
-        case "$=":
-          outcome = `${v2}`.endsWith(step.rval) === target;
-          break;
-        case "*=":
-          outcome = `${v2}`.includes(step.rval) === target;
-          break;
-        case "re":
-          outcome = step.rval.test(`${v2}`);
+        case __privateGet(this, _CHILDREN):
+        case __privateGet(this, _DESCENDANTS):
+          resultset = __privateMethod(this, _JSONPath_instances, getMatches_fn).call(this, resultset, step);
           break;
         default:
-          outcome = hasOwn === target;
           break;
-      }
-      if (outcome) {
-        return k2;
       }
     }
-    #modifyVal(obj, key) {
-      let { modify, rval } = this.#compiled;
-      if (typeof rval === "string") {
-        rval = rval.replace("${now}", `${Date.now()}`);
+    return resultset;
+  };
+  getMatches_fn = function(listin, step) {
+    const listout = [];
+    for (const pathin of listin) {
+      const { value: owner } = __privateMethod(this, _JSONPath_instances, resolvePath_fn).call(this, pathin);
+      if (step.k === "*") {
+        __privateMethod(this, _JSONPath_instances, getMatchesFromAll_fn).call(this, pathin, step, owner, listout);
+      } else if (step.k !== void 0) {
+        __privateMethod(this, _JSONPath_instances, getMatchesFromKeys_fn).call(this, pathin, step, owner, listout);
+      } else if (step.steps) {
+        __privateMethod(this, _JSONPath_instances, getMatchesFromExpr_fn).call(this, pathin, step, owner, listout);
       }
-      switch (modify) {
-        case void 0:
-          obj[key] = rval;
-          break;
-        case "+": {
-          if (rval instanceof Object === false) {
-            return;
-          }
-          const lval = obj[key];
-          if (lval instanceof Object === false) {
-            return;
-          }
-          if (Array.isArray(lval)) {
-            return;
-          }
-          for (const [k2, v2] of Object.entries(rval)) {
-            lval[k2] = v2;
-          }
-          break;
+    }
+    return listout;
+  };
+  getMatchesFromAll_fn = function(pathin, step, owner, out) {
+    const recursive = step.mv === __privateGet(this, _DESCENDANTS);
+    for (const { path } of __privateMethod(this, _JSONPath_instances, getDescendants_fn).call(this, owner, recursive)) {
+      out.push([...pathin, ...path]);
+    }
+  };
+  getMatchesFromKeys_fn = function(pathin, step, owner, out) {
+    const kk = Array.isArray(step.k) ? step.k : [step.k];
+    for (const k2 of kk) {
+      const normalized = __privateMethod(this, _JSONPath_instances, evaluateExpr_fn).call(this, step, owner, k2);
+      if (normalized === void 0) {
+        continue;
+      }
+      out.push([...pathin, normalized]);
+    }
+    if (step.mv !== __privateGet(this, _DESCENDANTS)) {
+      return;
+    }
+    for (const { obj, key, path } of __privateMethod(this, _JSONPath_instances, getDescendants_fn).call(this, owner, true)) {
+      for (const k2 of kk) {
+        const normalized = __privateMethod(this, _JSONPath_instances, evaluateExpr_fn).call(this, step, obj[key], k2);
+        if (normalized === void 0) {
+          continue;
         }
-        case "repl": {
-          const lval = obj[key];
-          if (typeof lval !== "string") {
-            return;
-          }
-          if (this.#compiled.re === void 0) {
-            this.#compiled.re = null;
-            try {
-              this.#compiled.re = rval.regex !== void 0 ? new RegExp(rval.regex, rval.flags) : new RegExp(rval.pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-            } catch {
-            }
-          }
-          if (this.#compiled.re === null) {
-            return;
-          }
-          obj[key] = lval.replace(this.#compiled.re, rval.replacement);
-          break;
-        }
-        default:
-          break;
+        out.push([...pathin, ...path, normalized]);
       }
     }
   };
+  getMatchesFromExpr_fn = function(pathin, step, owner, out) {
+    const recursive = step.mv === __privateGet(this, _DESCENDANTS);
+    if (Array.isArray(owner) === false) {
+      const r = __privateMethod(this, _JSONPath_instances, evaluate_fn).call(this, step.steps, pathin);
+      if (r.length !== 0) {
+        out.push(pathin);
+      }
+      if (recursive !== true) {
+        return;
+      }
+    }
+    for (const { obj, key, path } of __privateMethod(this, _JSONPath_instances, getDescendants_fn).call(this, owner, recursive)) {
+      if (Array.isArray(obj[key])) {
+        continue;
+      }
+      const q2 = [...pathin, ...path];
+      const r = __privateMethod(this, _JSONPath_instances, evaluate_fn).call(this, step.steps, q2);
+      if (r.length === 0) {
+        continue;
+      }
+      out.push(q2);
+    }
+  };
+  normalizeKey_fn = function(owner, key) {
+    if (typeof key === "number") {
+      if (Array.isArray(owner)) {
+        return key >= 0 ? key : owner.length + key;
+      }
+    }
+    return key;
+  };
+  getDescendants_fn = function(v2, recursive) {
+    const iterator = {
+      next() {
+        const n = this.stack.length;
+        if (n === 0) {
+          this.value = void 0;
+          this.done = true;
+          return this;
+        }
+        const details = this.stack[n - 1];
+        const entry = details.keys.next();
+        if (entry.done) {
+          this.stack.pop();
+          this.path.pop();
+          return this.next();
+        }
+        this.path[n - 1] = entry.value;
+        this.value = {
+          obj: details.obj,
+          key: entry.value,
+          path: this.path.slice()
+        };
+        const v3 = this.value.obj[this.value.key];
+        if (recursive) {
+          if (Array.isArray(v3)) {
+            this.stack.push({ obj: v3, keys: v3.keys() });
+          } else if (typeof v3 === "object" && v3 !== null) {
+            this.stack.push({ obj: v3, keys: Object.keys(v3).values() });
+          }
+        }
+        return this;
+      },
+      path: [],
+      value: void 0,
+      done: false,
+      stack: [],
+      [Symbol.iterator]() {
+        return this;
+      }
+    };
+    if (Array.isArray(v2)) {
+      iterator.stack.push({ obj: v2, keys: v2.keys() });
+    } else if (typeof v2 === "object" && v2 !== null) {
+      iterator.stack.push({ obj: v2, keys: Object.keys(v2).values() });
+    }
+    return iterator;
+  };
+  consumeIdentifier_fn = function(query, i) {
+    const keys = [];
+    for (; ; ) {
+      const c0 = query.charCodeAt(i);
+      if (c0 === 93) {
+        break;
+      }
+      if (c0 === 44) {
+        i += 1;
+        continue;
+      }
+      if (c0 === 39) {
+        const r = __privateMethod(this, _JSONPath_instances, untilChar_fn).call(this, query, 39, i + 1);
+        if (r === void 0) {
+          return;
+        }
+        keys.push(r.s);
+        i = r.i;
+        continue;
+      }
+      if (c0 === 45 || c0 >= 48 && c0 <= 57) {
+        const match = __privateGet(this, _reIndice).exec(query.slice(i));
+        if (match === null) {
+          return;
+        }
+        const indice = parseInt(query.slice(i), 10);
+        keys.push(indice);
+        i += match[0].length;
+        continue;
+      }
+      const s = __privateMethod(this, _JSONPath_instances, consumeUnquotedIdentifier_fn).call(this, query, i);
+      if (s === void 0) {
+        return;
+      }
+      keys.push(s);
+      i += s.length;
+    }
+    return { s: keys.length === 1 ? keys[0] : keys, i };
+  };
+  consumeUnquotedIdentifier_fn = function(query, i) {
+    const match = __privateGet(this, _reUnquotedIdentifier).exec(query.slice(i));
+    if (match === null) {
+      return;
+    }
+    return match[0];
+  };
+  untilChar_fn = function(query, targetCharCode, i) {
+    const len = query.length;
+    const parts = [];
+    let beg = i, end = i;
+    for (; ; ) {
+      if (end === len) {
+        return;
+      }
+      const c = query.charCodeAt(end);
+      if (c === targetCharCode) {
+        parts.push(query.slice(beg, end));
+        end += 1;
+        break;
+      }
+      if (c === 92 && end + 1 < len) {
+        const d2 = query.charCodeAt(end + 1);
+        if (d2 === targetCharCode) {
+          parts.push(query.slice(beg, end));
+          end += 1;
+          beg = end;
+        }
+      }
+      end += 1;
+    }
+    return { s: parts.join(""), i: end };
+  };
+  compileExpr_fn = function(query, step, i) {
+    if (query.startsWith("=/", i)) {
+      const r = __privateMethod(this, _JSONPath_instances, untilChar_fn).call(this, query, 47, i + 2);
+      if (r === void 0) {
+        return i;
+      }
+      const match2 = /^[i]/.exec(query.slice(r.i));
+      try {
+        step.rval = new RegExp(r.s, match2 && match2[0] || void 0);
+      } catch {
+        return i;
+      }
+      step.op = "re";
+      if (match2) {
+        r.i += match2[0].length;
+      }
+      return r.i;
+    }
+    const match = __privateGet(this, _reExpr).exec(query.slice(i));
+    if (match === null) {
+      return i;
+    }
+    try {
+      step.rval = JSON.parse(match[2]);
+      step.op = match[1];
+    } catch {
+    }
+    return i + match[1].length + match[2].length;
+  };
+  resolvePath_fn = function(path) {
+    if (path.length === 0) {
+      return { value: __privateGet(this, _root) };
+    }
+    const key = path.at(-1);
+    let obj = __privateGet(this, _root);
+    for (let i = 0, n = path.length - 1; i < n; i++) {
+      obj = obj[path[i]];
+    }
+    return { obj, key, value: obj[key] };
+  };
+  evaluateExpr_fn = function(step, owner, key) {
+    if (owner === void 0 || owner === null) {
+      return;
+    }
+    if (typeof key === "number") {
+      if (Array.isArray(owner) === false) {
+        return;
+      }
+    }
+    const k2 = __privateMethod(this, _JSONPath_instances, normalizeKey_fn).call(this, owner, key);
+    const hasOwn = Object.hasOwn(owner, k2);
+    if (step.op !== void 0 && hasOwn === false) {
+      return;
+    }
+    const target = step.not !== true;
+    const v2 = owner[k2];
+    let outcome = false;
+    switch (step.op) {
+      case "==":
+        outcome = v2 === step.rval === target;
+        break;
+      case "!=":
+        outcome = v2 !== step.rval === target;
+        break;
+      case "<":
+        outcome = v2 < step.rval === target;
+        break;
+      case "<=":
+        outcome = v2 <= step.rval === target;
+        break;
+      case ">":
+        outcome = v2 > step.rval === target;
+        break;
+      case ">=":
+        outcome = v2 >= step.rval === target;
+        break;
+      case "^=":
+        outcome = `${v2}`.startsWith(step.rval) === target;
+        break;
+      case "$=":
+        outcome = `${v2}`.endsWith(step.rval) === target;
+        break;
+      case "*=":
+        outcome = `${v2}`.includes(step.rval) === target;
+        break;
+      case "re":
+        outcome = step.rval.test(`${v2}`);
+        break;
+      default:
+        outcome = hasOwn === target;
+        break;
+    }
+    if (outcome) {
+      return k2;
+    }
+  };
+  modifyVal_fn = function(obj, key) {
+    let { modify, rval } = __privateGet(this, _compiled);
+    if (typeof rval === "string") {
+      rval = rval.replace("${now}", `${Date.now()}`);
+    }
+    switch (modify) {
+      case void 0:
+        obj[key] = rval;
+        break;
+      case "+": {
+        if (rval instanceof Object === false) {
+          return;
+        }
+        const lval = obj[key];
+        if (lval instanceof Object === false) {
+          return;
+        }
+        if (Array.isArray(lval)) {
+          return;
+        }
+        for (const [k2, v2] of Object.entries(rval)) {
+          lval[k2] = v2;
+        }
+        break;
+      }
+      case "repl": {
+        const lval = obj[key];
+        if (typeof lval !== "string") {
+          return;
+        }
+        if (__privateGet(this, _compiled).re === void 0) {
+          __privateGet(this, _compiled).re = null;
+          try {
+            __privateGet(this, _compiled).re = rval.regex !== void 0 ? new RegExp(rval.regex, rval.flags) : new RegExp(rval.pattern.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+          } catch {
+          }
+        }
+        if (__privateGet(this, _compiled).re === null) {
+          return;
+        }
+        obj[key] = lval.replace(__privateGet(this, _compiled).re, rval.replacement);
+        break;
+      }
+      default:
+        break;
+    }
+  };
+  var JSONPath = _JSONPath;
 
-  // static-filtering-parser.ts
+  // src/js/static-filtering-parser.ts
   var iota = 0;
   iota = 0;
   var AST_TYPE_NONE = iota++;
@@ -5174,7 +5202,7 @@
       this.reHasWhitespaceChar = /\s/;
       this.reHasUppercaseChar = /[A-Z]/;
       this.reHasUnicodeChar = /[^\x00-\x7F]/;
-      this.reUnicodeChars = new RegExp("\\P{ASCII}", "gu");
+      this.reUnicodeChars = /\P{ASCII}/gu;
       this.reBadHostnameChars = /[\x00-\x24\x26-\x29\x2b\x2c\x2f\x3b-\x40\x5c\x5e\x60\x7b-\x7f]/;
       this.reIsEntity = /^[^*]+\.\*$/;
       this.rePreparseDirectiveIf = /^!#if /;
@@ -8857,7 +8885,7 @@
     };
   })();
 
-  // dom.ts
+  // src/js/dom.ts
   var normalizeTarget = (target) => {
     if (typeof target === "string") {
       return Array.from(qsa$(target));
@@ -9056,7 +9084,7 @@
   dom.head = document.head;
   dom.body = document.body;
 
-  // ../lib/regexanalyzer/regex.js
+  // src/lib/regexanalyzer/regex.js
   var regex_default = function(root, name, factory) {
     "use strict";
     var __version__ = "1.2.0", PROTO = "prototype", OP = Object[PROTO], AP = Array[PROTO], Keys = Object.keys, to_string = OP.toString, HAS = OP.hasOwnProperty, fromCharCode = String.fromCharCode, fromCodePoint = String.fromCodePoint || String.fromCharCode, CHAR = "charAt", CHARCODE = "charCodeAt", CODEPOINT = String.prototype.codePointAt ? "codePointAt" : CHARCODE, toJSON = JSON.stringify, INF = Infinity, ESC = "\\", specialChars = {
@@ -10666,7 +10694,7 @@
     return Regex;
   }();
 
-  // regex-analyzer.ts
+  // src/js/regex-analyzer.ts
   var RegexAnalyzer = regex_default && regex_default.Analyzer || null;
   function tokenizableStrFromRegex(reStr) {
     return _literalStrFromRegex(reStr);
@@ -10808,7 +10836,7 @@
     return "";
   }
 
-  // codemirror/ubo-static-filtering.ts
+  // src/js/codemirror/ubo-static-filtering.ts
   var redirectNames = /* @__PURE__ */ new Map();
   var scriptletNames = /* @__PURE__ */ new Map();
   var preparseDirectiveEnv = [];
@@ -11007,11 +11035,11 @@
     return "+";
   };
   var ModeState = class {
-    astParser;
-    astWalker;
-    currentWalkerNode;
-    lastNetOptionType;
     constructor() {
+      __publicField(this, "astParser");
+      __publicField(this, "astWalker");
+      __publicField(this, "currentWalkerNode");
+      __publicField(this, "lastNetOptionType");
       this.astParser = new AstFilterParser({
         interactive: true,
         nativeCssHas: vAPI.webextFlavor?.env.includes("native_css_has") ?? false
@@ -12018,7 +12046,7 @@
     });
   }
 
-  // ../lib/punycode.js
+  // src/lib/punycode.js
   var punycode_default = function() {
     var punycode, maxInt = 2147483647, base = 36, tMin = 1, tMax = 26, skew = 38, damp = 700, initialBias = 72, initialN = 128, delimiter = "-", regexPunycode = /^xn--/, regexNonASCII = /[^\x20-\x7E]/, regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g, errors = {
       "overflow": "Overflow: input needs wider integers to process",
@@ -12249,7 +12277,7 @@
     return punycode;
   }();
 
-  // uri-utils.ts
+  // src/js/uri-utils.ts
   var reHostnameFromCommonURL = /^https:\/\/[0-9a-z._-]+[0-9a-z]\//;
   var reAuthorityFromURI = /^(?:[^:/?#]+:)?(\/\/[^/?#]+)/;
   var reHostFromNakedAuthority = /^[0-9a-z._-]+[0-9a-z]$/i;
@@ -12286,7 +12314,7 @@
     return hostname;
   }
 
-  // epicker-ui.ts
+  // src/js/epicker-ui.ts
   (() => {
     if (typeof vAPI !== "object") {
       return;

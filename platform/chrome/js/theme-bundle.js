@@ -1,5 +1,5 @@
 (() => {
-  // theme.ts
+  // src/js/theme.ts
   function getActualTheme(nominalTheme) {
     let theme = nominalTheme || "light";
     if (nominalTheme === "auto") {

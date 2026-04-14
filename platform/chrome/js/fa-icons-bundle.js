@@ -1,5 +1,5 @@
 (() => {
-  // fa-icons.ts
+  // src/js/fa-icons.ts
   var faIconsInit = /* @__PURE__ */ (() => {
     const svgIcons = /* @__PURE__ */ new Map([
       // See /img/fontawesome/fontawesome-defs.svg

@@ -1,5 +1,5 @@
 (() => {
-  // dom.ts
+  // src/js/dom.ts
   var normalizeTarget = (target) => {
     if (typeof target === "string") {
       return Array.from(qsa$(target));
@@ -198,7 +198,7 @@
   dom.head = document.head;
   dom.body = document.body;
 
-  // i18n.ts
+  // src/js/i18n.ts
   var i18n = null;
   if (typeof self.browser !== "undefined" && self.browser instanceof Object && !(self.browser instanceof Element)) {
     i18n = self.browser.i18n;
@@ -572,10 +572,30 @@
     i18n.render();
   }
 
-  // webext.js
-  var webext_default = browser;
+  // src/js/webext.ts
+  var webext = {
+    tabs: {
+      sendMessage: function(tabId, message, options) {
+        return chrome.tabs.sendMessage(tabId, message, options);
+      }
+    },
+    storage: {
+      local: void 0,
+      session: void 0,
+      sync: void 0
+    }
+  };
+  try {
+    if (typeof chrome !== "undefined" && chrome.storage) {
+      webext.storage.local = chrome.storage.local;
+      webext.storage.session = chrome.storage.session;
+      webext.storage.sync = chrome.storage.sync;
+    }
+  } catch (e) {
+  }
+  window.webext = webext;
 
-  // broadcast.ts
+  // src/js/broadcast.ts
   var broadcastChannel;
   function broadcast(message) {
     if (broadcastChannel === void 0) {
@@ -612,7 +632,7 @@
     19
   );
 
-  // 3p-filters.ts
+  // src/js/3p-filters.ts
   self.cloud = self.cloud || {
     options: {},
     datakey: "",
@@ -780,7 +800,7 @@
       const listEntries = dom.clone("#templates .listEntries");
       const treeEntries = Object.entries(listTree);
       if (depth !== 0) {
-        const reEmojis = new RegExp("\\p{Emoji}+", "gu");
+        const reEmojis = /\p{Emoji}+/gu;
         treeEntries.sort((a, b) => {
           const ap = a[1].preferred === true;
           const bp = b[1].preferred === true;

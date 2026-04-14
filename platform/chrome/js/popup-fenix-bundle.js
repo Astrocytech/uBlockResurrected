@@ -1,5 +1,5 @@
 (() => {
-  // dom.ts
+  // src/js/dom.ts
   var normalizeTarget = (target) => {
     if (typeof target === "string") {
       return Array.from(qsa$(target));
@@ -198,7 +198,7 @@
   dom.head = document.head;
   dom.body = document.body;
 
-  // i18n.ts
+  // src/js/i18n.ts
   var i18n = null;
   if (typeof self.browser !== "undefined" && self.browser instanceof Object && !(self.browser instanceof Element)) {
     i18n = self.browser.i18n;
@@ -572,7 +572,7 @@
     i18n.render();
   }
 
-  // popup-zapper.ts
+  // src/js/popup-zapper.ts
   var resolvePopupTabId = async (popupData2, chromeApi) => {
     if (typeof popupData2.tabId === "number") {
       return popupData2.tabId;
@@ -605,7 +605,7 @@
     return true;
   };
 
-  // popup-picker.ts
+  // src/js/popup-picker.ts
   var launchElementPicker = async (popupData2, chromeApi) => {
     if (chromeApi.scripting === void 0) {
       return false;
@@ -638,7 +638,7 @@
     return typeof tabId === "number" ? tabId : null;
   };
 
-  // ../lib/punycode.js
+  // src/lib/punycode.js
   var punycode_default = function() {
     var punycode, maxInt = 2147483647, base = 36, tMin = 1, tMax = 26, skew = 38, damp = 700, initialBias = 72, initialN = 128, delimiter = "-", regexPunycode = /^xn--/, regexNonASCII = /[^\x20-\x7E]/, regexSeparators = /[\x2E\u3002\uFF0E\uFF61]/g, errors = {
       "overflow": "Overflow: input needs wider integers to process",
@@ -869,7 +869,7 @@
     return punycode;
   }();
 
-  // popup-fenix.ts
+  // src/js/popup-fenix.ts
   var popupFontSize = "unset";
   Promise.resolve(vAPI.localStorage?.getItemAsync?.("popupFontSize")).then((value) => {
     if (typeof value !== "string" || value === "unset") {

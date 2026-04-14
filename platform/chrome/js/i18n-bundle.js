@@ -1,5 +1,5 @@
 (() => {
-  // i18n.ts
+  // src/js/i18n.ts
   var i18n = null;
   if (typeof self.browser !== "undefined" && self.browser instanceof Object && !(self.browser instanceof Element)) {
     i18n = self.browser.i18n;

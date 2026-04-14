@@ -1,5 +1,5 @@
 (() => {
-  // codemirror/ubo-dynamic-filtering.ts
+  // src/js/codemirror/ubo-dynamic-filtering.ts
   var validSwitches = /* @__PURE__ */ new Set([
     "no-strict-blocking:",
     "no-popups:",
@@ -210,7 +210,7 @@
     };
   });
 
-  // ../lib/publicsuffixlist/publicsuffixlist.js
+  // src/lib/publicsuffixlist/publicsuffixlist.js
   var publicsuffixlist_default = /* @__PURE__ */ function() {
     const HOSTNAME_SLOT = 0;
     const LABEL_INDICES_SLOT = 256;
@@ -701,7 +701,7 @@
     };
   }();
 
-  // dyna-rules.ts
+  // src/js/dyna-rules.ts
   var fallbackText = /* @__PURE__ */ new Map([
     ["rulesHint", "Dynamic filtering rules for the current profile."],
     ["rulesPermanentHeader", "Permanent rules"],
