@@ -294,7 +294,7 @@ const renderBlockedOnThisPageStat = function () {
             "{{percent}}",
             formatNumber(Math.floor((blocked * 100) / total)),
           );
-  dom.text('[data-i18n^="popupBlockedOnThisPage"] + span', text);
+  dom.text('#statBlocked > span:last-child', text);
 };
 
 /******************************************************************************/
@@ -751,7 +751,7 @@ const renderPrivacyExposure = function () {
   const summary = domainsHitStr
     .replace("{{count}}", touchedDomainCount.toLocaleString())
     .replace("{{total}}", allDomainCount.toLocaleString());
-  dom.text('[data-i18n^="popupDomainsConnected"] + span', summary);
+  dom.text('#statDomains > span:last-child', summary);
 };
 
 /******************************************************************************/
@@ -826,17 +826,16 @@ const renderPopup = function () {
 
   dom.cl.toggle("#gotoZap", "canPick", canPick);
   dom.cl.toggle(
-    "#gotoPick",
+    "#gotoReport",
     "canPick",
     canPick && popupData.userFiltersAreEnabled,
   );
-  dom.cl.toggle("#gotoReport", "canPick", canPick);
-  dom.cl.toggle("#gotoZap", "hidden", isFiltering === false);
-  dom.cl.toggle("#gotoPick", "hidden", isFiltering === false);
-  dom.cl.toggle("#gotoReport", "hidden", isFiltering === false);
-  dom.cl.remove("#gotoZap", "disabled");
-  dom.cl.remove("#gotoPick", "disabled");
-  dom.cl.remove("#gotoReport", "disabled");
+  dom.cl.toggle("#gotoZap", "disabled", isFiltering === false);
+  dom.cl.toggle("#gotoPick", "disabled", isFiltering === false);
+  dom.cl.toggle("#gotoReport", "disabled", isFiltering === false);
+  dom.cl.remove("#gotoZap", "hidden");
+  dom.cl.remove("#gotoPick", "hidden");
+  dom.cl.remove("#gotoReport", "hidden");
 
   let blocked, total;
   renderBlockedOnThisPageStat();
@@ -853,7 +852,7 @@ const renderPopup = function () {
         formatNumber(Math.floor((blocked * 100) / total)),
       );
   }
-  dom.text('[data-i18n^="popupBlockedSinceInstall"] + span', text);
+  dom.text('#statGlobal > span:last-child', text);
 
   // This will collate all domains, touched or not
   renderPrivacyExposure();

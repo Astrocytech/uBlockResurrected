@@ -406,19 +406,25 @@ body.needSave #revertRules {
 #basicStats {
     column-gap: var(--popup-gap);
     display: grid;
-    grid-template: auto / auto;
+    grid-template: auto auto auto / 1fr;
     margin: var(--popup-gap) var(--popup-gap) var(--popup-gap-thin) var(--popup-gap);
+    padding: 5px 0;
     }
 #basicStats > span {
     justify-self: center;
     white-space: nowrap;
+    text-align: center;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
     }
-#basicStats > [data-i18n] {
+#basicStats > span > span[data-i18n] {
     font-size: 95%;
     }
-#basicStats > [data-i18n] + span {
+#basicStats > span > span:last-child {
     font-size: 105%;
-    margin-bottom: var(--popup-gap-thin);
+    font-weight: 600;
     }
 :root.portrait #basicStats {
     grid-template: auto / auto auto;
@@ -430,9 +436,9 @@ body.needSave #revertRules {
     margin-bottom: var(--popup-gap);
     white-space: unset;
     }
-:root.portrait #basicStats > [data-i18n] {
+:root.portrait #basicStats > span > span[data-i18n] {
     }
-:root.portrait #basicStats > [data-i18n] + span {
+:root.portrait #basicStats > span > span:last-child {
     text-align: end;
     }
 
@@ -513,7 +519,7 @@ body:not([data-more*="d"]) #extraTools .fa-icon svg {
     display: none;
     }
 #basicTools .needPick.disabled {
-    opacity: 0.4;
+    opacity: 0.6;
     pointer-events: none;
     filter: grayscale(100%);
     cursor: not-allowed;
@@ -521,10 +527,16 @@ body:not([data-more*="d"]) #extraTools .fa-icon svg {
 #gotoZap.disabled,
 #gotoPick.disabled,
 #gotoReport.disabled {
-    opacity: 0.4;
+    opacity: 0.6;
     pointer-events: none;
     filter: grayscale(100%);
     cursor: not-allowed;
+    }
+#gotoZap.disabled svg,
+#gotoPick.disabled svg,
+#gotoReport.disabled svg,
+#gotoDashboard.disabled svg {
+    fill: var(--ink-3) !important;
     }
 
 #extraTools .fa-icon {
