@@ -188,7 +188,7 @@ cat > $DES/js/i18n-fallback.js << 'I18NFALLBACKEOF'
         'popupBlockedSinceInstall_v2': 'Blocked since install',
         'popupTipZapper': 'Zapper',
         'popupTipPicker': 'Picker',
-        'popupTipReport': 'Report',
+        'popupTipLightbulb': 'Lightbulb',
         'popupTipLog': 'Log',
         'popupTipDashboard': 'Dashboard',
         'popupTipSaveRules': 'Save rules',

@@ -157,3 +157,6 @@
 .fa-icon > .fa-icon_bolt {
     width: calc(1em *  896 / 1792);
     }
+.fa-icon > .fa-icon_lightbulb {
+    width: calc(1em * 512 / 1792);
+    }

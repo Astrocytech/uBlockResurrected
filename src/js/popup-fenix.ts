@@ -825,17 +825,10 @@ const renderPopup = function () {
   const canPick = popupData.canElementPicker && isFiltering;
 
   dom.cl.toggle("#gotoZap", "canPick", canPick);
-  dom.cl.toggle(
-    "#gotoReport",
-    "canPick",
-    canPick && popupData.userFiltersAreEnabled,
-  );
   dom.cl.toggle("#gotoZap", "disabled", isFiltering === false);
   dom.cl.toggle("#gotoPick", "disabled", isFiltering === false);
-  dom.cl.toggle("#gotoReport", "disabled", isFiltering === false);
   dom.cl.remove("#gotoZap", "hidden");
   dom.cl.remove("#gotoPick", "hidden");
-  dom.cl.remove("#gotoReport", "hidden");
 
   let blocked, total;
   renderBlockedOnThisPageStat();
@@ -1109,63 +1102,6 @@ const toggleNetFilteringSwitch = function (ev) {
 };
 
 /******************************************************************************/
-
-const gotoReport = function () {
-  if (popupData.netFilteringSwitch !== true) {
-    return;
-  }
-  const popupPanel = {
-    blocked: popupData.pageCounts.blocked.any,
-  };
-  const reportedStates = [
-    { name: "enabled", prop: "netFilteringSwitch", expected: true },
-    {
-      name: "no-cosmetic-filtering",
-      prop: "noCosmeticFiltering",
-      expected: false,
-    },
-    { name: "no-large-media", prop: "noLargeMedia", expected: false },
-    { name: "no-popups", prop: "noPopups", expected: false },
-    { name: "no-remote-fonts", prop: "noRemoteFonts", expected: false },
-    { name: "no-scripting", prop: "noScripting", expected: false },
-    { name: "can-element-picker", prop: "canElementPicker", expected: true },
-  ];
-  for (const { name, prop, expected } of reportedStates) {
-    if (popupData[prop] === expected) {
-      continue;
-    }
-    popupPanel[name] = !expected;
-  }
-  if (hostnameToSortableTokenMap.size !== 0) {
-    const network = {};
-    const hostnames = Array.from(hostnameToSortableTokenMap.keys()).sort(
-      hostnameCompare,
-    );
-    for (const hostname of hostnames) {
-      const entry = popupData.hostnameDict[hostname];
-      const count = entry.counts.blocked.any;
-      if (count === 0) {
-        continue;
-      }
-      const domain = entry.domain;
-      if (network[domain] === undefined) {
-        network[domain] = 0;
-      }
-      network[domain] += count;
-    }
-    if (Object.keys(network).length !== 0) {
-      popupPanel.network = network;
-    }
-  }
-  messaging.send("popupPanel", {
-    what: "launchReporter",
-    tabId: popupData.tabId,
-    pageURL: popupData.rawURL,
-    popupPanel,
-  });
-
-  vAPI.closePopup();
-};
 
 /******************************************************************************/
 
@@ -1818,7 +1754,6 @@ dom.on("#switch", "keypress", (ev) => {
 });
 dom.on("#gotoZap", "click", gotoZap);
 dom.on("#gotoPick", "click", gotoPick);
-dom.on("#gotoReport", "click", gotoReport);
 dom.on("#gotoDashboard", "click", gotoDashboard);
 dom.on(".hnSwitch", "click", (ev) => {
   toggleHostnameSwitch(ev);
