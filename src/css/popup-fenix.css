@@ -250,6 +250,20 @@ body.advancedUser #firewall > div > span.noopRule,
 body.off #switch .fa-icon svg {
     fill: var(--checkbox-ink);
     }
+#switch .fa-icon {
+    background: transparent;
+    }
+#switch {
+    background: transparent;
+    }
+#refresh,
+#refresh .fa-icon {
+    background: transparent;
+    }
+#refresh:hover,
+#refresh:hover .fa-icon {
+    background: transparent;
+    }
 
 /* Internal CSS values */
 :root body {
@@ -353,10 +367,17 @@ hr {
     padding: 0;
     stroke: none;
     stroke-width: 64;
+    background: transparent;
     }
 body.off #switch {
     fill: var(--checkbox-ink);
     stroke: none;
+    }
+#refresh {
+    background: transparent !important;
+    }
+#refresh:hover {
+    background: transparent !important;
     }
 .rulesetTools {
     background-color: transparent;
@@ -368,7 +389,7 @@ body.off #switch {
     width: 25%;
     }
 .rulesetTools [id] {
-    background-color: var(--popup-ruleset-tool-surface);
+    background-color: transparent !important;
     border-radius: 4px;
     cursor: pointer;
     fill: var(--popup-ruleset-tool-ink);
@@ -1167,7 +1188,7 @@ body:not([data-more*="e"]) [data-more="e"] {
     fill: var(--checkbox-ink);
     }
 :root.desktop .rulesetTools [id]:hover {
-    background-color: var(--popup-ruleset-tool-surface-hover);
+    background-color: transparent !important;
     }
 :root.desktop .rulesetTools [id]:hover > svg {
     fill: var(--ink-2);
