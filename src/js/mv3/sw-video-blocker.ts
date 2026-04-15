@@ -180,7 +180,22 @@ function stripAdKeys(obj: any, adKeys: string[]): any {
 function createVideoBlocker() {
   const injectedTabs = new Set();
 
-  chrome.webNavigation?.onCommitted?.addListener(async (details) => {
+  console.log("[VB-SW] createVideoBlocker() starting");
+
+  if (!chrome.scripting?.executeScript) {
+    console.error("[VB-SW] ERROR: chrome.scripting.executeScript not available!");
+    return;
+  }
+
+  const shouldInject = (tabId: number) => {
+    if (!injectedTabs.has(tabId)) {
+      injectedTabs.add(tabId);
+      return true;
+    }
+    return false;
+  };
+
+  const handleNavigation = async (details: any) => {
     if (details.frameId !== 0) return;
 
     const url = details.url;
@@ -189,23 +204,14 @@ function createVideoBlocker() {
     const platform = detectPlatform(url);
     if (!platform) return;
 
-    if (injectedTabs.has(details.tabId)) return;
-    injectedTabs.add(details.tabId);
+    if (!shouldInject(details.tabId)) {
+      return;
+    }
 
     const config = PLATFORMS[platform];
     if (!config) return;
 
-    if (chrome.scripting?.executeScript === undefined) {
-      console.log("[VB] chrome.scripting not available");
-      return;
-    }
-
-    console.log(
-      "[VB] Injecting video ad blocker:",
-      platform,
-      "tab",
-      details.tabId,
-    );
+    console.log("[VB-SW] Injecting for:", platform, "url:", url);
 
     try {
       await chrome.scripting.executeScript({
@@ -309,94 +315,152 @@ function createVideoBlocker() {
             return result;
           };
 
-          let isPlayerApiRequest = false;
+          console.log("[VB-MAIN] Installing full YouTube ad blocker...");
 
-          const originalOpen = XMLHttpRequest.prototype.open;
-          XMLHttpRequest.prototype.open = function (
-            method: string,
-            url: string,
-          ) {
-            isPlayerApiRequest = false;
-            if (url) {
-              for (const p of playerPaths) {
-                if (url.includes(p)) {
-                  isPlayerApiRequest = true;
-                  break;
-                }
-              }
-            }
-            return originalOpen.apply(this, arguments);
+          const SKIP_BTN_SEL = [
+            ".ytp-skip-ad-button",
+            ".ytp-ad-skip-button",
+            ".ytp-ad-skip-button-modern",
+            ".ytp-ad-skip-button-container button",
+            ".ytp-ad-skip-button-slot button",
+            ".videoAdUiSkipButton",
+            "button[class*='ytp-ad-skip']"
+          ].join(",");
+
+          const AD_OVERLAY_SEL = [
+            ".video-ads", ".ytp-ad-module", ".ytp-ad-overlay-container",
+            ".ytp-ad-text-overlay", ".ytp-ad-image-overlay", ".ytp-ad-player-overlay",
+            ".ytp-ad-player-overlay-layout", ".ytp-ad-action-interstitial-slot",
+            ".ytp-ad-action-interstitial-background-container", ".ytp-ad-progress-list",
+            ".ytp-ad-preview-container", ".ytp-ad-preview-text", ".ytp-ad-simple-ad-badge",
+            ".ytp-ad-persistent-progress-bar-container", ".ytp-ad-player-overlay-instream-info",
+            ".ytp-ad-player-overlay-skip-or-preview", ".ytp-ad-visit-advertiser-button",
+            ".ad-simple-attributed-string", ".ytp-ad-badge__text--clean-player",
+            "#player-ads", "#player-overlay\\:0", "#player-overlay-layout\\:0"
+          ].join(",");
+
+          let adHandling = false;
+          let adSeekedToEnd = false;
+          let savedMuted = false;
+          let savedVolume = 1;
+          let adIntervalId: any = null;
+          let adRafId: any = null;
+
+          const playerInAdMode = () => {
+            const player = document.getElementById("movie_player");
+            if (!player) return false;
+            return player.classList.contains("ad-showing") || player.classList.contains("ad-interrupting");
           };
 
-          const originalSend = XMLHttpRequest.prototype.send;
-          XMLHttpRequest.prototype.send = function (body?: any) {
-            if (isPlayerApiRequest) {
-              this.addEventListener("load", function () {
-                const text = this.responseText;
-                if (text) {
-                  const found = adKeys.some((k) => text.includes(`"${k}"`));
-                  if (found) {
-                    console.log("[VB-MAIN] Neutering player response from XHR");
-                    try {
-                      const json = JSON.parse(text);
-                      const neutered = neuterPlayerResponse(json);
-                      Object.defineProperty(this, "responseText", {
-                        value: JSON.stringify(neutered),
-                        writable: false,
-                        configurable: true,
-                      });
-                      Object.defineProperty(this, "response", {
-                        value: JSON.stringify(neutered),
-                        writable: false,
-                        configurable: true,
-                      });
-                    } catch {}
+          const clickSkipButtons = () => {
+            const btns = document.querySelectorAll(SKIP_BTN_SEL);
+            btns.forEach((btn: any) => {
+              try { btn.click(); } catch (e) {}
+            });
+          };
+
+          const hideAdOverlays = () => {
+            const els = document.querySelectorAll(AD_OVERLAY_SEL);
+            els.forEach((el: any) => {
+              el.style.setProperty("display", "none", "important");
+            });
+          };
+
+          const nukeAdFrame = () => {
+            const player = document.getElementById("movie_player");
+            if (!player) return;
+            const video = player.querySelector("video");
+            if (!video) return;
+
+            video.muted = true;
+
+            if (!adSeekedToEnd) {
+              const dur = video.duration;
+              if (Number.isFinite(dur) && dur > 0 && dur < 300 && video.currentTime < dur - 0.01) {
+                video.currentTime = dur;
+              }
+              if (Number.isFinite(dur) && dur > 0 && video.currentTime >= dur - 0.5) {
+                adSeekedToEnd = true;
+                try { video.dispatchEvent(new Event("ended")); } catch (e) {}
+              }
+            }
+
+            clickSkipButtons();
+            hideAdOverlays();
+          };
+
+          const endAdLoop = () => {
+            if (adIntervalId !== null) {
+              clearInterval(adIntervalId);
+              adIntervalId = null;
+            }
+            if (adRafId !== null) {
+              cancelAnimationFrame(adRafId);
+              adRafId = null;
+            }
+
+            const player = document.getElementById("movie_player");
+            const video = player?.querySelector("video");
+            if (video) {
+              video.muted = savedMuted;
+              video.volume = savedVolume;
+              if (video.playbackRate !== 1) video.playbackRate = 1;
+            }
+
+            adHandling = false;
+          };
+
+          const beginAdLoop = () => {
+            if (adIntervalId !== null || adRafId !== null) return;
+
+            const step = () => {
+              if (!playerInAdMode()) {
+                endAdLoop();
+                return;
+              }
+              nukeAdFrame();
+            };
+
+            adIntervalId = setInterval(step, 16);
+
+            const rAfStep = () => {
+              if (!playerInAdMode()) return;
+              nukeAdFrame();
+              adRafId = requestAnimationFrame(rAfStep);
+            };
+            adRafId = requestAnimationFrame(rAfStep);
+          };
+
+          const trySkipAd = () => {
+            const player = document.getElementById("movie_player");
+            if (!player) return;
+
+            try {
+              if (typeof (player as any).skipAd === "function") {
+                console.log("[VB-MAIN] Calling player.skipAd()");
+                (player as any).skipAd();
+              }
+              if (typeof (player as any).cancelPlayback === "function") {
+                (player as any).cancelPlayback();
+              }
+
+              if (typeof (player as any).getVideoData === "function") {
+                const vd = (player as any).getVideoData();
+                if (vd && vd.isAd) {
+                  console.log("[VB-MAIN] Detected isAd=true, seeking to end");
+                  const video = player.querySelector("video");
+                  if (video && Number.isFinite(video.duration) && video.duration > 0 && video.duration < 300) {
+                    if (typeof (player as any).seekTo === "function") {
+                      (player as any).seekTo(video.duration, true);
+                    }
+                    video.currentTime = video.duration;
                   }
                 }
-              });
-            }
-            return originalSend.apply(this, arguments);
+              }
+            } catch (e) {}
           };
 
-          const originalFetch = window.fetch;
-          window.fetch = function (...args) {
-            let isPlayer = false;
-            const reqUrl = typeof args[0] === "string" ? args[0] : args[0]?.url;
-            if (reqUrl) {
-              for (const p of playerPaths) {
-                if (reqUrl.includes(p)) {
-                  isPlayer = true;
-                  break;
-                }
-              }
-            }
-            return originalFetch
-              .apply(this, args)
-              .then((response: Response) => {
-                if (isPlayer && response.ok) {
-                  return response
-                    .clone()
-                    .text()
-                    .then((text: string) => {
-                      const found = adKeys.some((k) => text.includes(`"${k}"`));
-                      if (found) {
-                        console.log("[VB-MAIN] Neutering player response from fetch");
-                        try {
-                          const json = JSON.parse(text);
-                          const neutered = neuterPlayerResponse(json);
-                          return new Response(JSON.stringify(neutered), {
-                            status: response.status,
-                            statusText: response.statusText,
-                            headers: response.headers,
-                          });
-                        } catch {}
-                      }
-                      return response;
-                    });
-                }
-                return response;
-              });
-          };
+          attachPlayerObserver();
 
           console.log("[VB-MAIN] Patches ready for", plat);
         },
@@ -406,10 +470,27 @@ function createVideoBlocker() {
     } catch (e) {
       console.error("[VB] Error:", e);
     }
+  };
+
+  chrome.webNavigation?.onCommitted?.addListener(handleNavigation);
+
+  chrome.webNavigation?.onHistoryStateUpdated?.addListener(handleNavigation);
+
+  chrome.tabs?.onUpdated?.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === "complete" && tab?.url) {
+      const platform = detectPlatform(tab.url);
+      if (platform && shouldInject(tabId)) {
+        console.log("[VB-SW] Tab updated, injecting:", tab.url);
+        handleNavigation({ tabId, frameId: 0, url: tab.url });
+      }
+    }
   });
 }
 
 export const registerVideoAdBlocker = () => {
+  console.log("[VB-SW] registerVideoAdBlocker called");
+  console.log("[VB-SW] chrome.scripting available:", typeof chrome.scripting);
+  console.log("[VB-SW] chrome.webNavigation available:", typeof chrome.webNavigation);
   createVideoBlocker();
 };
 

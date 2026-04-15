@@ -18,139 +18,44 @@
 (function () {
   "use strict";
 
-  console.log("[YT-INJECT] YouTube ad blocker injection starting (MAIN WORLD)...");
+  console.log("[YT-INJECT-MAIN] YouTube ad blocker injection starting");
 
   var isYouTube = function () {
     return (
-      window.location.hostname.includes("youtube.com") &&
-      !window.location.hostname.includes("youtu.be")
+      window.location.hostname.indexOf("youtube.com") !== -1 &&
+      window.location.hostname.indexOf("youtu.be") === -1
     );
   };
 
   if (!isYouTube()) {
-    console.log("[YT-INJECT] Not YouTube, skipping");
+    console.log("[YT-INJECT-MAIN] Not YouTube, skipping");
     return;
   }
 
-  console.log("[YT-INJECT] YouTube detected, setting up MAIN WORLD interceptors");
+  console.log("[YT-INJECT-MAIN] YouTube detected, setting up MAIN WORLD interceptors");
 
   var AD_KEYS = [
-    "adPlacements",
-    "playerAds",
-    "adSlots",
-    "adBreakHeartbeatParams",
-    "adServerLogger",
-    "adBreakOverlays",
-    "adBreakResponse",
-    "adShowing",
-    "adFormat",
-    "adNumSegments",
-    "adDurationMillis",
-    "adDeviceRestriction",
-    "adEligibilityReasons",
-    "adEngagementEnabled",
-    "adLoadPolicyConfig",
-    "adLogability",
-    "adMentions",
-    "adPlaybackMobile",
-    "adPlaybackIos",
-    "adPlaybackOther",
-    "adPlaybackPC",
-    "adPlayers",
-    "adProduct",
-    "adRye",
-    "adSessionId",
-    "adSlot",
-    "adSlots",
-    "adTag",
-    "adTags",
-    "adTargeting",
-    "adThirdPartyAnchor",
-    "adTimings",
-    "adTracking",
-    "adPrerolls",
-    "hasAds",
-    "isAd",
-    "isTeva",
-    "trafficType",
-    "standalonePromoRenderer",
-    "adConfig",
-    "adInfo",
-    "ad服务体系",
-    "playerAds",
-    "adShow",
-    "adIntervals",
-    "adActiveView",
-    "ad1Plugins",
-    "ad2Plugins",
-    "adRenderer",
-    "adWhitelist",
-    "instream",
-    "skipOffset",
-    "adSkipOffset",
-    "adSafetyReason",
-    "streamingAds",
-    "ad3Module",
-    "adState",
-    "adBreakParams",
-    "adModule",
-    "adPlaybackContext",
-    "adVideoId",
-    "adLayoutLoggingData",
-    "adInfoRenderer",
-    "adNextParams",
-    "instreamVideoAdRenderer",
-    "linearAdSequenceRenderer",
-    "adSignalsInfo",
-    "adBreakServiceRenderer",
-    "adSlotRenderer",
-    "adBreakRenderer",
-    "advertiserInfoRenderer",
-    "promotedSparklesWebRenderer",
-    "promotedSparklesTextSearchRenderer",
-    "compactPromotedVideoRenderer",
-    "promotedVideoRenderer",
-    "playerLegacyDesktopWatchAdsRenderer",
-    "actionCompanionAdRenderer",
-    "adPlacementConfig",
-    "adPlacementRenderer",
-    "instreamAdPlayerOverlayRenderer",
-    "invideoOverlayAdRenderer",
-    "adActionInterstitialRenderer",
-    "adFeedbackRenderer",
-    "adSlotAndLayout",
-    "adSlotMetadata",
-    "adLayoutMetadata",
-    "adLayoutRenderData",
-    "adHoverTextButtonRenderer",
-    "adInfoDialogRenderer",
-    "adReasonRenderer",
-    "adPlacementsConfig",
-    "adRendererConfig",
-    "playerWrapperRenderers",
-    "isMutedPlayback",
-    "segmentType",
-    "segmentData",
-  ];
-
-  var AD_RENDERER_PATTERNS = [
-    "adSlotRenderer",
-    "promotedSparkles",
-    "promotedVideo",
-    "displayAd",
-    "inFeedAdLayout",
-    "CompanionAd",
-    "companionAd",
-    "adSlot",
-    "searchPyv"
+    "adPlacements", "playerAds", "adSlots", "adBreakHeartbeatParams",
+    "adServerLogger", "adBreakOverlays", "adBreakResponse", "adShowing",
+    "adFormat", "adNumSegments", "adDurationMillis", "adDeviceRestriction",
+    "adEligibilityReasons", "adEngagementEnabled", "adLoadPolicyConfig",
+    "adLogability", "adMentions", "adPlaybackMobile", "adPlaybackIos",
+    "adPlaybackOther", "adPlaybackPC", "adPlayers", "adProduct", "adRye",
+    "adSessionId", "adSlot", "adSlots", "adTag", "adTags", "adTargeting",
+    "adThirdPartyAnchor", "adTimings", "adTracking", "adPrerolls", "hasAds",
+    "isAd", "isTeva", "trafficType", "standalonePromoRenderer", "adConfig",
+    "adInfo", "playerAds", "adShow", "adIntervals", "adActiveView", "adRenderer",
+    "adWhitelist", "instream", "skipOffset", "adSkipOffset", "adSafetyReason",
+    "streamingAds", "ad3Module", "adState", "adBreakParams", "adModule",
+    "adPlaybackContext", "adVideoId", "adLayoutLoggingData", "adInfoRenderer",
+    "adNextParams", "instreamVideoAdRenderer", "linearAdSequenceRenderer",
+    "adSignalsInfo", "adBreakServiceRenderer", "adSlotRenderer", "adBreakRenderer",
+    "advertiserInfoRenderer", "promotedSparklesWebRenderer", "playerResponse"
   ];
 
   var YOUTUBEI_PATTERNS = [
-    "/youtubei/v1/player",
-    "/youtubei/v1/next",
-    "/youtubei/v1/browse",
-    "/youtubei/v1/ad_break",
-    "/youtubei/v1/reel/reel_watch_sequence",
+    "/youtubei/v1/player", "/youtubei/v1/next", "/youtubei/v1/browse",
+    "/youtubei/v1/ad_break", "/youtubei/v1/reel/reel_watch_sequence"
   ];
 
   var isTargetYoutubeiRequest = function (url) {
@@ -183,29 +88,6 @@
     if (obj.adPlacements && Array.isArray(obj.adPlacements)) obj.adPlacements = [];
     if (obj.playerAds && Array.isArray(obj.playerAds)) obj.playerAds = [];
 
-    var ARRAY_KEYS = ["contents", "items", "results", "richItems"];
-    for (var ai = 0; ai < ARRAY_KEYS.length; ai++) {
-      var arrKey = ARRAY_KEYS[ai];
-      if (Array.isArray(obj[arrKey])) {
-        obj[arrKey] = obj[arrKey].filter(function (item) {
-          if (!item || typeof item !== "object") return true;
-          var itemKeys = Object.keys(item);
-          return !itemKeys.some(function (k) {
-            return AD_RENDERER_PATTERNS.some(function (pat) {
-              return k.indexOf(pat) !== -1;
-            });
-          });
-        });
-      }
-    }
-
-    if (obj.playabilityStatus && typeof obj.playabilityStatus === "object") {
-      var reason = String(obj.playabilityStatus.reason || "").toLowerCase();
-      if (obj.playabilityStatus.status === "ERROR" && reason.indexOf("ad") !== -1) {
-        delete obj.playabilityStatus;
-      }
-    }
-
     var values = Object.values(obj);
     for (var vi = 0; vi < values.length; vi++) {
       cleanseObject(values[vi], seen);
@@ -231,49 +113,6 @@
     });
   };
 
-  var patchInitialResponse = function () {
-    try {
-      if (window.ytInitialPlayerResponse) {
-        cleanseObject(window.ytInitialPlayerResponse);
-      }
-    } catch (e) {}
-    try {
-      if (window.ytInitialData) {
-        cleanseObject(window.ytInitialData);
-      }
-    } catch (e) {}
-  };
-
-  var patchInitialPlayerResponseSetter = function () {
-    try {
-      var current = window.ytInitialPlayerResponse;
-      Object.defineProperty(window, "ytInitialPlayerResponse", {
-        configurable: true,
-        get: function () {
-          return current;
-        },
-        set: function (value) {
-          current = cleanseObject(value);
-        }
-      });
-    } catch (e) {}
-  };
-
-  var patchInitialDataSetter = function () {
-    try {
-      var currentData = window.ytInitialData;
-      Object.defineProperty(window, "ytInitialData", {
-        configurable: true,
-        get: function () {
-          return currentData;
-        },
-        set: function (value) {
-          currentData = cleanseObject(value);
-        }
-      });
-    } catch (e) {}
-  };
-
   var patchFetch = function () {
     var originalFetch = window.fetch;
     window.fetch = async function (input, init) {
@@ -283,7 +122,7 @@
         if (!isTargetYoutubeiRequest(url)) return response;
 
         var contentType = response.headers.get("content-type") || "";
-        if (!contentType.indexOf("application/json") !== -1) return response;
+        if (contentType.indexOf("application/json") === -1) return response;
 
         var json = await response.clone().json();
         cleanseObject(json);
@@ -322,52 +161,27 @@
           } catch (err) {}
         });
       }
-
       return originalSend.apply(this, arguments);
     };
   };
 
   var SKIP_BTN_SEL = [
-    ".ytp-skip-ad-button",
-    ".ytp-ad-skip-button",
-    ".ytp-ad-skip-button-modern",
-    ".ytp-ad-skip-button-container button",
-    ".ytp-ad-skip-button-slot button",
-    ".videoAdUiSkipButton",
-    "button[class*='ytp-ad-skip']"
+    ".ytp-skip-ad-button", ".ytp-ad-skip-button", ".ytp-ad-skip-button-modern",
+    ".ytp-ad-skip-button-container button", ".ytp-ad-skip-button-slot button",
+    ".videoAdUiSkipButton", "button[class*='ytp-ad-skip']"
   ].join(",");
 
   var AD_OVERLAY_SEL = [
-    ".video-ads",
-    ".ytp-ad-module",
-    ".ytp-ad-overlay-container",
-    ".ytp-ad-text-overlay",
-    ".ytp-ad-image-overlay",
-    ".ytp-ad-player-overlay",
-    ".ytp-ad-player-overlay-layout",
-    ".ytp-ad-action-interstitial-slot",
-    ".ytp-ad-action-interstitial-background-container",
-    ".ytp-ad-progress-list",
-    ".ytp-ad-preview-container",
-    ".ytp-ad-preview-text",
-    ".ytp-ad-simple-ad-badge",
-    ".ytp-ad-persistent-progress-bar-container",
-    ".ytp-ad-player-overlay-instream-info",
-    ".ytp-ad-player-overlay-skip-or-preview",
-    ".ytp-ad-visit-advertiser-button",
-    ".ad-simple-attributed-string",
-    ".ytp-ad-badge__text--clean-player",
-    "#player-ads",
-    "#player-overlay\\:0",
-    "#player-overlay-layout\\:0"
+    ".video-ads", ".ytp-ad-module", ".ytp-ad-overlay-container",
+    ".ytp-ad-text-overlay", ".ytp-ad-image-overlay", ".ytp-ad-player-overlay",
+    ".ytp-ad-player-overlay-layout", ".ytp-ad-action-interstitial-slot",
+    ".ytp-ad-action-interstitial-background-container", ".ytp-ad-progress-list",
+    ".ytp-ad-preview-container", ".ytp-ad-preview-text", ".ytp-ad-simple-ad-badge",
+    ".ytp-ad-persistent-progress-bar-container", ".ytp-ad-player-overlay-instream-info",
+    ".ytp-ad-player-overlay-skip-or-preview", ".ytp-ad-visit-advertiser-button",
+    ".ad-simple-attributed-string", ".ytp-ad-badge__text--clean-player",
+    "#player-ads", "#player-overlay\\:0", "#player-overlay-layout\\:0"
   ].join(",");
-
-  var playerInAdMode = function (player) {
-    return (
-      player.classList.contains("ad-showing") ||
-      player.classList.contains("ad-interrupting")
-    );
-  };
 
   var adHandling = false;
   var adSeekedToEnd = false;
@@ -376,23 +190,29 @@
   var adIntervalId = null;
   var adRafId = null;
 
+  var playerInAdMode = function () {
+    var player = document.getElementById("movie_player");
+    if (!player) return false;
+    return player.classList.contains("ad-showing") || player.classList.contains("ad-interrupting");
+  };
+
   var clickSkipButtons = function () {
     var btns = document.querySelectorAll(SKIP_BTN_SEL);
-    for (var i = 0; i < btns.length; i++) {
-      try {
-        btns[i].click();
-      } catch (e) {}
-    }
+    btns.forEach(function (btn) {
+      try { btn.click(); } catch (e) {}
+    });
   };
 
   var hideAdOverlays = function () {
     var els = document.querySelectorAll(AD_OVERLAY_SEL);
-    for (var i = 0; i < els.length; i++) {
-      els[i].style.setProperty("display", "none", "important");
-    }
+    els.forEach(function (el) {
+      el.style.setProperty("display", "none", "important");
+    });
   };
 
-  var nukeAdFrame = function (player) {
+  var nukeAdFrame = function () {
+    var player = document.getElementById("movie_player");
+    if (!player) return;
     var video = player.querySelector("video");
     if (!video) return;
 
@@ -403,12 +223,9 @@
       if (Number.isFinite(dur) && dur > 0 && dur < 300 && video.currentTime < dur - 0.01) {
         video.currentTime = dur;
       }
-
       if (Number.isFinite(dur) && dur > 0 && video.currentTime >= dur - 0.5) {
         adSeekedToEnd = true;
-        try {
-          video.dispatchEvent(new Event("ended"));
-        } catch (e) {}
+        try { video.dispatchEvent(new Event("ended")); } catch (e) {}
       }
     }
 
@@ -416,7 +233,7 @@
     hideAdOverlays();
   };
 
-  var endAdLoop = function (player) {
+  var endAdLoop = function () {
     if (adIntervalId !== null) {
       clearInterval(adIntervalId);
       adIntervalId = null;
@@ -426,7 +243,8 @@
       adRafId = null;
     }
 
-    var video = player.querySelector("video");
+    var player = document.getElementById("movie_player");
+    var video = player && player.querySelector("video");
     if (video) {
       video.muted = savedMuted;
       video.volume = savedVolume;
@@ -436,34 +254,32 @@
     adHandling = false;
   };
 
-  var beginAdLoop = function (player) {
+  var beginAdLoop = function () {
     if (adIntervalId !== null || adRafId !== null) return;
 
     var step = function () {
-      if (!playerInAdMode(player)) {
-        endAdLoop(player);
+      if (!playerInAdMode()) {
+        endAdLoop();
         return;
       }
-      nukeAdFrame(player);
+      nukeAdFrame();
     };
 
-    adIntervalId = setInterval(function () {
-      step();
-    }, 16);
+    adIntervalId = setInterval(step, 16);
 
     var rAfStep = function () {
-      if (!playerInAdMode(player)) return;
-      nukeAdFrame(player);
+      if (!playerInAdMode()) return;
+      nukeAdFrame();
       adRafId = requestAnimationFrame(rAfStep);
     };
     adRafId = requestAnimationFrame(rAfStep);
   };
 
   var trySkipAd = function () {
-    try {
-      var player = document.getElementById("movie_player");
-      if (!player) return;
+    var player = document.getElementById("movie_player");
+    if (!player) return;
 
+    try {
       if (typeof player.skipAd === "function") player.skipAd();
       if (typeof player.cancelPlayback === "function") player.cancelPlayback();
 
@@ -472,17 +288,19 @@
         if (vd && vd.isAd) {
           var video = player.querySelector("video");
           if (video && Number.isFinite(video.duration) && video.duration > 0 && video.duration < 300) {
-            if (typeof player.seekTo === "function") {
-              player.seekTo(video.duration, true);
-            }
+            if (typeof player.seekTo === "function") player.seekTo(video.duration, true);
+            video.currentTime = video.duration;
           }
         }
       }
     } catch (e) {}
   };
 
-  var onPlayerStateChange = function (player) {
-    if (playerInAdMode(player)) {
+  var onPlayerStateChange = function () {
+    var player = document.getElementById("movie_player");
+    if (!player) return;
+
+    if (playerInAdMode()) {
       if (!adHandling) {
         adHandling = true;
         adSeekedToEnd = false;
@@ -494,7 +312,7 @@
 
           var onMeta = function () {
             video.removeEventListener("loadedmetadata", onMeta, true);
-            if (playerInAdMode(player) && !adSeekedToEnd) {
+            if (playerInAdMode() && !adSeekedToEnd) {
               var dur = video.duration;
               if (Number.isFinite(dur) && dur > 0 && dur < 300) {
                 video.currentTime = dur;
@@ -505,12 +323,28 @@
         }
       }
 
-      nukeAdFrame(player);
+      nukeAdFrame();
       trySkipAd();
-      beginAdLoop(player);
+      beginAdLoop();
     } else if (adHandling) {
-      endAdLoop(player);
+      endAdLoop();
     }
+  };
+
+  var injectCSS = function () {
+    var css = [
+      "#movie_player.ad-showing video,",
+      "#movie_player.ad-interrupting video { visibility: hidden !important; }",
+      "#movie_player.ad-showing .ytp-spinner,",
+      "#movie_player.ad-showing .ytp-spinner-container,",
+      "#movie_player.ad-interrupting .ytp-spinner,",
+      "#movie_player.ad-interrupting .ytp-spinner-container { display: none !important; }",
+      AD_OVERLAY_SEL,
+      "{display: none !important; visibility: hidden !important; opacity: 0 !important; }"
+    ].join("");
+    var style = document.createElement("style");
+    style.textContent = css;
+    (document.head || document.documentElement).appendChild(style);
   };
 
   var installMainWorldAdSkipper = function () {
@@ -520,48 +354,20 @@
       return;
     }
 
-    onPlayerStateChange(player);
+    injectCSS();
+    onPlayerStateChange();
 
     new MutationObserver(function () {
-      onPlayerStateChange(player);
+      onPlayerStateChange();
     }).observe(player, { attributes: true, attributeFilter: ["class"] });
 
     setInterval(function () {
-      if (playerInAdMode(player)) {
-        onPlayerStateChange(player);
-      }
+      if (playerInAdMode()) onPlayerStateChange();
     }, 100);
   };
 
-  var injectAdHidingCSS = function () {
-    var css = [
-      "#movie_player.ad-showing video,",
-      "#movie_player.ad-interrupting video",
-      "{visibility:hidden!important}",
-
-      "#movie_player.ad-showing .ytp-spinner,",
-      "#movie_player.ad-showing .ytp-spinner-container,",
-      "#movie_player.ad-interrupting .ytp-spinner,",
-      "#movie_player.ad-interrupting .ytp-spinner-container",
-      "{display:none!important}",
-
-      AD_OVERLAY_SEL,
-      "{display:none!important;visibility:hidden!important;opacity:0!important}",
-      "height:0!important;width:0!important;overflow:hidden!important;pointer-events:none!important}"
-    ].join("");
-
-    var style = document.createElement("style");
-    style.id = "yt-inject-ad-hiding";
-    style.textContent = css;
-    (document.head || document.documentElement).appendChild(style);
-  };
-
-  patchInitialResponse();
-  patchInitialPlayerResponseSetter();
-  patchInitialDataSetter();
   patchFetch();
   patchXhr();
-  injectAdHidingCSS();
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", installMainWorldAdSkipper);
@@ -569,9 +375,5 @@
     installMainWorldAdSkipper();
   }
 
-  setTimeout(function () {
-    purgeStaticAds();
-  }, 1000);
-
-  console.log("[YT-INJECT] MAIN WORLD YouTube ad blocker injection complete");
+  console.log("[YT-INJECT-MAIN] YouTube ad blocker injection complete");
 })();

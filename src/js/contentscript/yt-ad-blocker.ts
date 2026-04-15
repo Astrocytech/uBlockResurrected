@@ -21,10 +21,11 @@
   log("Global:", typeof self, "Window:", typeof window);
 
   const isYouTube = () => {
-    return (
-      window.location.hostname.includes("youtube.com") &&
-      !window.location.hostname.includes("youtu.be")
-    );
+    const hostname = window.location.hostname;
+    const href = window.location.href;
+    const isYT = hostname.includes("youtube.com") && !hostname.includes("youtu.be");
+    log("isYouTube check:", { hostname, href, isYT });
+    return isYT;
   };
 
   const AD_KEYS = [
