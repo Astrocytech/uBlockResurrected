@@ -11,7 +11,7 @@
 ((self) => {
   "use strict";
 
-  const DEBUG = true;
+  const DEBUG = false;
 
   const log = (...args) => {
     console.log("[YT-AB]", ...args);

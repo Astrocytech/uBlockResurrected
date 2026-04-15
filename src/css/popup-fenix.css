@@ -515,11 +515,16 @@ body:not([data-more*="d"]) #extraTools .fa-icon svg {
 .toolRibbon .tool .fa-icon {
     visibility: visible !important;
     color: var(--ink-1);
-    fill: var(--ink-1);
     }
 .toolRibbon .tool .fa-icon svg {
-    fill: var(--ink-1) !important;
+    fill: transparent !important;
+    stroke: var(--ink-1) !important;
+    stroke-width: 1.5 !important;
     visibility: visible !important;
+    }
+.toolRibbon .tool .fa-icon svg[fill]:not([fill="none"]) {
+    fill: var(--ink-1) !important;
+    stroke: none !important;
     }
 .toolRibbon .tool .caption {
     font: 10px/12px sans-serif;

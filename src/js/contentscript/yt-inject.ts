@@ -1,21 +1,26 @@
 /*******************************************************************************
 
-    uBlock Resurrected - YouTube Ad Blocker Injection Script
+    uBlock Resurrected - YouTube Ad Blocker Injection Script (MAIN WORLD)
     
-    This script runs IN THE PAGE CONTEXT (not sandboxed) at document_start.
-    It patches APIs before YouTube's own scripts run.
-    
-    This is the key to blocking YouTube ads in MV3 - we must inject
-    into the page context before YouTube's scripts initialize.
+    This script runs IN THE PAGE CONTEXT (MAIN world) at document_start.
+    It patches APIs before YouTube's own scripts run and provides access
+    to YouTube's internal player API for ad skipping.
 
-******************************************************************************/
+    Based on AdEclipse's approach:
+    - Monitors ad-showing/ad-interrupting classes on #movie_player
+    - Uses player.skipAd(), player.cancelPlayback() methods
+    - Checks player.getVideoData().isAd for ad detection
+    - Uses player.seekTo() to skip ad playback
+    - Mutes video during ads and restores after
+
+*******************************************************************************/
 
 (function () {
   "use strict";
 
-  console.log("[YT-INJECT] YouTube ad blocker injection starting...");
+  console.log("[YT-INJECT] YouTube ad blocker injection starting (MAIN WORLD)...");
 
-  const isYouTube = function () {
+  var isYouTube = function () {
     return (
       window.location.hostname.includes("youtube.com") &&
       !window.location.hostname.includes("youtu.be")
@@ -27,218 +32,546 @@
     return;
   }
 
-  console.log("[YT-INJECT] YouTube detected, setting up interceptors");
+  console.log("[YT-INJECT] YouTube detected, setting up MAIN WORLD interceptors");
 
-  const AD_KEYS = [
+  var AD_KEYS = [
     "adPlacements",
     "playerAds",
     "adSlots",
     "adBreakHeartbeatParams",
     "adServerLogger",
     "adBreakOverlays",
-    "instreamVideoAds",
-    "playerResponse",
+    "adBreakResponse",
+    "adShowing",
+    "adFormat",
+    "adNumSegments",
+    "adDurationMillis",
+    "adDeviceRestriction",
+    "adEligibilityReasons",
+    "adEngagementEnabled",
+    "adLoadPolicyConfig",
+    "adLogability",
+    "adMentions",
+    "adPlaybackMobile",
+    "adPlaybackIos",
+    "adPlaybackOther",
+    "adPlaybackPC",
+    "adPlayers",
+    "adProduct",
+    "adRye",
+    "adSessionId",
+    "adSlot",
+    "adSlots",
+    "adTag",
+    "adTags",
+    "adTargeting",
+    "adThirdPartyAnchor",
+    "adTimings",
+    "adTracking",
+    "adPrerolls",
+    "hasAds",
+    "isAd",
+    "isTeva",
+    "trafficType",
+    "standalonePromoRenderer",
+    "adConfig",
+    "adInfo",
+    "ad服务体系",
+    "playerAds",
+    "adShow",
+    "adIntervals",
+    "adActiveView",
+    "ad1Plugins",
+    "ad2Plugins",
+    "adRenderer",
+    "adWhitelist",
+    "instream",
+    "skipOffset",
+    "adSkipOffset",
+    "adSafetyReason",
+    "streamingAds",
+    "ad3Module",
+    "adState",
+    "adBreakParams",
+    "adModule",
+    "adPlaybackContext",
+    "adVideoId",
+    "adLayoutLoggingData",
+    "adInfoRenderer",
+    "adNextParams",
+    "instreamVideoAdRenderer",
+    "linearAdSequenceRenderer",
+    "adSignalsInfo",
+    "adBreakServiceRenderer",
+    "adSlotRenderer",
+    "adBreakRenderer",
+    "advertiserInfoRenderer",
+    "promotedSparklesWebRenderer",
+    "promotedSparklesTextSearchRenderer",
+    "compactPromotedVideoRenderer",
+    "promotedVideoRenderer",
+    "playerLegacyDesktopWatchAdsRenderer",
+    "actionCompanionAdRenderer",
+    "adPlacementConfig",
+    "adPlacementRenderer",
+    "instreamAdPlayerOverlayRenderer",
+    "invideoOverlayAdRenderer",
+    "adActionInterstitialRenderer",
+    "adFeedbackRenderer",
+    "adSlotAndLayout",
+    "adSlotMetadata",
+    "adLayoutMetadata",
+    "adLayoutRenderData",
+    "adHoverTextButtonRenderer",
+    "adInfoDialogRenderer",
+    "adReasonRenderer",
+    "adPlacementsConfig",
+    "adRendererConfig",
+    "playerWrapperRenderers",
+    "isMutedPlayback",
+    "segmentType",
+    "segmentData",
   ];
 
-  const AD_PATTERNS = ["adPlacements", "playerAds", "adSlots", "adBreak"];
+  var AD_RENDERER_PATTERNS = [
+    "adSlotRenderer",
+    "promotedSparkles",
+    "promotedVideo",
+    "displayAd",
+    "inFeedAdLayout",
+    "CompanionAd",
+    "companionAd",
+    "adSlot",
+    "searchPyv"
+  ];
 
-  const stripAdData = function (obj, depth) {
-    depth = depth || 0;
-    if (depth > 20) return obj;
-    if (obj === null || obj === undefined) return obj;
-    if (typeof obj !== "object") return obj;
+  var YOUTUBEI_PATTERNS = [
+    "/youtubei/v1/player",
+    "/youtubei/v1/next",
+    "/youtubei/v1/browse",
+    "/youtubei/v1/ad_break",
+    "/youtubei/v1/reel/reel_watch_sequence",
+  ];
 
-    var newObj = Array.isArray(obj) ? [] : {};
-
-    for (var key in obj) {
-      if (
-        AD_KEYS.indexOf(key) !== -1 ||
-        (key === "trackingParams" &&
-          typeof obj[key] === "string" &&
-          obj[key].indexOf("AB") === 0)
-      ) {
-        console.log("[YT-INJECT] Stripping key:", key);
-        continue;
-      }
-
-      try {
-        newObj[key] = stripAdData(obj[key], depth + 1);
-      } catch (e) {
-        newObj[key] = obj[key];
-      }
+  var isTargetYoutubeiRequest = function (url) {
+    for (var i = 0; i < YOUTUBEI_PATTERNS.length; i++) {
+      if (url.indexOf(YOUTUBEI_PATTERNS[i]) !== -1) return true;
     }
-
-    return newObj;
+    return false;
   };
 
-  var fetchOverride = window.fetch;
-  window.fetch = function (resource, options) {
-    var url =
-      typeof resource === "string" ? resource : resource && resource.url;
+  var cleanseObject = function (obj, seen) {
+    if (!obj || typeof obj !== "object") return obj;
+    seen = seen || new WeakSet();
+    if (seen.has(obj)) return obj;
+    seen.add(obj);
 
-    var isYouTubeApi =
-      url &&
-      (url.indexOf("youtube.com/youtubei/v1/player") !== -1 ||
-        url.indexOf("youtube.com/apiManifest") !== -1);
-
-    if (isYouTubeApi) {
-      console.log("[YT-INJECT] Fetch to YouTube API:", url.substring(0, 60));
+    if (Array.isArray(obj)) {
+      for (var j = 0; j < obj.length; j++) {
+        cleanseObject(obj[j], seen);
+      }
+      return obj;
     }
 
-    return fetchOverride.apply(this, arguments).then(function (response) {
-      if (isYouTubeApi && response.ok) {
-        return response
-          .clone()
-          .text()
-          .then(function (text) {
-            var hasAd = AD_PATTERNS.some(function (p) {
-              return text.indexOf('"' + p + '"') !== -1;
-            });
-            if (hasAd) {
-              console.log("[YT-INJECT] Stripping ad data from fetch response");
-              var json = JSON.parse(text);
-              var stripped = stripAdData(json);
-              return new Response(JSON.stringify(stripped), {
-                status: response.status,
-                statusText: response.statusText,
-                headers: response.headers,
-              });
-            }
-            return response;
-          })
-          .catch(function (e) {
-            return response;
-          });
+    for (var i = 0; i < AD_KEYS.length; i++) {
+      var key = AD_KEYS[i];
+      if (key in obj) {
+        delete obj[key];
       }
-      return response;
+    }
+
+    if (obj.adPlacements && Array.isArray(obj.adPlacements)) obj.adPlacements = [];
+    if (obj.playerAds && Array.isArray(obj.playerAds)) obj.playerAds = [];
+
+    var ARRAY_KEYS = ["contents", "items", "results", "richItems"];
+    for (var ai = 0; ai < ARRAY_KEYS.length; ai++) {
+      var arrKey = ARRAY_KEYS[ai];
+      if (Array.isArray(obj[arrKey])) {
+        obj[arrKey] = obj[arrKey].filter(function (item) {
+          if (!item || typeof item !== "object") return true;
+          var itemKeys = Object.keys(item);
+          return !itemKeys.some(function (k) {
+            return AD_RENDERER_PATTERNS.some(function (pat) {
+              return k.indexOf(pat) !== -1;
+            });
+          });
+        });
+      }
+    }
+
+    if (obj.playabilityStatus && typeof obj.playabilityStatus === "object") {
+      var reason = String(obj.playabilityStatus.reason || "").toLowerCase();
+      if (obj.playabilityStatus.status === "ERROR" && reason.indexOf("ad") !== -1) {
+        delete obj.playabilityStatus;
+      }
+    }
+
+    var values = Object.values(obj);
+    for (var vi = 0; vi < values.length; vi++) {
+      cleanseObject(values[vi], seen);
+    }
+
+    return obj;
+  };
+
+  var cloneHeaders = function (headers) {
+    var next = new Headers();
+    headers.forEach(function (value, key) {
+      next.set(key, value);
+    });
+    next.delete("content-length");
+    return next;
+  };
+
+  var buildJsonResponse = function (json, origin) {
+    return new Response(JSON.stringify(json), {
+      status: origin.status,
+      statusText: origin.statusText,
+      headers: cloneHeaders(origin.headers)
     });
   };
 
-  console.log("[YT-INJECT] Fetch patched");
-
-  var xhrOpen = XMLHttpRequest.prototype.open;
-  var xhrSend = XMLHttpRequest.prototype.send;
-
-  XMLHttpRequest.prototype.open = function (
-    method,
-    url,
-    async,
-    user,
-    password,
-  ) {
-    this._ytApi =
-      url &&
-      (url.indexOf("youtube.com/youtubei/v1/player") !== -1 ||
-        url.indexOf("youtube.com/apiManifest") !== -1);
-    this._url = url;
-    return xhrOpen.apply(this, arguments);
+  var patchInitialResponse = function () {
+    try {
+      if (window.ytInitialPlayerResponse) {
+        cleanseObject(window.ytInitialPlayerResponse);
+      }
+    } catch (e) {}
+    try {
+      if (window.ytInitialData) {
+        cleanseObject(window.ytInitialData);
+      }
+    } catch (e) {}
   };
 
-  XMLHttpRequest.prototype.send = function (body) {
-    if (this._ytApi) {
-      console.log("[YT-INJECT] XHR to YouTube API:", this._url);
-
-      this.addEventListener("load", function () {
-        if (this.responseType === "" || this.responseType === "text") {
-          var text = this.responseText;
-          var hasAd = AD_PATTERNS.some(function (p) {
-            return text && text.indexOf('"' + p + '"') !== -1;
-          });
-          if (hasAd) {
-            console.log("[YT-INJECT] Stripping ad data from XHR response");
-            var json = JSON.parse(text);
-            var stripped = stripAdData(json);
-
-            Object.defineProperty(this, "responseText", {
-              value: JSON.stringify(stripped),
-              writable: false,
-              configurable: true,
-            });
-          }
+  var patchInitialPlayerResponseSetter = function () {
+    try {
+      var current = window.ytInitialPlayerResponse;
+      Object.defineProperty(window, "ytInitialPlayerResponse", {
+        configurable: true,
+        get: function () {
+          return current;
+        },
+        set: function (value) {
+          current = cleanseObject(value);
         }
       });
-    }
-    return xhrSend.apply(this, arguments);
+    } catch (e) {}
   };
 
-  console.log("[YT-INJECT] XHR patched");
-
-  var jsonParse = JSON.parse;
-  JSON.parse = function (text, reviver) {
-    var parsed = jsonParse.call(this, text, reviver);
-
-    if (isYouTube() && parsed && typeof parsed === "object") {
-      var hasAd = AD_PATTERNS.some(function (p) {
-        return text && text.indexOf('"' + p + '"') !== -1;
+  var patchInitialDataSetter = function () {
+    try {
+      var currentData = window.ytInitialData;
+      Object.defineProperty(window, "ytInitialData", {
+        configurable: true,
+        get: function () {
+          return currentData;
+        },
+        set: function (value) {
+          currentData = cleanseObject(value);
+        }
       });
-      if (hasAd) {
-        console.log("[YT-INJECT] JSON.parse caught ad data");
-        return stripAdData(parsed);
-      }
-    }
-
-    return parsed;
+    } catch (e) {}
   };
 
-  console.log("[YT-INJECT] JSON.parse patched");
-
-  var elementProto = Element.prototype;
-  var originalAppendChild = elementProto.appendChild;
-
-  elementProto.appendChild = function (newChild) {
-    if (newChild && newChild.nodeName === "SCRIPT") {
-      var src = newChild.src || newChild.textContent || "";
-      if (
-        src.indexOf("ytinitialplayerresponse") !== -1 ||
-        src.indexOf("player") !== -1
-      ) {
-        console.log(
-          "[YT-INJECT] Script added:",
-          newChild.id || newChild.className,
-        );
-      }
-    }
-    return originalAppendChild.apply(this, arguments);
-  };
-
-  console.log("[YT-INJECT] appendChild patched");
-
-  setTimeout(function () {
-    var playerResp = document.getElementById("ytinitialplayerresponse");
-    if (playerResp) {
+  var patchFetch = function () {
+    var originalFetch = window.fetch;
+    window.fetch = async function (input, init) {
+      var response = await originalFetch.call(this, input, init);
       try {
-        var text = playerResp.textContent;
-        var hasAd = AD_PATTERNS.some(function (p) {
-          return text && text.indexOf('"' + p + '"') !== -1;
+        var url = typeof input === "string" ? input : (input && input.url) || "";
+        if (!isTargetYoutubeiRequest(url)) return response;
+
+        var contentType = response.headers.get("content-type") || "";
+        if (!contentType.indexOf("application/json") !== -1) return response;
+
+        var json = await response.clone().json();
+        cleanseObject(json);
+        return buildJsonResponse(json, response);
+      } catch (e) {
+        return response;
+      }
+    };
+  };
+
+  var patchXhr = function () {
+    var originalOpen = XMLHttpRequest.prototype.open;
+    var originalSend = XMLHttpRequest.prototype.send;
+
+    XMLHttpRequest.prototype.open = function (method, url) {
+      this.__ytInjectUrl = String(url || "");
+      return originalOpen.apply(this, arguments);
+    };
+
+    XMLHttpRequest.prototype.send = function () {
+      if (this.__ytInjectUrl && isTargetYoutubeiRequest(this.__ytInjectUrl)) {
+        this.addEventListener("readystatechange", function () {
+          if (this.readyState !== 4) return;
+          try {
+            if (typeof this.responseText !== "string" || !this.responseText) return;
+            var parsed = JSON.parse(this.responseText);
+            cleanseObject(parsed);
+            var serialized = JSON.stringify(parsed);
+
+            try {
+              Object.defineProperty(this, "responseText", { configurable: true, value: serialized });
+            } catch (err) {}
+            try {
+              Object.defineProperty(this, "response", { configurable: true, value: serialized });
+            } catch (err) {}
+          } catch (err) {}
         });
-        if (hasAd) {
-          console.log("[YT-INJECT] Found initial player response, stripping");
-          var json = JSON.parse(text);
-          var stripped = stripAdData(json);
-          playerResp.textContent = JSON.stringify(stripped);
-        }
+      }
+
+      return originalSend.apply(this, arguments);
+    };
+  };
+
+  var SKIP_BTN_SEL = [
+    ".ytp-skip-ad-button",
+    ".ytp-ad-skip-button",
+    ".ytp-ad-skip-button-modern",
+    ".ytp-ad-skip-button-container button",
+    ".ytp-ad-skip-button-slot button",
+    ".videoAdUiSkipButton",
+    "button[class*='ytp-ad-skip']"
+  ].join(",");
+
+  var AD_OVERLAY_SEL = [
+    ".video-ads",
+    ".ytp-ad-module",
+    ".ytp-ad-overlay-container",
+    ".ytp-ad-text-overlay",
+    ".ytp-ad-image-overlay",
+    ".ytp-ad-player-overlay",
+    ".ytp-ad-player-overlay-layout",
+    ".ytp-ad-action-interstitial-slot",
+    ".ytp-ad-action-interstitial-background-container",
+    ".ytp-ad-progress-list",
+    ".ytp-ad-preview-container",
+    ".ytp-ad-preview-text",
+    ".ytp-ad-simple-ad-badge",
+    ".ytp-ad-persistent-progress-bar-container",
+    ".ytp-ad-player-overlay-instream-info",
+    ".ytp-ad-player-overlay-skip-or-preview",
+    ".ytp-ad-visit-advertiser-button",
+    ".ad-simple-attributed-string",
+    ".ytp-ad-badge__text--clean-player",
+    "#player-ads",
+    "#player-overlay\\:0",
+    "#player-overlay-layout\\:0"
+  ].join(",");
+
+  var playerInAdMode = function (player) {
+    return (
+      player.classList.contains("ad-showing") ||
+      player.classList.contains("ad-interrupting")
+    );
+  };
+
+  var adHandling = false;
+  var adSeekedToEnd = false;
+  var savedMuted = false;
+  var savedVolume = 1;
+  var adIntervalId = null;
+  var adRafId = null;
+
+  var clickSkipButtons = function () {
+    var btns = document.querySelectorAll(SKIP_BTN_SEL);
+    for (var i = 0; i < btns.length; i++) {
+      try {
+        btns[i].click();
       } catch (e) {}
     }
-  }, 500);
+  };
 
-  setTimeout(function () {
-    var keys = ["ytInitialPlayerResponse", "playerResponse"];
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      if (window[key] !== undefined) {
+  var hideAdOverlays = function () {
+    var els = document.querySelectorAll(AD_OVERLAY_SEL);
+    for (var i = 0; i < els.length; i++) {
+      els[i].style.setProperty("display", "none", "important");
+    }
+  };
+
+  var nukeAdFrame = function (player) {
+    var video = player.querySelector("video");
+    if (!video) return;
+
+    video.muted = true;
+
+    if (!adSeekedToEnd) {
+      var dur = video.duration;
+      if (Number.isFinite(dur) && dur > 0 && dur < 300 && video.currentTime < dur - 0.01) {
+        video.currentTime = dur;
+      }
+
+      if (Number.isFinite(dur) && dur > 0 && video.currentTime >= dur - 0.5) {
+        adSeekedToEnd = true;
         try {
-          var str = JSON.stringify(window[key]);
-          var hasAd = AD_PATTERNS.some(function (p) {
-            return str && str.indexOf('"' + p + '"') !== -1;
-          });
-          if (hasAd) {
-            console.log("[YT-INJECT] Neutering window." + key);
-            window[key] = stripAdData(window[key]);
-          }
+          video.dispatchEvent(new Event("ended"));
         } catch (e) {}
       }
     }
+
+    clickSkipButtons();
+    hideAdOverlays();
+  };
+
+  var endAdLoop = function (player) {
+    if (adIntervalId !== null) {
+      clearInterval(adIntervalId);
+      adIntervalId = null;
+    }
+    if (adRafId !== null) {
+      cancelAnimationFrame(adRafId);
+      adRafId = null;
+    }
+
+    var video = player.querySelector("video");
+    if (video) {
+      video.muted = savedMuted;
+      video.volume = savedVolume;
+      if (video.playbackRate !== 1) video.playbackRate = 1;
+    }
+
+    adHandling = false;
+  };
+
+  var beginAdLoop = function (player) {
+    if (adIntervalId !== null || adRafId !== null) return;
+
+    var step = function () {
+      if (!playerInAdMode(player)) {
+        endAdLoop(player);
+        return;
+      }
+      nukeAdFrame(player);
+    };
+
+    adIntervalId = setInterval(function () {
+      step();
+    }, 16);
+
+    var rAfStep = function () {
+      if (!playerInAdMode(player)) return;
+      nukeAdFrame(player);
+      adRafId = requestAnimationFrame(rAfStep);
+    };
+    adRafId = requestAnimationFrame(rAfStep);
+  };
+
+  var trySkipAd = function () {
+    try {
+      var player = document.getElementById("movie_player");
+      if (!player) return;
+
+      if (typeof player.skipAd === "function") player.skipAd();
+      if (typeof player.cancelPlayback === "function") player.cancelPlayback();
+
+      if (typeof player.getVideoData === "function") {
+        var vd = player.getVideoData();
+        if (vd && vd.isAd) {
+          var video = player.querySelector("video");
+          if (video && Number.isFinite(video.duration) && video.duration > 0 && video.duration < 300) {
+            if (typeof player.seekTo === "function") {
+              player.seekTo(video.duration, true);
+            }
+          }
+        }
+      }
+    } catch (e) {}
+  };
+
+  var onPlayerStateChange = function (player) {
+    if (playerInAdMode(player)) {
+      if (!adHandling) {
+        adHandling = true;
+        adSeekedToEnd = false;
+
+        var video = player.querySelector("video");
+        if (video) {
+          savedMuted = video.muted;
+          savedVolume = video.volume;
+
+          var onMeta = function () {
+            video.removeEventListener("loadedmetadata", onMeta, true);
+            if (playerInAdMode(player) && !adSeekedToEnd) {
+              var dur = video.duration;
+              if (Number.isFinite(dur) && dur > 0 && dur < 300) {
+                video.currentTime = dur;
+              }
+            }
+          };
+          video.addEventListener("loadedmetadata", onMeta, true);
+        }
+      }
+
+      nukeAdFrame(player);
+      trySkipAd();
+      beginAdLoop(player);
+    } else if (adHandling) {
+      endAdLoop(player);
+    }
+  };
+
+  var installMainWorldAdSkipper = function () {
+    var player = document.getElementById("movie_player");
+    if (!player) {
+      setTimeout(installMainWorldAdSkipper, 100);
+      return;
+    }
+
+    onPlayerStateChange(player);
+
+    new MutationObserver(function () {
+      onPlayerStateChange(player);
+    }).observe(player, { attributes: true, attributeFilter: ["class"] });
+
+    setInterval(function () {
+      if (playerInAdMode(player)) {
+        onPlayerStateChange(player);
+      }
+    }, 100);
+  };
+
+  var injectAdHidingCSS = function () {
+    var css = [
+      "#movie_player.ad-showing video,",
+      "#movie_player.ad-interrupting video",
+      "{visibility:hidden!important}",
+
+      "#movie_player.ad-showing .ytp-spinner,",
+      "#movie_player.ad-showing .ytp-spinner-container,",
+      "#movie_player.ad-interrupting .ytp-spinner,",
+      "#movie_player.ad-interrupting .ytp-spinner-container",
+      "{display:none!important}",
+
+      AD_OVERLAY_SEL,
+      "{display:none!important;visibility:hidden!important;opacity:0!important}",
+      "height:0!important;width:0!important;overflow:hidden!important;pointer-events:none!important}"
+    ].join("");
+
+    var style = document.createElement("style");
+    style.id = "yt-inject-ad-hiding";
+    style.textContent = css;
+    (document.head || document.documentElement).appendChild(style);
+  };
+
+  patchInitialResponse();
+  patchInitialPlayerResponseSetter();
+  patchInitialDataSetter();
+  patchFetch();
+  patchXhr();
+  injectAdHidingCSS();
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", installMainWorldAdSkipper);
+  } else {
+    installMainWorldAdSkipper();
+  }
+
+  setTimeout(function () {
+    purgeStaticAds();
   }, 1000);
 
-  console.log("[YT-INJECT] YouTube ad blocker injection complete");
+  console.log("[YT-INJECT] MAIN WORLD YouTube ad blocker injection complete");
 })();

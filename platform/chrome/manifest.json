@@ -86,6 +86,18 @@
     },
     {
       "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*"
+      ],
+      "js": [
+        "/js/yt-inject.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
+    },
+    {
+      "matches": [
         "https://easylist.to/*",
         "https://*.fanboy.co.nz/*",
         "https://filterlists.com/*",

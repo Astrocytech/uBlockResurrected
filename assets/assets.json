@@ -246,6 +246,20 @@
 		],
 		"supportURL": "https://easylist.to/"
 	},
+	"yt-neuter": {
+		"content": "filters",
+		"group": "custom",
+		"title": "YouTube Neuter",
+		"tags": "youtube ads",
+		"contentURL": [
+			"https://raw.githubusercontent.com/mchangrh/yt-neuter/main/yt-neuter.txt",
+			"assets/yt-neuter.txt"
+		],
+		"cdnURLs": [
+			"https://cdn.jsdelivr.net/gh/mchangrh/yt-neuter@main/yt-neuter.txt"
+		],
+		"supportURL": "https://github.com/mchangrh/yt-neuter"
+	},
 	"urlhaus-1": {
 		"content": "filters",
 		"group": "malware",

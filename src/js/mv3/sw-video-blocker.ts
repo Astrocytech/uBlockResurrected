@@ -16,7 +16,16 @@ interface PlatformConfig {
 const PLATFORMS: Record<string, PlatformConfig> = {
   youtube: {
     hosts: ["youtube.com", "youtu.be"],
-    playerPaths: ["/youtubei/v1/player", "/apiManifest"],
+    playerPaths: [
+      "/youtubei/v1/player",
+      "/youtubei/v1/next",
+      "/youtubei/v1/browse",
+      "/youtubei/v1/ad_break",
+      "/youtubei/v1/reel/reel_watch_sequence",
+      "/apiManifest",
+      "/get_player",
+      "/api/chromeless",
+    ],
     adKeys: [
       "adPlacements",
       "playerAds",
@@ -28,10 +37,93 @@ const PLATFORMS: Record<string, PlatformConfig> = {
       "adShowing",
       "adFormat",
       "adNumSegments",
+      "adDurationMillis",
+      "adDeviceRestriction",
+      "adEligibilityReasons",
+      "adEngagementEnabled",
+      "adLoadPolicyConfig",
+      "adLogability",
+      "adMentions",
+      "adPlaybackMobile",
+      "adPlaybackIos",
+      "adPlaybackOther",
+      "adPlaybackPC",
+      "adPlayers",
+      "adProduct",
+      "adRye",
+      "adSessionId",
+      "adSlot",
+      "adSlots",
+      "adTag",
+      "adTags",
+      "adTargeting",
+      "adThirdPartyAnchor",
+      "adTimings",
+      "adTracking",
+      "adPrerolls",
+      "hasAds",
+      "isAd",
+      "isTeva",
+      "trafficType",
+      "standalonePromoRenderer",
+      "adConfig",
+      "adInfo",
+      "ad服务体系",
+      "playerAds",
+      "adShow",
+      "adIntervals",
+      "adActiveView",
+      "ad1Plugins",
+      "ad2Plugins",
+      "adRenderer",
+      "adWhitelist",
+      "instream",
+      "skipOffset",
+      "adSkipOffset",
+      "adSafetyReason",
+      "streamingAds",
+      "ad3Module",
+      "adState",
+      "adBreakParams",
+      "adModule",
+      "adPlaybackContext",
+      "adVideoId",
+      "adLayoutLoggingData",
+      "adInfoRenderer",
+      "adNextParams",
+      "instreamVideoAdRenderer",
+      "linearAdSequenceRenderer",
+      "adSignalsInfo",
+      "adBreakServiceRenderer",
+      "adSlotRenderer",
+      "adBreakRenderer",
+      "advertiserInfoRenderer",
+      "promotedSparklesWebRenderer",
+      "promotedSparklesTextSearchRenderer",
+      "compactPromotedVideoRenderer",
+      "promotedVideoRenderer",
+      "playerLegacyDesktopWatchAdsRenderer",
+      "actionCompanionAdRenderer",
+      "adPlacementConfig",
+      "adPlacementRenderer",
+      "instreamAdPlayerOverlayRenderer",
+      "invideoOverlayAdRenderer",
+      "adActionInterstitialRenderer",
+      "adFeedbackRenderer",
+      "adSlotAndLayout",
+      "adSlotMetadata",
+      "adLayoutMetadata",
+      "adLayoutRenderData",
+      "adHoverTextButtonRenderer",
+      "adInfoDialogRenderer",
+      "adReasonRenderer",
+      "adPlacementsConfig",
+      "adRendererConfig",
+      "playerWrapperRenderers",
+      "isMutedPlayback",
+      "segmentType",
+      "segmentData",
       "playerResponse",
-      "instreamVideoAds",
-      "midrollAds",
-      "bumperAds",
     ],
   },
   kinopoisk: {
@@ -126,15 +218,95 @@ function createVideoBlocker() {
             if (obj === null || obj === undefined) return obj;
             if (typeof obj !== "object") return obj;
             const newObj: any = Array.isArray(obj) ? [] : {};
+
             for (const key of Object.keys(obj)) {
               if (adKeys.includes(key)) continue;
+
               try {
-                newObj[key] = stripAdKeys(obj[key]);
+                const val = obj[key];
+
+                if (key === "streamingData") {
+                  const sd = val as any;
+                  if (sd.formats) {
+                    const cleanFormats = stripAdKeys(sd.formats);
+                    const cleanAdaptiveFormats = sd.adaptiveFormats ? stripAdKeys(sd.adaptiveFormats) : undefined;
+                    newObj.streamingData = { ...sd };
+                    newObj.streamingData.formats = cleanFormats;
+                    if (cleanAdaptiveFormats) newObj.streamingData.adaptiveFormats = cleanAdaptiveFormats;
+                    continue;
+                  }
+                }
+
+                if (key === "playerResponse" && typeof val === "object") {
+                  newObj[key] = stripAdKeys(val);
+                  continue;
+                }
+
+                newObj[key] = stripAdKeys(val);
               } catch {
                 newObj[key] = obj[key];
               }
             }
             return newObj;
+          };
+
+          const neuterPlayerResponse = (json: any): any => {
+            if (!json || typeof json !== "object") return json;
+
+            const result = { ...json };
+
+            const adIndicators = [
+              "adPlacements", "playerAds", "adSlots", "adBreakHeartbeatParams",
+              "adBreakOverlays", "adBreakResponse", "adShowing", "adFormat",
+              "adNumSegments", "adDurationMillis", "adDeviceRestriction",
+              "adEligibilityReasons", "adEngagementEnabled", "adLoadPolicyConfig",
+              "adLogability", "adMentions", "adPlaybackMobile", "adPlaybackIos",
+              "adPlaybackOther", "adPlaybackPC", "adPlayers", "adProduct",
+              "adSessionId", "adSlot", "adSlots", "adTag", "adTags",
+              "adTargeting", "adThirdPartyAnchor", "adTimings", "adTracking",
+              "adPrerolls", "adConfig", "adInfo", "adShow", "adIntervals",
+              "adActiveView", "adRenderer", "instream", "instreamVideoAds",
+              "midrollAds", "bumperAds", "skipOffset", "adSkipOffset",
+              "ad服务体系"
+            ];
+
+            for (const key of adIndicators) {
+              if (key in result) delete result[key];
+            }
+
+            if (result.playbackTracking) {
+              delete result.playbackTracking.pinging;
+              delete result.playbackTracking.heartbeats;
+            }
+
+            if (result.playerResponse && typeof result.playerResponse === "object") {
+              const pr = result.playerResponse;
+              for (const key of adIndicators) {
+                if (key in pr) delete pr[key];
+              }
+              if (pr.playbackTracking) {
+                delete pr.playbackTracking.pinging;
+                delete pr.playbackTracking.heartbeats;
+              }
+            }
+
+            if (result.streamingData) {
+              const sd = result.streamingData;
+              if (Array.isArray(sd.formats)) {
+                sd.formats = sd.formats.filter((f: any) => {
+                  const url = f.url || f.signatureCipher || f.cipher || "";
+                  return !url.includes("googlesyndication") && !url.includes("doubleclick");
+                });
+              }
+              if (Array.isArray(sd.adaptiveFormats)) {
+                sd.adaptiveFormats = sd.adaptiveFormats.filter((f: any) => {
+                  const url = f.url || f.signatureCipher || f.cipher || "";
+                  return !url.includes("googlesyndication") && !url.includes("doubleclick");
+                });
+              }
+            }
+
+            return result;
           };
 
           let isPlayerApiRequest = false;
@@ -164,17 +336,17 @@ function createVideoBlocker() {
                 if (text) {
                   const found = adKeys.some((k) => text.includes(`"${k}"`));
                   if (found) {
-                    console.log("[VB-MAIN] Stripping ad keys from XHR");
+                    console.log("[VB-MAIN] Neutering player response from XHR");
                     try {
                       const json = JSON.parse(text);
-                      const stripped = stripAdKeys(json);
+                      const neutered = neuterPlayerResponse(json);
                       Object.defineProperty(this, "responseText", {
-                        value: JSON.stringify(stripped),
+                        value: JSON.stringify(neutered),
                         writable: false,
                         configurable: true,
                       });
                       Object.defineProperty(this, "response", {
-                        value: JSON.stringify(stripped),
+                        value: JSON.stringify(neutered),
                         writable: false,
                         configurable: true,
                       });
@@ -208,11 +380,11 @@ function createVideoBlocker() {
                     .then((text: string) => {
                       const found = adKeys.some((k) => text.includes(`"${k}"`));
                       if (found) {
-                        console.log("[VB-MAIN] Stripping ad keys from fetch");
+                        console.log("[VB-MAIN] Neutering player response from fetch");
                         try {
                           const json = JSON.parse(text);
-                          const stripped = stripAdKeys(json);
-                          return new Response(JSON.stringify(stripped), {
+                          const neutered = neuterPlayerResponse(json);
+                          return new Response(JSON.stringify(neutered), {
                             status: response.status,
                             statusText: response.statusText,
                             headers: response.headers,
