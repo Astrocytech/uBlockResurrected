@@ -1,405 +1,326 @@
 /*******************************************************************************
 
-    uBlock Resurrected - Settings Page
-    MV3 Implementation
+    uBlock Origin - a comprehensive, efficient content blocker
+    Copyright (C) 2014-present Raymond Hill
 
-******************************************************************************/
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-(function() {
-    'use strict';
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
 
-    const messaging = vAPI.messaging;
-    const document = window.document;
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see {http://www.gnu.org/licenses/}.
 
-    const dom = {
-        qs: function(selector) {
-            return document.querySelector(selector);
-        },
-        qsa: function(selector) {
-            return document.querySelectorAll(selector);
-        },
-        ev: function(element, event, handler) {
-            if (element instanceof HTMLElement) {
-                element.addEventListener(event, handler);
-            }
-        },
-        cl: {
-            has: function(element, className) {
-                return element instanceof HTMLElement && element.classList.contains(className);
-            },
-            toggle: function(element, className, state) {
-                if (element instanceof HTMLElement) {
-                    element.classList.toggle(className, state);
-                }
-            }
-        }
+    Home: https://github.com/gorhill/uBlock
+*/
+
+import { dom, qs$, qsa$ } from './dom.js';
+import { setAccentColor, setTheme } from './theme.ts';
+import { i18n$ } from './i18n.js';
+
+/******************************************************************************/
+
+function handleImportFilePicker() {
+    const file = this.files[0];
+    if ( file === undefined || file.name === '' ) { return; }
+
+    const reportError = ( ) => {
+        window.alert(i18n$('aboutRestoreDataError'));
     };
 
-    const getAllSettings = async function() {
-        return new Promise(function(resolve) {
-            messaging.send('dashboard', { what: 'userSettings' }, function(response) {
-                resolve(response || {});
-            });
-        });
-    };
-
-    const setSetting = async function(name, value) {
-        return new Promise(function(resolve) {
-            messaging.send('dashboard', { what: 'userSettings', name: name, value: value }, function(response) {
-                resolve(response || {});
-            });
-        });
-    };
-
-    const applySettingsToUI = function(settings) {
-        if (!settings || typeof settings !== 'object') { return; }
-
-        for (const name in settings) {
-            if (!Object.prototype.hasOwnProperty.call(settings, name)) { continue; }
-
-            const value = settings[name];
-            const input = dom.qs('[data-setting-name="' + name + '"]');
-
-            if (input instanceof HTMLInputElement) {
-                if (input.type === 'checkbox') {
-                    input.checked = value === true;
-                } else if (input.type === 'color' || input.type === 'number' || input.type === 'text') {
-                    input.value = value !== undefined ? value : '';
-                }
-            } else if (input instanceof HTMLSelectElement) {
-                input.value = value !== undefined ? value : '';
-            }
-        }
-
-        dom.cl.toggle(document.documentElement, 'colored', settings.uiAccentCustom === true);
-    };
-
-    const bindSettingInputs = function() {
-        const inputs = dom.qsa('[data-setting-name]');
-
-        for (let i = 0; i < inputs.length; i++) {
-            const input = inputs[i];
-
-            if (input instanceof HTMLInputElement) {
-                if (input.type === 'checkbox') {
-                    dom.ev(input, 'change', function() {
-                        const name = input.getAttribute('data-setting-name');
-                        const value = input.checked;
-                        setSetting(name, value);
-                        handleSpecialSettings(name, value);
-                    });
-                } else if (input.type === 'color' || input.type === 'number' || input.type === 'text') {
-                    dom.ev(input, 'change', function() {
-                        const name = input.getAttribute('data-setting-name');
-                        let value = input.value;
-
-                        if (input.type === 'number') {
-                            value = parseInt(value, 10) || 0;
-                            if (name === 'largeMediaSize') {
-                                value = Math.min(Math.max(value, 0), 1000000);
-                                input.value = value.toString();
-                            }
-                        }
-
-                        setSetting(name, value);
-                    });
-                }
-            } else if (input instanceof HTMLSelectElement) {
-                dom.ev(input, 'change', function() {
-                    const name = input.getAttribute('data-setting-name');
-                    const value = input.value;
-                    setSetting(name, value);
-                    handleSpecialSettings(name, value);
-                });
-            }
-        }
-    };
-
-    const handleSpecialSettings = function(name, value) {
-        if (name === 'uiTheme' || name === 'uiAccentCustom' || name === 'uiAccentCustom0') {
-            applyTheme();
-        }
-
-        if (name === 'colorBlindFriendly') {
-            dom.cl.toggle(document.documentElement, 'colorBlind', value === true);
-        }
-
-        if (name === 'advancedUserEnabled') {
-            dom.cl.toggle(document.body, 'advancedUser', value === true);
-        }
-    };
-
-    const applyTheme = function() {
-        const root = document.documentElement;
-        const themeSelect = dom.qs('[data-setting-name="uiTheme"]');
-        const accentCustom = dom.qs('[data-setting-name="uiAccentCustom"]');
-        const accentColor = dom.qs('[data-setting-name="uiAccentCustom0"]');
-
-        const theme = themeSelect instanceof HTMLSelectElement ? themeSelect.value : 'auto';
-        const useCustomAccent = accentCustom instanceof HTMLInputElement && accentCustom.checked;
-        const customColor = accentColor instanceof HTMLInputElement ? accentColor.value : '#3498d6';
-
-        let isDark = false;
-
-        if (theme === 'dark') {
-            isDark = true;
-        } else if (theme === 'light') {
-            isDark = false;
-        } else {
-            isDark = typeof window.matchMedia === 'function' &&
-                window.matchMedia('(prefers-color-scheme: dark)').matches;
-        }
-
-        root.classList.toggle('dark', isDark);
-        root.classList.toggle('light', !isDark);
-
-        if (useCustomAccent) {
-            root.style.setProperty('--accent-color', customColor);
-        } else {
-            root.style.removeProperty('--accent-color');
-        }
-    };
-
-    const updateStorageDisplay = async function() {
-        const storageUsed = dom.qs('#storageUsed');
-        const lastBackupPrompt = dom.qs('#settingsLastBackupPrompt');
-        const lastRestorePrompt = dom.qs('#settingsLastRestorePrompt');
-
-        const localData = await new Promise(function(resolve) {
-            messaging.send('dashboard', { what: 'getLocalData' }, function(resp) {
-                resolve(resp || {});
-            });
-        });
-
-        let v = localData.storageUsed || 0;
-        let unit = '';
-        
-        if (typeof v === 'number') {
-            if (v < 1e3) {
-                unit = ' bytes';
-            } else if (v < 1e6) {
-                v = v / 1e3;
-                unit = ' KB';
-            } else if (v < 1e9) {
-                v = v / 1e6;
-                unit = ' MB';
-            } else {
-                v = v / 1e9;
-                unit = ' GB';
-            }
-        }
-
-        if (storageUsed) {
-            storageUsed.textContent = 'Storage used: ' + v.toLocaleString(undefined, { maximumSignificantDigits: 3 }) + unit;
-        }
-
-        const timeOptions = {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: 'numeric',
-            minute: 'numeric',
-            timeZoneName: 'short'
-        };
-
-        if (lastBackupPrompt && localData.lastBackupTime) {
-            const dt = new Date(localData.lastBackupTime);
-            lastBackupPrompt.textContent = 'Last backup: ' + dt.toLocaleString('fullwide', timeOptions);
-            lastBackupPrompt.style.display = '';
-        }
-
-        if (lastRestorePrompt && localData.lastRestoreTime) {
-            const dt = new Date(localData.lastRestoreTime);
-            lastRestorePrompt.textContent = 'Last restore: ' + dt.toLocaleString('fullwide', timeOptions);
-            lastRestorePrompt.style.display = '';
-        }
-
-        // Feature detection from localData
-        if (localData.cloudStorageSupported === false) {
-            const cloudInput = dom.qs('[data-setting-name="cloudStorageEnabled"]');
-            if (cloudInput instanceof HTMLInputElement) {
-                cloudInput.disabled = true;
-            }
-        }
-
-        if (localData.privacySettingsSupported === false) {
-            const prefetchInput = dom.qs('[data-setting-name="prefetchingDisabled"]');
-            if (prefetchInput instanceof HTMLInputElement) {
-                prefetchInput.disabled = true;
-            }
-            const hyperInput = dom.qs('[data-setting-name="hyperlinkAuditingDisabled"]');
-            if (hyperInput instanceof HTMLInputElement) {
-                hyperInput.disabled = true;
-            }
-            const webrtcInput = dom.qs('[data-setting-name="webrtcIPAddressHidden"]');
-            if (webrtcInput instanceof HTMLInputElement) {
-                webrtcInput.disabled = true;
-            }
-        }
-    };
-
-    const handleExport = async function() {
-        const response = await new Promise(function(resolve) {
-            messaging.send('dashboard', { what: 'backupUserData' }, function(resp) {
-                resolve(resp || {});
-            });
-        });
-
-        if (response && response.userData) {
-            const data = JSON.stringify(response.userData, null, 2);
-            const blob = new Blob([data], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = response.localData?.lastBackupFile || 'ublock-resurrected-backup.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            updateStorageDisplay();
-        }
-    };
-
-    const handleImport = function() {
-        const fileInput = dom.qs('#restoreFilePicker');
-        if (!fileInput) { return; }
-
-        fileInput.click();
-
-        dom.ev(fileInput, 'change', function() {
-            const file = fileInput.files ? fileInput.files[0] : null;
-            if (!file) { return; }
-
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                let userData;
-                try {
-                    userData = JSON.parse(e.target.result);
-                    if (typeof userData !== 'object') {
-                        throw 'Invalid';
-                    }
-                    if (typeof userData.userSettings !== 'object') {
-                        throw 'Invalid';
-                    }
-                } catch {
-                    window.alert('Invalid backup file format');
-                    return;
-                }
-
-                const time = new Date(userData.timeStamp);
-                const msg = 'Confirm restore from backup created on ' + time.toLocaleString() + '?';
-                const proceed = window.confirm(msg);
-                if (proceed !== true) { return; }
-
-                const response = await new Promise(function(resolve) {
-                    messaging.send('dashboard', {
-                        what: 'restoreUserData',
-                        userData: userData,
-                        file: file.name,
-                    }, function(resp) {
-                        resolve(resp || {});
-                    });
-                });
-
-                if (response && response.localData) {
-                    const settings = await getAllSettings();
-                    applySettingsToUI(settings);
-                    applyTheme();
-                    handleSpecialSettings('advancedUserEnabled', settings.advancedUserEnabled);
-
-                    const restoreTime = response.localData.lastRestoreTime
-                        ? new Date(response.localData.lastRestoreTime).toLocaleString()
-                        : 'unknown';
-                    showLastRestorePrompt(restoreTime);
-                    updateStorageDisplay();
-                }
-            };
-            reader.readAsText(file);
-
-            fileInput.value = '';
-        });
-    };
-
-    const handleReset = async function() {
-        const confirmed = window.confirm('Are you sure you want to reset all settings to defaults? This will also clear your filter lists, whitelist, and custom rules.');
-        if (!confirmed) { return; }
-
-        const response = await new Promise(function(resolve) {
-            messaging.send('dashboard', { what: 'resetUserData' }, function(resp) {
-                resolve(resp || {});
-            });
-        });
-
-        const settings = await getAllSettings();
-        applySettingsToUI(settings);
-        applyTheme();
-        handleSpecialSettings('advancedUserEnabled', settings.advancedUserEnabled);
-        updateStorageDisplay();
-    };
-
-    const showLastRestorePrompt = function(timestamp) {
-        const prompt = dom.qs('#settingsLastRestorePrompt');
-        if (!prompt) { return; }
-
-        const text = 'Last restore: ' + (timestamp || 'unknown');
-        prompt.textContent = text;
-        prompt.style.display = '';
-        prompt.style.color = '';
-
-        setTimeout(function() {
-            prompt.style.display = 'none';
-        }, 5000);
-    };
-
-    const init = async function() {
-        const settings = await getAllSettings();
-        applySettingsToUI(settings);
-        applyTheme();
-        bindSettingInputs();
-        updateStorageDisplay();
-
-        // Handle advanced settings link
-        const advancedLink = dom.qs('[data-i18n-title="settingsAdvancedUserSettings"]');
-        if (advancedLink) {
-            dom.ev(advancedLink, 'click', function() {
-                window.open('advanced-settings.html', '_blank');
-            });
-        }
-
-        const exportBtn = dom.qs('#export');
-        if (exportBtn) {
-            dom.ev(exportBtn, 'click', handleExport);
-        }
-
-        const importBtn = dom.qs('#import');
-        if (importBtn) {
-            dom.ev(importBtn, 'click', handleImport);
-        }
-
-        const resetBtn = dom.qs('#reset');
-        if (resetBtn) {
-            dom.ev(resetBtn, 'click', handleReset);
-        }
-
-        const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        if (typeof darkQuery.addEventListener === 'function') {
-            darkQuery.addEventListener('change', function() {
-                const themeSelect = dom.qs('[data-setting-name="uiTheme"]');
-                if (themeSelect instanceof HTMLSelectElement && themeSelect.value === 'auto') {
-                    applyTheme();
-                }
-            });
-        }
-
-        document.body.classList.remove('notReady');
-    };
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
+    const expectedFileTypes = [
+        'text/plain',
+        'application/json',
+    ];
+    if ( expectedFileTypes.includes(file.type) === false ) {
+        return reportError();
     }
-})();
+
+    const filename = file.name;
+    const fr = new FileReader();
+
+    fr.onload = function() {
+        let userData;
+        try {
+            userData = JSON.parse(this.result);
+            if ( typeof userData !== 'object' ) {
+                throw 'Invalid';
+            }
+            if ( typeof userData.userSettings !== 'object' ) {
+                throw 'Invalid';
+            }
+            if (
+                Array.isArray(userData.whitelist) === false &&
+                typeof userData.netWhitelist !== 'string'
+            ) {
+                throw 'Invalid';
+            }
+            if (
+                typeof userData.filterLists !== 'object' &&
+                Array.isArray(userData.selectedFilterLists) === false
+            ) {
+                throw 'Invalid';
+            }
+        }
+        catch {
+            userData = undefined;
+        }
+        if ( userData === undefined ) {
+            return reportError();
+        }
+        const time = new Date(userData.timeStamp);
+        const msg = i18n$('aboutRestoreDataConfirm')
+                        .replace('{{time}}', time.toLocaleString());
+        const proceed = window.confirm(msg);
+        if ( proceed !== true ) { return; }
+        vAPI.messaging.send('dashboard', {
+            what: 'restoreUserData',
+            userData,
+            file: filename,
+        });
+    };
+
+    fr.readAsText(file);
+}
+
+/******************************************************************************/
+
+function startImportFilePicker() {
+    const input = qs$('#restoreFilePicker');
+    // Reset to empty string, this will ensure an change event is properly
+    // triggered if the user pick a file, even if it is the same as the last
+    // one picked.
+    input.value = '';
+    input.click();
+}
+
+/******************************************************************************/
+
+async function exportToFile() {
+    const response = await vAPI.messaging.send('dashboard', {
+        what: 'backupUserData',
+    });
+    if (
+        response instanceof Object === false ||
+        response.userData instanceof Object === false
+    ) {
+        return;
+    }
+    vAPI.download({
+        'url': 'data:text/plain;charset=utf-8,' +
+               encodeURIComponent(JSON.stringify(response.userData, null, '  ')),
+        'filename': response.localData.lastBackupFile
+    });
+    onLocalDataReceived(response.localData);
+}
+
+/******************************************************************************/
+
+function onLocalDataReceived(details) {
+    let v, unit;
+    if ( typeof details.storageUsed === 'number' ) {
+        v = details.storageUsed;
+        if ( v < 1e3 ) {
+            unit = 'genericBytes';
+        } else if ( v < 1e6 ) {
+            v /= 1e3;
+            unit = 'KB';
+        } else if ( v < 1e9 ) {
+            v /= 1e6;
+            unit = 'MB';
+        } else {
+            v /= 1e9;
+            unit = 'GB';
+        }
+    } else {
+        v = '?';
+        unit = '';
+    }
+    dom.text(
+        '#storageUsed',
+        i18n$('storageUsed')
+            .replace('{{value}}', v.toLocaleString(undefined, { maximumSignificantDigits: 3 }))
+            .replace('{{unit}}', unit && i18n$(unit) || '')
+    );
+
+    const timeOptions = {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        timeZoneName: 'short'
+    };
+
+    const lastBackupFile = details.lastBackupFile || '';
+    if ( lastBackupFile !== '' ) {
+        const dt = new Date(details.lastBackupTime);
+        const text = i18n$('settingsLastBackupPrompt');
+        const node = qs$('#settingsLastBackupPrompt');
+        node.textContent = text + '\xA0' + dt.toLocaleString('fullwide', timeOptions);
+        node.style.display = '';
+    }
+
+    const lastRestoreFile = details.lastRestoreFile || '';
+    if ( lastRestoreFile !== '' ) {
+        const dt = new Date(details.lastRestoreTime);
+        const text = i18n$('settingsLastRestorePrompt');
+        const node = qs$('#settingsLastRestorePrompt');
+        node.textContent = text + '\xA0' + dt.toLocaleString('fullwide', timeOptions);
+        node.style.display = '';
+    }
+
+    if ( details.cloudStorageSupported === false ) {
+        dom.attr('[data-setting-name="cloudStorageEnabled"]', 'disabled', '');
+    }
+
+    if ( details.privacySettingsSupported === false ) {
+        dom.attr('[data-setting-name="prefetchingDisabled"]', 'disabled', '');
+        dom.attr('[data-setting-name="hyperlinkAuditingDisabled"]', 'disabled', '');
+        dom.attr('[data-setting-name="webrtcIPAddressHidden"]', 'disabled', '');
+    }
+}
+
+/******************************************************************************/
+
+function resetUserData() {
+    const msg = i18n$('aboutResetDataConfirm');
+    const proceed = window.confirm(msg);
+    if ( proceed !== true ) { return; }
+    vAPI.messaging.send('dashboard', {
+        what: 'resetUserData',
+    });
+}
+
+/******************************************************************************/
+
+function synchronizeDOM() {
+    dom.cl.toggle(
+        dom.body,
+        'advancedUser',
+        qs$('[data-setting-name="advancedUserEnabled"]').checked === true
+    );
+}
+
+/******************************************************************************/
+
+function changeUserSettings(name, value) {
+    vAPI.messaging.send('dashboard', {
+        what: 'userSettings',
+        name,
+        value,
+    });
+
+    // Maybe reflect some changes immediately
+    switch ( name ) {
+    case 'uiTheme':
+        setTheme(value, true);
+        break;
+    case 'uiAccentCustom':
+    case 'uiAccentCustom0':
+        setAccentColor(
+            qs$('[data-setting-name="uiAccentCustom"]').checked,
+            qs$('[data-setting-name="uiAccentCustom0"]').value,
+            true
+        );
+        break;
+    default:
+        break;
+    }
+}
+
+/******************************************************************************/
+
+function onValueChanged(ev) {
+    const input = ev.target;
+    const name = dom.attr(input, 'data-setting-name');
+    let value = input.value;
+    // Maybe sanitize value
+    switch ( name ) {
+    case 'largeMediaSize':
+        value = Math.min(Math.max(Math.floor(parseInt(value, 10) || 0), 0), 1000000);
+        break;
+    default:
+        break;
+    }
+    if ( value !== input.value ) {
+        input.value = value;
+    }
+
+    changeUserSettings(name, value);
+}
+
+/******************************************************************************/
+
+// TODO: use data-* to declare simple settings
+
+function onUserSettingsReceived(details) {
+    const checkboxes = qsa$('[data-setting-type="bool"]');
+    const onchange = ev => {
+        const checkbox = ev.target;
+        const name = checkbox.dataset.settingName || '';
+        changeUserSettings(name, checkbox.checked);
+        synchronizeDOM();
+    };
+    for ( const checkbox of checkboxes ) {
+        const name = dom.attr(checkbox, 'data-setting-name') || '';
+        if ( details[name] === undefined ) {
+            dom.attr(checkbox.closest('.checkbox'), 'disabled', '');
+            dom.attr(checkbox, 'disabled', '');
+            continue;
+        }
+        checkbox.checked = details[name] === true;
+        dom.on(checkbox, 'change', onchange);
+    }
+
+    if ( details.canLeakLocalIPAddresses === true ) {
+        qs$('[data-setting-name="webrtcIPAddressHidden"]')
+            .closest('div.li')
+            .style.display = '';
+    }
+
+    qsa$('[data-setting-type="value"]').forEach(function(elem) {
+        elem.value = details[dom.attr(elem, 'data-setting-name')];
+        dom.on(elem, 'change', onValueChanged);
+    });
+
+    dom.on('#export', 'click', ( ) => { exportToFile(); });
+    dom.on('#import', 'click', startImportFilePicker);
+    dom.on('#reset', 'click', resetUserData);
+    dom.on('#restoreFilePicker', 'change', handleImportFilePicker);
+
+    synchronizeDOM();
+}
+
+/******************************************************************************/
+
+self.wikilink = 'https://github.com/gorhill/uBlock/wiki/Dashboard:-Settings';
+
+self.hasUnsavedData = function() {
+    return false;
+};
+
+/******************************************************************************/
+
+vAPI.messaging.send('dashboard', { what: 'userSettings' }).then(result => {
+    onUserSettingsReceived(result);
+});
+
+vAPI.messaging.send('dashboard', { what: 'getLocalData' }).then(result => {
+    onLocalDataReceived(result);
+});
+
+// https://github.com/uBlockOrigin/uBlock-issues/issues/591
+dom.on(
+    '[data-i18n-title="settingsAdvancedUserSettings"]',
+    'click',
+    self.uBlockDashboard.openOrSelectPage
+);
+
+/******************************************************************************/
