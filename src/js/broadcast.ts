@@ -23,6 +23,11 @@ import webext from './webext.js';
 
 /******************************************************************************/
 
+const webRequestAPI =
+    typeof self.browser !== 'undefined' ? self.browser.webRequest : self.chrome?.webRequest;
+
+/******************************************************************************/
+
 // Broadcast a message to all uBR contexts
 
 let broadcastChannel;
@@ -78,7 +83,7 @@ filteringBehaviorChanged.throttle = vAPI.defer.create(( ) => {
 });
 filteringBehaviorChanged.history = [];
 filteringBehaviorChanged.max = Math.min(
-    browser.webRequest.MAX_HANDLER_BEHAVIOR_CHANGED_CALLS_PER_10_MINUTES - 1,
+    (webRequestAPI?.MAX_HANDLER_BEHAVIOR_CHANGED_CALLS_PER_10_MINUTES ?? 20) - 1,
     19
 );
 

@@ -78,6 +78,10 @@ vAPI.shutdown = {
 
 /******************************************************************************/
 
+const webextAPI = typeof self.browser !== 'undefined' ? self.browser : self.chrome;
+
+/******************************************************************************/
+
 vAPI.messaging = {
     port: null,
     portTimer: null,
@@ -97,7 +101,7 @@ vAPI.messaging = {
     //   as world-ending, i.e. stay around. Except for embedded frames.
 
     disconnectListener: function() {
-        void browser.runtime.lastError;
+        void webextAPI?.runtime?.lastError;
         this.port = null;
         if ( window !== window.top ) {
             vAPI.shutdown.exec();
@@ -187,7 +191,7 @@ vAPI.messaging = {
         }
         try {
             console.log("[VAPI-CLIENT] Attempting to connect with sessionId:", vAPI.sessionId);
-            this.port = browser.runtime.connect({name: vAPI.sessionId}) || null;
+            this.port = webextAPI?.runtime?.connect({name: vAPI.sessionId}) || null;
             console.log("[VAPI-CLIENT] Port created:", this.port);
         } catch(e) {
             console.log("[VAPI-CLIENT] Error creating port:", e);

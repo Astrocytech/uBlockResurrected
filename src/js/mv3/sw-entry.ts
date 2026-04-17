@@ -556,12 +556,83 @@ const toggleHostnameSwitch = (request: PopupRequest) =>
 const toggleNetFiltering = (request: PopupRequest) =>
   getToggleHandlers().toggleNetFiltering(request);
 
+const extensionOriginURL = chrome.runtime.getURL("");
+const documentBlockedURL = chrome.runtime.getURL("document-blocked.html");
+
+const isAbsoluteURL = (url: string) => /^[a-z][a-z\d+\-.]*:/i.test(url);
+
+const normalizeExtensionPageURL = (url: string) => {
+  if (isAbsoluteURL(url)) {
+    return url;
+  }
+  return chrome.runtime.getURL(url.replace(/^\/+/, ""));
+};
+
+const isHiddenExtensionPage = (rawURL: string) =>
+  rawURL.startsWith(extensionOriginURL) &&
+  rawURL.startsWith(documentBlockedURL) === false;
+
+const getLoggerData = async (details: { ownerId: number; tabIdsToken?: number }) => {
+  const activeTab = await getActiveTab().catch(() => null);
+  const response: {
+    activeTabId?: number;
+    colorBlind: boolean;
+    entries: string[];
+    tabIds?: Array<[number, string]>;
+    tabIdsToken: number;
+    tooltips: boolean;
+  } = {
+    activeTabId: activeTab?.id,
+    colorBlind: popupState.userSettings.colorBlindFriendly === true,
+    entries:
+      logger?.readAll instanceof Function ? logger.readAll(details.ownerId) : [],
+    tabIdsToken: pageStoresToken,
+    tooltips: popupState.userSettings.tooltipsDisabled === false,
+  };
+
+  if (pageStoresToken !== details.tabIdsToken) {
+    response.tabIds = [];
+    for (const [tabId, pageStore] of pageStores) {
+      const rawURL = pageStore?.rawURL || "";
+      if (rawURL !== "" && isHiddenExtensionPage(rawURL)) {
+        continue;
+      }
+      let title = pageStore?.hostname || rawURL || `${tabId}`;
+      try {
+        const tab = await chrome.tabs.get(tabId);
+        title = tab?.title || title;
+      } catch {}
+      response.tabIds.push([tabId, title]);
+    }
+  }
+
+  if (response.activeTabId) {
+    const activePageStore = await pageStoreFromTabId(response.activeTabId);
+    const rawURL = activePageStore?.rawURL;
+    if (typeof rawURL !== "string" || rawURL === "" || isHiddenExtensionPage(rawURL)) {
+      response.activeTabId = undefined;
+    }
+  }
+
+  return response;
+};
+
 const handlePopupPanelMessage = (request: PopupRequest) => {
   // Handle gotoURL directly
   if (request.what === "gotoURL") {
-    const url = request.details?.url || request.url;
+    const details = request.details || request;
+    const url = details?.url;
     if (url) {
-      chrome.tabs.create({ url, active: true });
+      const createDetails: chrome.tabs.CreateProperties = {
+        url: normalizeExtensionPageURL(url),
+        active: details.shiftKey ? false : details.select !== false,
+      };
+      if (typeof details.index === "number" && details.index >= 0) {
+        createDetails.index = details.index;
+      }
+      chrome.tabs.create({
+        ...createDetails,
+      });
       return { success: true };
     }
     return { success: false };
@@ -653,10 +724,45 @@ const handleDashboardMessage = createDashboardMessageHandler({
   getEngineState: getDashboardEngineState,
 });
 
+const handleLoggerUIMessage = async (request: PopupRequest) => {
+  switch (request.what) {
+    case "readAll":
+      if (logger?.ownerId !== undefined && logger.ownerId !== request.ownerId) {
+        return { unavailable: true };
+      }
+      return getLoggerData(request as { ownerId: number; tabIdsToken?: number });
+
+    case "toggleInMemoryFilter":
+      if (typeof request.filter !== "string" || request.filter === "") {
+        return false;
+      }
+      return µb.hasInMemoryFilter(request.filter)
+        ? µb.removeInMemoryFilter(request.filter)
+        : µb.addInMemoryFilter(request.filter);
+
+    case "hasInMemoryFilter":
+      return typeof request.filter === "string"
+        ? µb.hasInMemoryFilter(request.filter)
+        : false;
+
+    case "releaseView":
+      if (request.ownerId !== logger?.ownerId) {
+        return;
+      }
+      logger.ownerId = undefined;
+      await µb.clearInMemoryFilters();
+      return;
+
+    default:
+      return handleDashboardMessage(request);
+  }
+};
+
 const Messaging = createMessagingRouter({
   getLegacyMessaging,
   handlePopupPanelMessage,
   handleDashboardMessage,
+  handleLoggerUIMessage,
 });
 
 const Zapper = createZapper(Messaging as unknown as LegacyMessagingAPI);
@@ -2439,11 +2545,14 @@ ensurePopupState()
     select?: boolean;
     index?: number;
   }) => {
-    const created = await chrome.tabs.create({
-      url: details.url,
+    const createDetails: chrome.tabs.CreateProperties = {
+      url: normalizeExtensionPageURL(details.url),
       active: details.select !== false,
-      index: details.index,
-    });
+    };
+    if (typeof details.index === "number" && details.index >= 0) {
+      createDetails.index = details.index;
+    }
+    const created = await chrome.tabs.create(createDetails);
     return { tabId: created.id };
   },
   clearInMemoryFilters: () => {

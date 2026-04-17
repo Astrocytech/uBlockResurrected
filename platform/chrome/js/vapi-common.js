@@ -171,7 +171,8 @@ vAPI.webextFlavor = {
     soup.add('ipaddress');
 
     // Whether this is a dev build.
-    const manifest = browser.runtime.getManifest();
+    const webext = typeof self.browser !== 'undefined' ? self.browser : self.chrome;
+    const manifest = webext.runtime.getManifest();
     const version = manifest.version_name || manifest.version;
     if ( /^\d+\.\d+\.\d+\D/.test(version) ) {
         soup.add('devbuild');
@@ -185,7 +186,7 @@ vAPI.webextFlavor = {
         soup.add('native_css_has');
     }
 
-    const extensionOrigin = browser.runtime.getURL('');
+    const extensionOrigin = webext.runtime.getURL('');
 
     // Order of tests is important
     flavor.isGecko = extensionOrigin.startsWith('moz-extension://');
@@ -221,7 +222,7 @@ vAPI.download = function(details) {
 
 /******************************************************************************/
 
-vAPI.getURL = browser.runtime.getURL;
+vAPI.getURL = (typeof self.browser !== 'undefined' ? self.browser : self.chrome).runtime.getURL;
 
 /******************************************************************************/
 

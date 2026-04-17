@@ -17,6 +17,7 @@ export interface MessagingRouterDeps {
     getLegacyMessaging: () => LegacyMessagingAPI | undefined;
     handlePopupPanelMessage: (request: any) => Promise<any>;
     handleDashboardMessage: (request: any) => Promise<any>;
+    handleLoggerUIMessage: (request: any) => Promise<any>;
 }
 
 export interface MessagingRouterAPI {
@@ -31,7 +32,12 @@ export interface MessagingRouterAPI {
 }
 
 export const createMessagingRouter = (deps: MessagingRouterDeps): MessagingRouterAPI => {
-    const { getLegacyMessaging, handlePopupPanelMessage, handleDashboardMessage } = deps;
+    const {
+        getLegacyMessaging,
+        handlePopupPanelMessage,
+        handleDashboardMessage,
+        handleLoggerUIMessage,
+    } = deps;
 
     const portMap = new Map<string, chrome.runtime.Port>();
     const handlers = new Map<string, MessageHandler>();
@@ -60,11 +66,13 @@ export const createMessagingRouter = (deps: MessagingRouterDeps): MessagingRoute
 
         const { topic, payload, seq } = message;
 
-        if (topic === 'popupPanel' || topic === 'dashboard') {
+        if (topic === 'popupPanel' || topic === 'dashboard' || topic === 'loggerUI') {
             try {
                 const response = topic === 'popupPanel'
                     ? await handlePopupPanelMessage(payload || {})
-                    : await handleDashboardMessage(payload || {});
+                    : topic === 'dashboard'
+                        ? await handleDashboardMessage(payload || {})
+                        : await handleLoggerUIMessage(payload || {});
                 if (seq !== undefined) {
                     port.postMessage({ seq, payload: response });
                 }
@@ -118,11 +126,13 @@ export const createMessagingRouter = (deps: MessagingRouterDeps): MessagingRoute
             port.postMessage({ msgId, msg: response });
         };
 
-        if (channel === 'dashboard' || channel === 'popupPanel') {
+        if (channel === 'dashboard' || channel === 'popupPanel' || channel === 'loggerUI') {
             try {
                 const response = channel === 'popupPanel'
                     ? await handlePopupPanelMessage(msg || {})
-                    : await handleDashboardMessage(msg || {});
+                    : channel === 'dashboard'
+                        ? await handleDashboardMessage(msg || {})
+                        : await handleLoggerUIMessage(msg || {});
                 respond(response);
             } catch (error) {
                 respond({ error: (error as Error).message });
@@ -203,6 +213,29 @@ export const createMessagingRouter = (deps: MessagingRouterDeps): MessagingRoute
         }
 
         const { topic, payload, seq } = message;
+        if (topic === 'popupPanel' || topic === 'dashboard' || topic === 'loggerUI') {
+            const run = topic === 'popupPanel'
+                ? handlePopupPanelMessage
+                : topic === 'dashboard'
+                    ? handleDashboardMessage
+                    : handleLoggerUIMessage;
+
+            run(payload || {}).then((response) => {
+                if (seq !== undefined) {
+                    sendResponse({ seq, payload: response });
+                } else {
+                    sendResponse(response);
+                }
+            }).catch((error) => {
+                if (seq !== undefined) {
+                    sendResponse({ seq, payload: { error: error.message } });
+                } else {
+                    sendResponse({ error: error.message });
+                }
+            });
+            return true;
+        }
+
         const handler = handlers.get(topic);
 
         if (handler) {

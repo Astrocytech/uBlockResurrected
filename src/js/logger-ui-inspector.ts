@@ -64,6 +64,7 @@ let uidGenerator = 1;
 const contentInspectorChannel = (( ) => {
     let bcChannel;
     let toContentPort;
+    const webextAPI = typeof self.browser !== 'undefined' ? self.browser : chrome;
 
     const start = ( ) => {
         bcChannel = new globalThis.BroadcastChannel('contentInspectorChannel');
@@ -71,11 +72,11 @@ const contentInspectorChannel = (( ) => {
             const msg = ev.data || {};
             connect(msg.tabId, msg.frameId);
         };
-        browser.webNavigation.onDOMContentLoaded.addListener(onContentLoaded);
+        webextAPI.webNavigation.onDOMContentLoaded.addListener(onContentLoaded);
     };
 
     const shutdown = ( ) => {
-        browser.webNavigation.onDOMContentLoaded.removeListener(onContentLoaded);
+        webextAPI.webNavigation.onDOMContentLoaded.removeListener(onContentLoaded);
         disconnect();
         bcChannel.close();
         bcChannel.onmessage = null;
@@ -85,7 +86,7 @@ const contentInspectorChannel = (( ) => {
     const connect = (tabId, frameId) => {
         disconnect();
         try {
-            toContentPort = browser.tabs.connect(tabId, { frameId });
+            toContentPort = webextAPI.tabs.connect(tabId, { frameId });
             toContentPort.onMessage.addListener(onContentMessage);
             toContentPort.onDisconnect.addListener(onContentDisconnect);
         } catch {

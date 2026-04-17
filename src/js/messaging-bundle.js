@@ -22420,7 +22420,7 @@
   });
   filteringBehaviorChanged.history = [];
   filteringBehaviorChanged.max = Math.min(
-    browser.webRequest.MAX_HANDLER_BEHAVIOR_CHANGED_CALLS_PER_10_MINUTES - 1,
+    ((typeof self.browser !== "undefined" ? self.browser : self.chrome)?.webRequest?.MAX_HANDLER_BEHAVIOR_CHANGED_CALLS_PER_10_MINUTES ?? 20) - 1,
     19
   );
 

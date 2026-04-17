@@ -114,6 +114,7 @@ const getDomainNames = function(targets) {
 };
 
 const onMessage = function(request, sender, callback) {
+    const webextAPI = typeof self.browser !== 'undefined' ? self.browser : chrome;
     // Async
     switch ( request.what ) {
     case 'getAssetContent':
@@ -265,7 +266,7 @@ const onMessage = function(request, sender, callback) {
 
     case 'getAppData':
         response = {
-            name: browser.runtime.getManifest().name,
+            name: webextAPI.runtime.getManifest().name,
             version: vAPI.app.version,
             canBenchmark: µb.hiddenSettings.benchmarkDatasetURL !== 'unset',
         };

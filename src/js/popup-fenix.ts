@@ -1118,9 +1118,15 @@ const gotoURL = function (ev) {
 
   ev.preventDefault();
 
-  let url = dom.attr(ev.target, "href");
-  if (url === "logger-ui.html#_" && typeof popupData.tabId === "number") {
-    url += "+" + popupData.tabId;
+  let url = dom.attr(this, "href");
+  if (url === "logger-ui.html#_") {
+    const fallbackTabId =
+      popupData.tabId ??
+      (parseInt(new URL(self.location.href).searchParams.get("tabId"), 10) ||
+        undefined);
+    if (typeof fallbackTabId === "number") {
+      url += "+" + fallbackTabId;
+    }
   }
 
   messaging.send("popupPanel", {

@@ -114,6 +114,13 @@ cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
 npx esbuild src/js/devtools.ts --bundle --format=iife --outfile=$DES/js/devtools-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 cd $DES/js
 
+# Bundle logger UI scripts
+echo "*** Bundling logger-ui.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/logger-ui.ts --bundle --format=iife --outfile=$DES/js/logger-ui-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild src/js/logger-ui-inspector.ts --bundle --format=iife --outfile=$DES/js/logger-ui-inspector-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
+
 # Bundle advanced-settings.ts
 echo "*** Bundling advanced-settings.ts"
 cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
