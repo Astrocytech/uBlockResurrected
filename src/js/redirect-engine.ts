@@ -21,6 +21,7 @@
 
 import { LineIterator, orphanizeString } from './text-utils.js';
 import redirectableResources from './redirect-resources.js';
+import { builtinScriptlets } from './resources/scriptlets.js';
 
 /******************************************************************************/
 
@@ -313,8 +314,8 @@ class RedirectEngine {
         this.aliases = new Map();
 
         const fetches = [
-            import('/js/resources/scriptlets.js').then(module => {
-                for ( const scriptlet of module.builtinScriptlets ) {
+            Promise.resolve().then(( ) => {
+                for ( const scriptlet of builtinScriptlets ) {
                     const details = {};
                     details.mime = mimeFromName(scriptlet.name);
                     details.data = scriptlet.fn.toString();

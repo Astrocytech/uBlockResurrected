@@ -257,6 +257,16 @@ npx esbuild scriptlets/updater.ts \
     --platform=browser \
     --minify=false \
     --allow-overwrite 2>&1 || true
+
+# Bundle should-inject-contentscript.js for startup content script probing
+npx esbuild scriptlets/should-inject-contentscript.ts \
+    --bundle \
+    --format=iife \
+    --outfile=../../$DES/js/scriptlets/should-inject-contentscript.js \
+    --target=chrome120 \
+    --platform=browser \
+    --minify=false \
+    --allow-overwrite 2>&1 || true
 cd - > /dev/null
 
 # Bundle content script modules

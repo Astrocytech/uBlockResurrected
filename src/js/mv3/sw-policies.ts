@@ -18,6 +18,7 @@ import {
     resolveBundledFilterListPath,
     cloneObject,
 } from './sw-helpers.js';
+import { dnrRulesetFromRawLists } from '../static-dnr-filtering.js';
 
 export const FILTER_LIST_USER_PATH = 'user-filters';
 export const FILTER_LIST_ASSETS_URL = 'assets/assets.dev.json';
@@ -410,8 +411,6 @@ export const syncFilterListDnrRules = async (): Promise<void> => {
         } else {
             console.log('[DNR] Compiling', filterLists.length, 'filter lists to DNR rules...');
 
-            const { dnrRulesetFromRawLists } = await import('../static-dnr-filtering.js');
-            
             console.log('[DNR] Input lists:', filterLists.map(f => ({ key: f.key, textLen: f.text.length })));
             
             dnrData = await dnrRulesetFromRawLists(

@@ -539,7 +539,9 @@ assets.fetchFilterList = async function(mainlistURL: string): Promise<{ url: str
                 continue;
             }
             if ( result instanceof Object === false ) { continue; }
-            const content = (result as { content: string }).content.trimEnd() + '\n';
+            const rawContent = (result as { content?: unknown }).content;
+            if ( typeof rawContent !== 'string' ) { continue; }
+            const content = rawContent.trimEnd() + '\n';
             const slices = sfp.utils.preparser.splitter(
                 content,
                 vAPI.webextFlavor.env

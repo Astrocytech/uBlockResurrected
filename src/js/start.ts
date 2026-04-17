@@ -483,7 +483,9 @@ filteringBehaviorChanged();
 await initializeTabs();
 
 // Start network observers.
-webRequest.start();
+if ( vAPI.webextFlavor.soup.has('mv3') === false ) {
+    webRequest.start();
+}
 
 // Initialize DNR for MV3 compatibility
 dnrIntegration.initialize();

@@ -937,8 +937,11 @@ if ( browserActionAPI !== undefined ) {
             for ( const img of imgs ) {
                 if ( img.r.complete === false ) { return; }
             }
-            const ctx = document.createElement('canvas')
-                .getContext('2d', { willReadFrequently: true });
+            const canvas = document.createElement('canvas');
+            const ctx = typeof canvas.getContext === 'function'
+                ? canvas.getContext('2d', { willReadFrequently: true })
+                : null;
+            if ( ctx === null ) { return; }
             const iconData = [ null, null ];
             for ( const img of imgs ) {
                 if ( img.cached ) { continue; }
@@ -1315,13 +1318,15 @@ vAPI.messaging = {
         shortSecrets.splice(pos, 1);
     };
 
-    browser.webRequest.onBeforeRequest.addListener(
-        guard,
-        {
-            urls: [ root + 'web_accessible_resources/*' ]
-        },
-        [ 'blocking' ]
-    );
+    if ( vAPI.webextFlavor.soup.has('mv3') === false ) {
+        browser.webRequest.onBeforeRequest.addListener(
+            guard,
+            {
+                urls: [ root + 'web_accessible_resources/*' ]
+            },
+            [ 'blocking' ]
+        );
+    }
 
     vAPI.warSecret = {
         short: ( ) => {
@@ -1367,17 +1372,19 @@ vAPI.Net = class {
         this.suspendDepth = 0;
         this.unprocessedTabs = new Map();
 
-        browser.webRequest.onBeforeRequest.addListener(
-            details => {
-                this.normalizeDetails(details);
-                if ( this.suspendDepth !== 0 && details.tabId >= 0 ) {
-                    return this.suspendOneRequest(details);
-                }
-                return this.onBeforeSuspendableRequest(details);
-            },
-            this.denormalizeFilters({ urls: [ 'http://*/*', 'https://*/*' ] }),
-            [ 'blocking' ]
-        );
+        if ( vAPI.webextFlavor.soup.has('mv3') === false ) {
+            browser.webRequest.onBeforeRequest.addListener(
+                details => {
+                    this.normalizeDetails(details);
+                    if ( this.suspendDepth !== 0 && details.tabId >= 0 ) {
+                        return this.suspendOneRequest(details);
+                    }
+                    return this.onBeforeSuspendableRequest(details);
+                },
+                this.denormalizeFilters({ urls: [ 'http://*/*', 'https://*/*' ] }),
+                [ 'blocking' ]
+            );
+        }
 
         vAPI.setDefaultIcon('-loading', '');
     }
