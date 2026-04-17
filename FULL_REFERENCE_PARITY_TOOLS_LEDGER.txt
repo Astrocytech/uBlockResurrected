@@ -1,0 +1,17 @@
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/tools: bundle-sw.js
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools/copy-common-files.sh and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/tools/copy-common-files.sh differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/tools: dist
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools/import-crowdin.sh and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/tools/import-crowdin.sh differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools/jsonpath-tool.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/tools/jsonpath-tool.html differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/tools: make-chrome-mv3.sh
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-chromium-meta.py
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-chromium.sh
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-dig.sh
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-firefox-meta.py
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-firefox.sh
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-mv3.sh
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-nodejs.sh
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-npm.sh
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-opera-meta.py
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-opera.sh
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/tools: make-thunderbird.sh

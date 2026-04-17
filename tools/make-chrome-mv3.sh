@@ -54,6 +54,10 @@ npx esbuild i18n.ts --bundle --format=iife --outfile=i18n-bundle.js --target=chr
 echo "*** Bundling dashboard-common.ts"
 npx esbuild dashboard-common.ts --bundle --format=iife --outfile=dashboard-common-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
+# Bundle dashboard.ts
+echo "*** Bundling dashboard.ts"
+npx esbuild dashboard.ts --bundle --format=iife --outfile=dashboard-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
 # Bundle settings.ts
 echo "*** Bundling settings.ts"
 npx esbuild settings.ts --bundle --format=iife --outfile=settings-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
@@ -128,6 +132,18 @@ cd $DES/js
 echo "*** Bundling advanced-settings.ts"
 cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
 npx esbuild src/js/advanced-settings.ts --bundle --format=iife --outfile=$DES/js/advanced-settings-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
+
+# Bundle about.ts
+echo "*** Bundling about.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/about.ts --bundle --format=iife --outfile=$DES/js/about-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
+
+# Bundle support.ts
+echo "*** Bundling support.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/support.ts --bundle --format=iife --outfile=$DES/js/support-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 cd $DES/js
 
 # Bundle static-dnr-filtering.ts (required for filter list DNR rules)

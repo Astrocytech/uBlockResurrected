@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Resurrected - a comprehensive, efficient content blocker
+    uBlock Origin - a comprehensive, efficient content blocker
     Copyright (C) 2014-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -22,88 +22,6 @@
 import { dom, qs$, qsa$ } from './dom.js';
 import { i18n, i18n$ } from './i18n.js';
 import { onBroadcast } from './broadcast.js';
-import µb from './background.js';
-
-/******************************************************************************/
-
-interface ListDetails {
-    title?: string;
-    group?: string | null;
-    group2?: string | null;
-    lists?: Record<string, ListDetails>;
-    parent?: string | null;
-    preferred?: boolean;
-    content?: string;
-    contentURL?: string;
-    supportName?: string;
-    supportURL?: string;
-    external?: boolean;
-    instructionURL?: string;
-    isDefault?: boolean;
-    isImportant?: boolean;
-    off?: boolean;
-    entryUsedCount?: number;
-    entryCount?: number;
-    tags?: string;
-}
-
-interface AssetCache {
-    remoteURL?: string;
-    error?: unknown;
-    obsolete?: boolean;
-    cached?: boolean;
-    writeTime?: number;
-}
-
-interface ListsetDetails {
-    current: Record<string, ListDetails>;
-    available: Record<string, ListDetails>;
-    cache: Record<string, AssetCache>;
-    autoUpdate?: boolean;
-    parseCosmeticFilters?: boolean;
-    ignoreGenericCosmeticFilters?: boolean;
-    suspendUntilListsAreLoaded?: boolean;
-    isUpdating?: boolean;
-}
-
-interface CloudData {
-    parseCosmeticFilters?: boolean;
-    ignoreGenericCosmeticFilters?: boolean;
-    selectedLists?: string[];
-}
-
-type CloudHooks = {
-    options?: Record<string, unknown>;
-    datakey?: string;
-    data?: unknown;
-    onPush: null | (() => CloudData);
-    onPull: null | ((data: CloudData, append: boolean) => void);
-};
-
-self.cloud = (self.cloud || {
-    options: {},
-    datakey: '',
-    data: undefined,
-    onPush: null,
-    onPull: null,
-}) as CloudHooks;
-
-interface MessageResponse {
-    netFilterCount?: number;
-    cosmeticFilterCount?: number;
-    available: Record<string, ListDetails>;
-    autoUpdate?: boolean;
-    parseCosmeticFilters?: boolean;
-    ignoreGenericCosmeticFilters?: boolean;
-    suspendUntilListsAreLoaded?: boolean;
-}
-
-interface BroadcastMessage {
-    what: string;
-    key?: string;
-    failed?: boolean;
-    cached?: boolean;
-}
 
 /******************************************************************************/
 
@@ -112,15 +30,11 @@ const obsoleteTemplateString = i18n$('3pExternalListObsolete');
 const reValidExternalList = /^[a-z-]+:\/\/(?:\S+\/\S*|\/\S+)/m;
 const recentlyUpdated = 1 * 60 * 60 * 1000; // 1 hour
 
-let listsetDetails: ListsetDetails = {
-    current: {},
-    available: {},
-    cache: {},
-};
+let listsetDetails = {};
 
 /******************************************************************************/
 
-onBroadcast((msg: BroadcastMessage) => {
+onBroadcast(msg => {
     switch ( msg.what ) {
     case 'assetUpdated':
         updateAssetStatus(msg);
@@ -139,44 +53,46 @@ onBroadcast((msg: BroadcastMessage) => {
 
 /******************************************************************************/
 
-const renderNumber = (value: number): string => {
+const renderNumber = value => {
     return value.toLocaleString();
 };
 
 const listStatsTemplate = i18n$('3pListsOfBlockedHostsPerListStats');
 
-const renderLeafStats = (used: number, total: number): string => {
+const renderLeafStats = (used, total) => {
     if ( isNaN(used) || isNaN(total) ) { return ''; }
     return listStatsTemplate
         .replace('{{used}}', renderNumber(used))
         .replace('{{total}}', renderNumber(total));
 };
 
-const renderNodeStats = (used: number, total: number): string => {
+const renderNodeStats = (used, total) => {
     if ( isNaN(used) || isNaN(total) ) { return ''; }
     return `${used.toLocaleString()}/${total.toLocaleString()}`;
 };
 
-const i18nGroupName = (name: string): string => {
+const i18nGroupName = name => {
     const groupname = i18n$('3pGroup' + name.charAt(0).toUpperCase() + name.slice(1));
     if ( groupname !== '' ) { return groupname; }
-    return `${name.charAt(0).toLocaleUpperCase()}${name.slice(1)}`;
+    return `${name.charAt(0).toLocaleUpperCase}${name.slice(1)}`;
 };
 
 /******************************************************************************/
 
-const renderFilterLists = (): Promise<void> => {
-    const listNameFromListKey = (listkey: string): string => {
+const renderFilterLists = ( ) => {
+    // Assemble a pretty list name if possible
+    const listNameFromListKey = listkey => {
         const list = listsetDetails.current[listkey] || listsetDetails.available[listkey];
         const title = list && list.title || '';
         if ( title !== '' ) { return title; }
         return listkey;
     };
 
-    const initializeListEntry = (listDetails: ListDetails, listEntry: HTMLElement): void => {
+    const initializeListEntry = (listDetails, listEntry) => {
         const listkey = listEntry.dataset.key;
         const groupkey = listDetails.group2 || listDetails.group;
-        const listEntryPrevious = qs$(`[data-key="${groupkey}"] [data-key="${listkey}"]`);
+        const listEntryPrevious =
+            qs$(`[data-key="${groupkey}"] [data-key="${listkey}"]`);
         if ( listEntryPrevious !== null ) {
             if ( dom.cl.has(listEntryPrevious, 'checked') ) {
                 dom.cl.add(listEntry, 'checked');
@@ -195,18 +111,14 @@ const renderFilterLists = (): Promise<void> => {
         }
         const on = dom.cl.has(listEntry, 'checked');
         dom.prop(qs$(listEntry, ':scope > .detailbar input'), 'checked', on);
-        let elem = qs$<HTMLElement>(listEntry, ':scope > .detailbar a.content');
-        if (elem) {
-            dom.attr(elem, 'href', 'asset-viewer.html?url=' + encodeURIComponent(listkey));
-            dom.attr(elem, 'type', 'text/html');
-        }
+        let elem = qs$(listEntry, ':scope > .detailbar a.content');
+        dom.attr(elem, 'href', 'asset-viewer.html?url=' + encodeURIComponent(listkey));
+        dom.attr(elem, 'type', 'text/html');
         dom.cl.remove(listEntry, 'toRemove');
         if ( listDetails.supportName ) {
-            elem = qs$<HTMLElement>(listEntry, ':scope > .detailbar a.support');
-            if (elem) {
-                dom.attr(elem, 'href', listDetails.supportURL || '#');
-                dom.attr(elem, 'title', listDetails.supportName);
-            }
+            elem = qs$(listEntry, ':scope > .detailbar a.support');
+            dom.attr(elem, 'href', listDetails.supportURL || '#');
+            dom.attr(elem, 'title', listDetails.supportName);
         }
         if ( listDetails.external ) {
             dom.cl.add(listEntry, 'external');
@@ -214,20 +126,17 @@ const renderFilterLists = (): Promise<void> => {
             dom.cl.remove(listEntry, 'external');
         }
         if ( listDetails.instructionURL ) {
-            elem = qs$<HTMLElement>(listEntry, ':scope > .detailbar a.mustread');
-            if (elem) {
-                dom.attr(elem, 'href', listDetails.instructionURL || '#');
-            }
+            elem = qs$(listEntry, ':scope > .detailbar a.mustread');
+            dom.attr(elem, 'href', listDetails.instructionURL || '#');
         }
         dom.cl.toggle(listEntry, 'isDefault',
             listDetails.isDefault === true ||
             listDetails.isImportant === true ||
             listkey === 'user-filters'
         );
-        elem = qs$<HTMLElement>(listEntry, '.leafstats');
-        if (elem) {
-            dom.text(elem, renderLeafStats(on ? listDetails.entryUsedCount! : 0, listDetails.entryCount!));
-        }
+        elem = qs$(listEntry, '.leafstats');
+        dom.text(elem, renderLeafStats(on ? listDetails.entryUsedCount : 0, listDetails.entryCount));
+        // https://github.com/chrisaljoudi/uBlock/issues/104
         const asset = listsetDetails.cache[listkey] || {};
         const remoteURL = asset.remoteURL;
         dom.cl.toggle(listEntry, 'unsecure',
@@ -243,17 +152,11 @@ const renderFilterLists = (): Promise<void> => {
             if ( asset.cached && asset.writeTime !== 0 ) {
                 title += '\n' + lastUpdateString;
             }
-            const titleElem = qs$(listEntry, ':scope > .detailbar .status.obsolete');
-            if (titleElem) {
-                dom.attr(titleElem, 'title', title);
-            }
+            dom.attr(qs$(listEntry, ':scope > .detailbar .status.obsolete'), 'title', title);
         }
         if ( asset.cached === true ) {
             dom.cl.add(listEntry, 'cached');
-            const cacheElem = qs$(listEntry, ':scope > .detailbar .status.cache');
-            if (cacheElem) {
-                dom.attr(cacheElem, 'title', lastUpdateString);
-            }
+            dom.attr(qs$(listEntry, ':scope > .detailbar .status.cache'), 'title', lastUpdateString);
             const timeSinceLastUpdate = Date.now() - asset.writeTime;
             dom.cl.toggle(listEntry, 'recent', timeSinceLastUpdate < recentlyUpdated);
         } else {
@@ -261,7 +164,7 @@ const renderFilterLists = (): Promise<void> => {
         }
     };
 
-    const createListEntry = (listDetails: ListDetails, depth: number): HTMLElement | null => {
+    const createListEntry = (listDetails, depth) => {
         if ( listDetails.lists === undefined ) {
             return dom.clone('#templates .listEntry[data-role="leaf"]');
         }
@@ -271,12 +174,12 @@ const renderFilterLists = (): Promise<void> => {
         return dom.clone('#templates .listEntry[data-role="node"][data-parent="root"]');
     };
 
-    const createListEntries = (parentkey: string, listTree: Record<string, ListDetails>, depth = 0): HTMLElement => {
+    const createListEntries = (parentkey, listTree, depth = 0) => {
         const listEntries = dom.clone('#templates .listEntries');
         const treeEntries = Object.entries(listTree);
         if ( depth !== 0 ) {
             const reEmojis = /\p{Emoji}+/gu;
-            treeEntries.sort((a, b) => {
+            treeEntries.sort((a ,b) => {
                 const ap = a[1].preferred === true;
                 const bp = b[1].preferred === true;
                 if ( ap !== bp ) { return ap ? -1 : 1; }
@@ -287,7 +190,6 @@ const renderFilterLists = (): Promise<void> => {
         }
         for ( const [ listkey, listDetails ] of treeEntries ) {
             const listEntry = createListEntry(listDetails, depth);
-            if (listEntry === null) { continue; }
             if ( dom.cl.has(dom.root, 'mobile') ) {
                 const leafStats = qs$(listEntry, '.leafstats');
                 if ( leafStats ) {
@@ -296,12 +198,9 @@ const renderFilterLists = (): Promise<void> => {
             }
             listEntry.dataset.key = listkey;
             listEntry.dataset.parent = parentkey;
-            const listnameElem = qs$(listEntry, ':scope > .detailbar .listname');
-            if (listnameElem) {
-                listnameElem.append(
-                    i18n.patchUnicodeFlags(listDetails.title)
-                );
-            }
+            qs$(listEntry, ':scope > .detailbar .listname').append(
+                i18n.patchUnicodeFlags(listDetails.title)
+            );
             if ( listDetails.lists !== undefined ) {
                 listEntry.append(createListEntries(listEntry.dataset.key, listDetails.lists, depth+1));
                 dom.cl.toggle(listEntry, 'expanded', listIsExpanded(listkey));
@@ -314,14 +213,13 @@ const renderFilterLists = (): Promise<void> => {
         return listEntries;
     };
 
-    const onListsReceived = (response: MessageResponse): void => {
-        listsetDetails = response as ListsetDetails;
-        if (!response || !response.available) {
-            return;
-        }
+    const onListsReceived = response => {
+        // Store in global variable
+        listsetDetails = response;
         hashFromListsetDetails();
 
-        const listTree: Record<string, ListDetails> = {};
+        // Build list tree
+        const listTree = {};
         const groupKeys = [
             'user',
             'default',
@@ -348,8 +246,8 @@ const renderFilterLists = (): Promise<void> => {
                 groupkey = 'unknown';
             }
             const groupDetails = listTree[groupkey];
-            if ( typeof listDetails.parent === 'string' && listDetails.parent !== '' ) {
-                let lists = groupDetails.lists!;
+            if ( listDetails.parent !== undefined ) {
+                let lists = groupDetails.lists;
                 for ( const parent of listDetails.parent.split('|') ) {
                     if ( lists[parent] === undefined ) {
                         lists[parent] = { title: parent, lists: {} };
@@ -357,50 +255,41 @@ const renderFilterLists = (): Promise<void> => {
                     if ( listDetails.preferred === true ) {
                         lists[parent].preferred = true;
                     }
-                    lists = lists[parent].lists!;
+                    lists = lists[parent].lists;
                 }
                 lists[listkey] = listDetails;
             } else {
                 listDetails.title = listNameFromListKey(listkey);
-                groupDetails.lists![listkey] = listDetails;
+                groupDetails.lists[listkey] = listDetails;
             }
         }
+        // https://github.com/uBlockOrigin/uBlock-issues/issues/3154#issuecomment-1975413427
+        //   Remove empty sections
         for ( const groupkey of groupKeys ) {
             const groupDetails = listTree[groupkey];
             if ( groupDetails === undefined ) { continue; }
-            if ( Object.keys(groupDetails.lists!).length !== 0 ) { continue; }
+            if ( Object.keys(groupDetails.lists).length !== 0 ) { continue; }
             delete listTree[groupkey];
         }
 
         const listEntries = createListEntries('root', listTree);
-        const listsContainer = qs$('#lists .listEntries');
-        if (listsContainer) {
-            listsContainer.replaceWith(listEntries);
-        }
+        qs$('#lists .listEntries').replaceWith(listEntries);
 
-        const autoUpdateElem = qs$<HTMLInputElement>('#autoUpdate');
-        if (autoUpdateElem) {
-            autoUpdateElem.checked = listsetDetails.autoUpdate === true;
-        }
+        qs$('#autoUpdate').checked = listsetDetails.autoUpdate === true;
         dom.text(
             '#listsOfBlockedHostsPrompt',
             i18n$('3pListsOfBlockedHostsPrompt')
-                .replace('{{netFilterCount}}', renderNumber(response.netFilterCount!))
-                .replace('{{cosmeticFilterCount}}', renderNumber(response.cosmeticFilterCount!))
+                .replace('{{netFilterCount}}', renderNumber(response.netFilterCount))
+                .replace('{{cosmeticFilterCount}}', renderNumber(response.cosmeticFilterCount))
         );
-        const parseCosmeticElem = qs$<HTMLInputElement>('#parseCosmeticFilters');
-        if (parseCosmeticElem) {
-            parseCosmeticElem.checked = listsetDetails?.parseCosmeticFilters === true;
-        }
-        const ignoreGenericElem = qs$<HTMLInputElement>('#ignoreGenericCosmeticFilters');
-        if (ignoreGenericElem) {
-            ignoreGenericElem.checked = listsetDetails?.ignoreGenericCosmeticFilters === true;
-        }
-        const suspendElem = qs$<HTMLInputElement>('#suspendUntilListsAreLoaded');
-        if (suspendElem) {
-            suspendElem.checked = listsetDetails.suspendUntilListsAreLoaded === true;
-        }
+        qs$('#parseCosmeticFilters').checked =
+            listsetDetails.parseCosmeticFilters === true;
+        qs$('#ignoreGenericCosmeticFilters').checked =
+            listsetDetails.ignoreGenericCosmeticFilters === true;
+        qs$('#suspendUntilListsAreLoaded').checked =
+            listsetDetails.suspendUntilListsAreLoaded === true;
 
+        // https://github.com/gorhill/uBlock/issues/2394
         dom.cl.toggle(dom.body, 'updating', listsetDetails.isUpdating);
 
         renderWidgets();
@@ -415,7 +304,7 @@ const renderFilterLists = (): Promise<void> => {
 
 /******************************************************************************/
 
-const renderWidgets = (): void => {
+const renderWidgets = ( ) => {
     const updating = dom.cl.has(dom.body, 'updating');
     const hasObsolete = qs$('#lists .listEntry.checked.obsolete:not(.toRemove)') !== null;
     dom.cl.toggle('#buttonApply', 'disabled',
@@ -429,19 +318,16 @@ const renderWidgets = (): void => {
 
 /******************************************************************************/
 
-const updateAssetStatus = (details: BroadcastMessage): void => {
+const updateAssetStatus = details => {
     const listEntry = qs$(`#lists .listEntry[data-key="${details.key}"]`);
     if ( listEntry === null ) { return; }
     dom.cl.toggle(listEntry, 'failed', !!details.failed);
     dom.cl.toggle(listEntry, 'obsolete', !details.cached);
     dom.cl.toggle(listEntry, 'cached', !!details.cached);
     if ( details.cached ) {
-        const cacheTitleElem = qs$(listEntry, '.status.cache');
-        if (cacheTitleElem) {
-            dom.attr(cacheTitleElem, 'title',
-                lastUpdateTemplateString.replace('{{ago}}', i18n.renderElapsedTimeToString(Date.now()))
-            );
-        }
+        dom.attr(qs$(listEntry, '.status.cache'), 'title',
+            lastUpdateTemplateString.replace('{{ago}}', i18n.renderElapsedTimeToString(Date.now()))
+        );
         dom.cl.add(listEntry, 'recent');
     }
     updateAncestorListNodes(listEntry, ancestor => {
@@ -459,12 +345,12 @@ const updateAssetStatus = (details: BroadcastMessage): void => {
 
 let filteringSettingsHash = '';
 
-const hashFromListsetDetails = (): void => {
-    const hashParts: (boolean | string)[] = [
+const hashFromListsetDetails = ( ) => {
+    const hashParts = [
         listsetDetails.parseCosmeticFilters === true,
         listsetDetails.ignoreGenericCosmeticFilters === true,
     ];
-    const listHashes: string[] = [];
+    const listHashes = [];
     for ( const [ listkey, listDetails ] of Object.entries(listsetDetails.available) ) {
         if ( listDetails.off === true ) { continue; }
         listHashes.push(listkey);
@@ -473,19 +359,19 @@ const hashFromListsetDetails = (): void => {
     filteringSettingsHash = hashParts.join();
 };
 
-const hashFromCurrentFromSettings = (): string => {
-    const hashParts: (boolean | string)[] = [
-        qs$<HTMLInputElement>('#parseCosmeticFilters')?.checked ?? false,
-        qs$<HTMLInputElement>('#ignoreGenericCosmeticFilters')?.checked ?? false,
+const hashFromCurrentFromSettings = ( ) => {
+    const hashParts = [
+        qs$('#parseCosmeticFilters').checked,
+        qs$('#ignoreGenericCosmeticFilters').checked,
     ];
-    const listHashes: string[] = [];
-    const listEntries = qsa$<HTMLElement>('#lists .listEntry[data-key]:not(.toRemove)');
+    const listHashes = [];
+    const listEntries = qsa$('#lists .listEntry[data-key]:not(.toRemove)');
     for ( const liEntry of listEntries ) {
         if ( liEntry.dataset.role !== 'leaf' ) { continue; }
         if ( dom.cl.has(liEntry, 'checked') === false ) { continue; }
-        listHashes.push(liEntry.dataset.key!);
+        listHashes.push(liEntry.dataset.key);
     }
-    const textarea = qs$<HTMLTextAreaElement>('#lists .listEntry[data-role="import"].expanded textarea');
+    const textarea = qs$('#lists .listEntry[data-role="import"].expanded textarea');
     hashParts.push(
         listHashes.sort().join(),
         textarea !== null && textarea.value.trim() || '',
@@ -496,36 +382,34 @@ const hashFromCurrentFromSettings = (): string => {
 
 /******************************************************************************/
 
-const onListsetChanged = (ev: Event): void => {
-    const input = (ev.target as HTMLElement).closest('input');
+const onListsetChanged = ev => {
+    const input = ev.target.closest('input');
     if ( input === null ) { return; }
-    toggleFilterList(input as HTMLInputElement, input.checked, true);
+    toggleFilterList(input, input.checked, true);
 };
 
 dom.on('#lists', 'change', '.listEntry > .detailbar input', onListsetChanged);
 
-const toggleFilterList = (elem: HTMLInputElement, on?: boolean, ui = false): void => {
+const toggleFilterList = (elem, on, ui = false) => {
     const listEntry = elem.closest('.listEntry');
     if ( listEntry === null ) { return; }
     if ( listEntry.dataset.parent === 'root' ) { return; }
     const searchMode = dom.cl.has('#lists', 'searchMode');
-    const input = qs$<HTMLInputElement>(listEntry, ':scope > .detailbar input');
-    if ( input === null ) { return; }
+    const input = qs$(listEntry, ':scope > .detailbar input');
     if ( on === undefined ) {
         on = input.checked === false;
     }
     input.checked = on;
     dom.cl.toggle(listEntry, 'checked', on);
     dom.cl.toggle(listEntry, 'stickied', ui && !on && !searchMode);
+    // Select/unselect descendants. Twist: if in search-mode, select only
+    // search-matched descendants.
     const childListEntries = searchMode
-        ? qsa$<HTMLElement>(listEntry, '.listEntry.searchMatch')
-        : qsa$<HTMLElement>(listEntry, '.listEntry');
+        ? qsa$(listEntry, '.listEntry.searchMatch')
+        : qsa$(listEntry, '.listEntry');
     for ( const descendantList of childListEntries ) {
         dom.cl.toggle(descendantList, 'checked', on);
-        const descendantInput = qs$<HTMLInputElement>(descendantList, ':scope > .detailbar input');
-        if (descendantInput) {
-            descendantInput.checked = on;
-        }
+        qs$(descendantList, ':scope > .detailbar input').checked = on;
     }
     updateAncestorListNodes(listEntry, ancestor => {
         updateListNode(ancestor);
@@ -533,17 +417,14 @@ const toggleFilterList = (elem: HTMLInputElement, on?: boolean, ui = false): voi
     onFilteringSettingsChanged();
 };
 
-const updateListNode = (listNode: HTMLElement | null): void => {
+const updateListNode = listNode => {
     if ( listNode === null ) { return; }
     if ( listNode.dataset.role !== 'node' ) { return; }
-    const checkedListLeaves = qsa$<HTMLElement>(listNode, '.listEntry[data-role="leaf"].checked');
-    const allListLeaves = qsa$<HTMLElement>(listNode, '.listEntry[data-role="leaf"]');
-    const nodestatsElem = qs$(listNode, '.nodestats');
-    if (nodestatsElem) {
-        dom.text(nodestatsElem,
-            renderNodeStats(checkedListLeaves.length, allListLeaves.length)
-        );
-    }
+    const checkedListLeaves = qsa$(listNode, '.listEntry[data-role="leaf"].checked');
+    const allListLeaves = qsa$(listNode, '.listEntry[data-role="leaf"]');
+    dom.text(qs$(listNode, '.nodestats'),
+        renderNodeStats(checkedListLeaves.length, allListLeaves.length)
+    );
     dom.cl.toggle(listNode, 'searchMatch',
         qs$(listNode, ':scope > .listEntries > .listEntry.searchMatch') !== null
     );
@@ -556,65 +437,42 @@ const updateListNode = (listNode: HTMLElement | null): void => {
     let oldestWriteTime = Number.MAX_SAFE_INTEGER;
     for ( const listLeaf of checkedListLeaves ) {
         const listkey = listLeaf.dataset.key;
-        const listDetails = listsetDetails.available[listkey!];
-        if (!listDetails) { continue; }
+        const listDetails = listsetDetails.available[listkey];
         usedFilterCount += listDetails.off ? 0 : listDetails.entryUsedCount || 0;
         totalFilterCount += listDetails.entryCount || 0;
-        const assetCache = listsetDetails.cache[listkey!] || {};
+        const assetCache = listsetDetails.cache[listkey] || {};
         isCached = isCached || dom.cl.has(listLeaf, 'cached');
         isObsolete = isObsolete || dom.cl.has(listLeaf, 'obsolete');
         latestWriteTime = Math.max(latestWriteTime, assetCache.writeTime || 0);
         oldestWriteTime = Math.min(oldestWriteTime, assetCache.writeTime || Number.MAX_SAFE_INTEGER);
     }
     dom.cl.toggle(listNode, 'checked', checkedListLeaves.length !== 0);
-    const checkboxElem = qs$(listNode, ':scope > .detailbar .checkbox');
-    if (checkboxElem) {
-        dom.cl.toggle(
-            checkboxElem,
-            'partial',
-            checkedListLeaves.length !== allListLeaves.length
-        );
-    }
-    const inputElem = qs$<HTMLInputElement>(listNode, ':scope > .detailbar input');
-    if (inputElem) {
-        dom.prop(
-            inputElem,
-            'checked',
-            checkedListLeaves.length !== 0
-        );
-    }
-    const leafstatsElem = qs$(listNode, '.leafstats');
-    if (leafstatsElem) {
-        dom.text(leafstatsElem,
-            renderLeafStats(usedFilterCount, totalFilterCount)
-        );
-    }
+    dom.cl.toggle(qs$(listNode, ':scope > .detailbar .checkbox'),
+        'partial',
+        checkedListLeaves.length !== allListLeaves.length
+    );
+    dom.prop(qs$(listNode, ':scope > .detailbar input'),
+        'checked',
+        checkedListLeaves.length !== 0
+    );
+    dom.text(qs$(listNode, '.leafstats'),
+        renderLeafStats(usedFilterCount, totalFilterCount)
+    );
     const firstLeaf = qs$(listNode, '.listEntry[data-role="leaf"]');
     if ( firstLeaf !== null ) {
-        const supportElem = qs$(listNode, ':scope > .detailbar a.support');
-        const firstLeafSupportElem = qs$(firstLeaf, ':scope > .detailbar a.support');
-        if (supportElem && firstLeafSupportElem) {
-            dom.attr(supportElem, 'href',
-                dom.attr(firstLeafSupportElem, 'href') || '#'
-            );
-        }
-        const mustreadElem = qs$(listNode, ':scope > .detailbar a.mustread');
-        const firstLeafMustreadElem = qs$(firstLeaf, ':scope > .detailbar a.mustread');
-        if (mustreadElem && firstLeafMustreadElem) {
-            dom.attr(mustreadElem, 'href',
-                dom.attr(firstLeafMustreadElem, 'href') || '#'
-            );
-        }
+        dom.attr(qs$(listNode, ':scope > .detailbar a.support'), 'href',
+            dom.attr(qs$(firstLeaf, ':scope > .detailbar a.support'), 'href') || '#'
+        );
+        dom.attr(qs$(listNode, ':scope > .detailbar a.mustread'), 'href',
+            dom.attr(qs$(firstLeaf, ':scope > .detailbar a.mustread'), 'href') || '#'
+        );
     }
     dom.cl.toggle(listNode, 'cached', isCached);
     dom.cl.toggle(listNode, 'obsolete', isObsolete);
     if ( isCached ) {
-        const cacheElem = qs$(listNode, ':scope > .detailbar .cache');
-        if (cacheElem) {
-            dom.attr(cacheElem, 'title',
-                lastUpdateTemplateString.replace('{{ago}}', i18n.renderElapsedTimeToString(latestWriteTime))
-            );
-        }
+        dom.attr(qs$(listNode, ':scope > .detailbar .cache'), 'title',
+            lastUpdateTemplateString.replace('{{ago}}', i18n.renderElapsedTimeToString(latestWriteTime))
+        );
         dom.cl.toggle(listNode, 'recent', (Date.now() - oldestWriteTime) < recentlyUpdated);
     }
     if ( qs$(listNode, '.listEntry.isDefault') !== null ) {
@@ -625,16 +483,16 @@ const updateListNode = (listNode: HTMLElement | null): void => {
     }
 };
 
-const updateAncestorListNodes = (listEntry: HTMLElement, fn: (elem: HTMLElement) => void): void => {
+const updateAncestorListNodes = (listEntry, fn) => {
     while ( listEntry !== null ) {
         fn(listEntry);
-        listEntry = qs$(`.listEntry[data-key="${listEntry.dataset.parent}"]`) as HTMLElement;
+        listEntry = qs$(`.listEntry[data-key="${listEntry.dataset.parent}"]`);
     }
 };
 
 /******************************************************************************/
 
-const onFilteringSettingsChanged = (): void => {
+const onFilteringSettingsChanged = ( ) => {
     renderWidgets();
 };
 
@@ -644,8 +502,8 @@ dom.on('#lists', 'input', '[data-role="import"] textarea', onFilteringSettingsCh
 
 /******************************************************************************/
 
-const onRemoveExternalList = (ev: Event): void => {
-    const listEntry = (ev.target as HTMLElement).closest('[data-key]');
+const onRemoveExternalList = ev => {
+    const listEntry = ev.target.closest('[data-key]');
     if ( listEntry === null ) { return; }
     dom.cl.toggle(listEntry, 'toRemove');
     renderWidgets();
@@ -655,15 +513,14 @@ dom.on('#lists', 'click', '.listEntry .remove', onRemoveExternalList);
 
 /******************************************************************************/
 
-const onPurgeClicked = (ev: MouseEvent): void => {
-    const liEntry = (ev.target as HTMLElement).closest('[data-key]');
-    if (!liEntry) { return; }
+const onPurgeClicked = ev => {
+    const liEntry = ev.target.closest('[data-key]');
     const listkey = liEntry.dataset.key || '';
     if ( listkey === '' ) { return; }
 
     const assetKeys = [ listkey ];
-    for ( const listLeaf of qsa$<HTMLElement>(liEntry, '[data-role="leaf"]') ) {
-        assetKeys.push(listLeaf.dataset.key!);
+    for ( const listLeaf of qsa$(liEntry, '[data-role="leaf"]') ) {
+        assetKeys.push(listLeaf.dataset.key);
         dom.cl.add(listLeaf, 'obsolete');
         dom.cl.remove(listLeaf, 'cached');
     }
@@ -674,11 +531,15 @@ const onPurgeClicked = (ev: MouseEvent): void => {
         preferOrigin: ev.shiftKey,
     });
 
+    // If the cached version is purged, the installed version must be assumed
+    // to be obsolete.
+    // https://github.com/gorhill/uBlock/issues/1733
+    //   An external filter list must not be marked as obsolete, they will
+    //   always be fetched anyways if there is no cached copy.
     dom.cl.add(dom.body, 'updating');
     dom.cl.add(liEntry, 'obsolete');
 
-    const checkbox = qs$<HTMLInputElement>(liEntry, 'input[type="checkbox"]');
-    if ( checkbox && checkbox.checked ) {
+    if ( qs$(liEntry, 'input[type="checkbox"]').checked ) {
         renderWidgets();
     }
 };
@@ -687,62 +548,57 @@ dom.on('#lists', 'click', 'span.cache', onPurgeClicked);
 
 /******************************************************************************/
 
-const selectFilterLists = async (): Promise<void> => {
-    const toImport = (( ): string => {
-        const textarea = qs$<HTMLTextAreaElement>('#lists .listEntry[data-role="import"].expanded textarea');
+const selectFilterLists = async ( ) => {
+    // External filter lists to import
+    // Find stock list matching entries in lists to import
+    const toImport = (( ) => {
+        const textarea = qs$('#lists .listEntry[data-role="import"].expanded textarea');
         if ( textarea === null ) { return ''; }
         const lists = listsetDetails.available;
         const lines = textarea.value.split(/\s+/);
-        const after: string[] = [];
+        const after = [];
         for ( const line of lines ) {
             after.push(line);
             if ( /^https?:\/\//.test(line) === false ) { continue; }
             for ( const [ listkey, list ] of Object.entries(lists) ) {
                 if ( list.content !== 'filters' ) { continue; }
                 if ( list.contentURL === undefined ) { continue; }
-                const contentURLs = Array.isArray(list.contentURL)
-                    ? list.contentURL
-                    : typeof list.contentURL === 'string'
-                        ? [ list.contentURL ]
-                        : [];
-                if ( contentURLs.includes(line) === false ) { continue; }
+                if ( list.contentURL.includes(line) === false ) { continue; }
                 const groupkey = list.group2 || list.group;
                 const listEntry = qs$(`[data-key="${groupkey}"] [data-key="${listkey}"]`);
                 if ( listEntry === null ) { break; }
-                toggleFilterList(listEntry as HTMLInputElement, true);
+                toggleFilterList(listEntry, true);
                 after.pop();
                 break;
             }
         }
-        const expandable = textarea.closest('.expandable');
-        if (expandable) {
-            dom.cl.remove(expandable, 'expanded');
-        }
+        dom.cl.remove(textarea.closest('.expandable'), 'expanded');
         textarea.value = '';
         return after.join('\n');
     })();
 
-    let checked = qs$<HTMLInputElement>('#parseCosmeticFilters')?.checked ?? false;
+    // Cosmetic filtering switch
+    let checked = qs$('#parseCosmeticFilters').checked;
     vAPI.messaging.send('dashboard', {
         what: 'userSettings',
         name: 'parseAllABPHideFilters',
         value: checked,
     });
-    listsetDetails && (listsetDetails.parseCosmeticFilters = checked);
+    listsetDetails.parseCosmeticFilters = checked;
 
-    checked = qs$<HTMLInputElement>('#ignoreGenericCosmeticFilters')?.checked ?? false;
+    checked = qs$('#ignoreGenericCosmeticFilters').checked;
     vAPI.messaging.send('dashboard', {
         what: 'userSettings',
         name: 'ignoreGenericCosmeticFilters',
         value: checked,
     });
-    listsetDetails && (listsetDetails.ignoreGenericCosmeticFilters = checked);
+    listsetDetails.ignoreGenericCosmeticFilters = checked;
 
-    const toSelect: string[] = [];
-    const toRemove: string[] = [];
-    for ( const liEntry of qsa$<HTMLElement>('#lists .listEntry[data-role="leaf"]') ) {
+    // Filter lists to remove/select
+    const toSelect = [];
+    const toRemove = [];
+    for ( const liEntry of qsa$('#lists .listEntry[data-role="leaf"]') ) {
         const listkey = liEntry.dataset.key;
-        if ( listkey === undefined ) { continue; }
         if ( Object.hasOwn(listsetDetails.available, listkey) === false ) {
             continue;
         }
@@ -772,7 +628,7 @@ const selectFilterLists = async (): Promise<void> => {
 
 /******************************************************************************/
 
-const buttonApplyHandler = async (): Promise<void> => {
+const buttonApplyHandler = async ( ) => {
     await selectFilterLists();
     dom.cl.add(dom.body, 'working');
     dom.cl.remove('#lists .listEntry.stickied', 'stickied');
@@ -785,7 +641,7 @@ dom.on('#buttonApply', 'click', ( ) => { buttonApplyHandler(); });
 
 /******************************************************************************/
 
-const buttonUpdateHandler = async (): Promise<void> => {
+const buttonUpdateHandler = async ( ) => {
     dom.cl.remove('#lists .listEntry.stickied', 'stickied');
     await selectFilterLists();
     dom.cl.add(dom.body, 'updating');
@@ -797,14 +653,14 @@ dom.on('#buttonUpdate', 'click', ( ) => { buttonUpdateHandler(); });
 
 /******************************************************************************/
 
-const userSettingCheckboxChanged = (): void => {
-    const target = event!.target as HTMLInputElement;
+const userSettingCheckboxChanged = ( ) => {
+    const target = event.target;
     vAPI.messaging.send('dashboard', {
         what: 'userSettings',
         name: target.id,
         value: target.checked,
     });
-    listsetDetails[target.id as keyof ListsetDetails] = target.checked as never;
+    listsetDetails[target.id] = target.checked;
 };
 
 dom.on('#autoUpdate', 'change', userSettingCheckboxChanged);
@@ -812,17 +668,17 @@ dom.on('#suspendUntilListsAreLoaded', 'change', userSettingCheckboxChanged);
 
 /******************************************************************************/
 
-const searchFilterLists = (): void => {
-    const pattern = dom.prop('.searchfield input', 'value') as string || '';
+const searchFilterLists = ( ) => {
+    const pattern = dom.prop('.searchfield input', 'value') || '';
     dom.cl.toggle('#lists', 'searchMode', pattern !== '');
     if ( pattern === '' ) { return; }
-    const reflectSearchMatches = (listEntry: HTMLElement): void => {
+    const reflectSearchMatches = listEntry => {
         if ( listEntry.dataset.role !== 'node' ) { return; }
         dom.cl.toggle(listEntry, 'searchMatch',
             qs$(listEntry, ':scope > .listEntries > .listEntry.searchMatch') !== null
         );
     };
-    const toI18n = (tags: string): string => {
+    const toI18n = tags => {
         if ( tags === '' ) { return ''; }
         return tags.toLowerCase().split(/\s+/).reduce((a, v) => {
             let s = i18n$(v);
@@ -834,9 +690,9 @@ const searchFilterLists = (): void => {
         }, '');
     };
     const re = new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    for ( const listEntry of qsa$<HTMLElement>('#lists [data-role="leaf"]') ) {
+    for ( const listEntry of qsa$('#lists [data-role="leaf"]') ) {
         const listkey = listEntry.dataset.key;
-        const listDetails = listsetDetails.available[listkey!];
+        const listDetails = listsetDetails.available[listkey];
         if ( listDetails === undefined ) { continue; }
         let haystack = perListHaystack.get(listDetails);
         if ( haystack === undefined ) {
@@ -855,22 +711,22 @@ const searchFilterLists = (): void => {
     }
 };
 
-const perListHaystack = new WeakMap<ListDetails, string>();
+const perListHaystack = new WeakMap();
 
 dom.on('.searchfield input', 'input', searchFilterLists);
 
 /******************************************************************************/
 
-const expandedListSet = new Set<string>([
+const expandedListSet = new Set([
     'cookies',
     'social',
 ]);
 
-const listIsExpanded = (which: string): boolean => {
+const listIsExpanded = which => {
     return expandedListSet.has(which);
 };
 
-const applyListExpansion = (listkeys: string[] | undefined): void => {
+const applyListExpansion = listkeys => {
     if ( listkeys === undefined ) {
         listkeys = Array.from(expandedListSet);
     }
@@ -882,7 +738,7 @@ const applyListExpansion = (listkeys: string[] | undefined): void => {
     });
 };
 
-const toggleListExpansion = (which: string): void => {
+const toggleListExpansion = which => {
     const isExpanded = expandedListSet.has(which);
     if ( which === '*' ) {
         if ( isExpanded ) {
@@ -893,7 +749,7 @@ const toggleListExpansion = (which: string): void => {
             expandedListSet.clear();
             expandedListSet.add('*');
             dom.cl.add('#lists .rootstats', 'expanded');
-            for ( const expandable of qsa$<HTMLElement>('#lists > .listEntries .expandable') ) {
+            for ( const expandable of qsa$('#lists > .listEntries .expandable') ) {
                 const listkey = expandable.dataset.key || '';
                 if ( listkey === '' ) { continue; }
                 expandedListSet.add(listkey);
@@ -904,11 +760,9 @@ const toggleListExpansion = (which: string): void => {
         if ( isExpanded ) {
             expandedListSet.delete(which);
             const listNode = qs$(`#lists > .listEntries [data-key="${which}"]`);
-            if (listNode) {
-                dom.cl.remove(listNode, 'expanded');
-                if ( listNode.dataset.parent === 'root' ) {
-                    dom.cl.remove(qsa$(listNode, '.stickied'), 'stickied');
-                }
+            dom.cl.remove(listNode, 'expanded');
+            if ( listNode.dataset.parent === 'root' ) {
+                dom.cl.remove(qsa$(listNode, '.stickied'), 'stickied');
             }
         } else {
             expandedListSet.add(which);
@@ -924,7 +778,7 @@ dom.on('#listsOfBlockedHostsPrompt', 'click', ( ) => {
 });
 
 dom.on('#lists', 'click', '.listExpander', ev => {
-    const expandable = (ev.target as HTMLElement).closest('.expandable');
+    const expandable = ev.target.closest('.expandable');
     if ( expandable === null ) { return; }
     const which = expandable.dataset.key;
     if ( which !== undefined ) {
@@ -939,7 +793,7 @@ dom.on('#lists', 'click', '.listExpander', ev => {
 });
 
 dom.on('#lists', 'click', '[data-parent="root"] > .detailbar .listname', ev => {
-    const listEntry = (ev.target as HTMLElement).closest('.listEntry');
+    const listEntry = ev.target.closest('.listEntry');
     if ( listEntry === null ) { return; }
     const listkey = listEntry.dataset.key;
     if ( listkey === undefined ) { return; }
@@ -948,14 +802,14 @@ dom.on('#lists', 'click', '[data-parent="root"] > .detailbar .listname', ev => {
 });
 
 dom.on('#lists', 'click', '[data-role="import"] > .detailbar .listname', ev => {
-    const expandable = (ev.target as HTMLElement).closest('.listEntry');
+    const expandable = ev.target.closest('.listEntry');
     if ( expandable === null ) { return; }
     dom.cl.toggle(expandable, 'expanded');
     ev.preventDefault();
 });
 
 dom.on('#lists', 'click', '.listEntry > .detailbar .nodestats', ev => {
-    const listEntry = (ev.target as HTMLElement).closest('.listEntry');
+    const listEntry = ev.target.closest('.listEntry');
     if ( listEntry === null ) { return; }
     const listkey = listEntry.dataset.key;
     if ( listkey === undefined ) { return; }
@@ -963,72 +817,65 @@ dom.on('#lists', 'click', '.listEntry > .detailbar .nodestats', ev => {
     ev.preventDefault();
 });
 
+// Initialize from saved state.
 vAPI.localStorage.getItemAsync('expandedListSet').then(listkeys => {
     if ( Array.isArray(listkeys) === false ) { return; }
-    applyListExpansion(listkeys as string[]);
+    applyListExpansion(listkeys);
 });
 
 /******************************************************************************/
 
-(self.cloud as CloudHooks).onPush = function toCloudData(): CloudData {
-    const bin: CloudData = {
-        parseCosmeticFilters: qs$<HTMLInputElement>('#parseCosmeticFilters')?.checked ?? false,
-        ignoreGenericCosmeticFilters: qs$<HTMLInputElement>('#ignoreGenericCosmeticFilters')?.checked ?? false,
+// Cloud storage-related.
+
+self.cloud.onPush = function toCloudData() {
+    const bin = {
+        parseCosmeticFilters: qs$('#parseCosmeticFilters').checked,
+        ignoreGenericCosmeticFilters: qs$('#ignoreGenericCosmeticFilters').checked,
         selectedLists: []
     };
 
-    const liEntries = qsa$<HTMLElement>('#lists .listEntry.checked[data-role="leaf"]');
+    const liEntries = qsa$('#lists .listEntry.checked[data-role="leaf"]');
     for ( const liEntry of liEntries ) {
-        bin.selectedLists!.push(liEntry.dataset.key!);
+        bin.selectedLists.push(liEntry.dataset.key);
     }
 
     return bin;
 };
 
-(self.cloud as CloudHooks).onPull = function fromCloudData(data: CloudData, append: boolean): void {
+self.cloud.onPull = function fromCloudData(data, append) {
     if ( typeof data !== 'object' || data === null ) { return; }
 
-    let elem = qs$<HTMLInputElement>('#parseCosmeticFilters');
-    let checked = data?.parseCosmeticFilters === true || (append && elem?.checked === true);
-    if (elem) {
-        elem.checked = checked;
-        listsetDetails && (listsetDetails.parseCosmeticFilters = checked);
-    }
+    let elem = qs$('#parseCosmeticFilters');
+    let checked = data.parseCosmeticFilters === true || append && elem.checked;
+    elem.checked = listsetDetails.parseCosmeticFilters = checked;
 
-    elem = qs$<HTMLInputElement>('#ignoreGenericCosmeticFilters');
-    checked = data?.ignoreGenericCosmeticFilters === true || (append && elem?.checked === true);
-    if (elem) {
-        elem.checked = checked;
-        listsetDetails && (listsetDetails.ignoreGenericCosmeticFilters = checked);
-    }
+    elem = qs$('#ignoreGenericCosmeticFilters');
+    checked = data.ignoreGenericCosmeticFilters === true || append && elem.checked;
+    elem.checked = listsetDetails.ignoreGenericCosmeticFilters = checked;
 
-    const selectedSet = new Set(Array.isArray(data?.selectedLists) ? data.selectedLists : []);
-    for ( const listEntry of qsa$<HTMLElement>('#lists .listEntry[data-role="leaf"]') ) {
+    const selectedSet = new Set(data.selectedLists);
+    for ( const listEntry of qsa$('#lists .listEntry[data-role="leaf"]') ) {
         const listkey = listEntry.dataset.key;
-        if (!listkey) { continue; }
         const mustEnable = selectedSet.has(listkey);
         selectedSet.delete(listkey);
         if ( mustEnable === false && append ) { continue; }
-        toggleFilterList(listEntry as unknown as HTMLInputElement, mustEnable);
+        toggleFilterList(listEntry, mustEnable);
     }
 
+    // If there are URL-like list keys left in the selected set, import them.
     for ( const listkey of selectedSet ) {
         if ( reValidExternalList.test(listkey) ) { continue; }
         selectedSet.delete(listkey);
     }
     if ( selectedSet.size !== 0 ) {
-        const textarea = qs$<HTMLTextAreaElement>('#lists .listEntry[data-role="import"] textarea');
-        if (!textarea) { return; }
+        const textarea = qs$('#lists .listEntry[data-role="import"] textarea');
         const lines = append
             ? textarea.value.split(/[\n\r]+/)
             : [];
         lines.push(...selectedSet);
         if ( lines.length !== 0 ) { lines.push(''); }
         textarea.value = lines.join('\n');
-        const importEntry = qs$('#lists .listEntry[data-role="import"]');
-        if (importEntry) {
-            dom.cl.toggle(importEntry, 'expanded', textarea.value !== '');
-        }
+        dom.cl.toggle('#lists .listEntry[data-role="import"]', 'expanded', textarea.value !== '');
     }
 
     renderWidgets();
@@ -1038,7 +885,7 @@ vAPI.localStorage.getItemAsync('expandedListSet').then(listkeys => {
 
 self.wikilink = 'https://github.com/gorhill/uBlock/wiki/Dashboard:-Filter-lists';
 
-self.hasUnsavedData = function(): boolean {
+self.hasUnsavedData = function() {
     return hashFromCurrentFromSettings() !== filteringSettingsHash;
 };
 
@@ -1046,7 +893,6 @@ self.hasUnsavedData = function(): boolean {
 
 renderFilterLists().then(( ) => {
     const buttonUpdate = qs$('#buttonUpdate');
-    if ( buttonUpdate === null ) { return; }
     if ( dom.cl.has(buttonUpdate, 'active') ) { return; }
     if ( dom.cl.has(buttonUpdate, 'disabled') ) { return; }
     if ( listsetDetails.autoUpdate !== true ) { return; }

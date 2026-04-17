@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Resurrected - a comprehensive, efficient content blocker
+    uBlock Origin - a comprehensive, efficient content blocker
     Copyright (C) 2014-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -19,76 +19,12 @@
     Home: https://github.com/gorhill/uBlock
 */
 
+/* global CodeMirror, uBlockDashboard */
+
 import './codemirror/ubo-static-filtering.js';
 import { dom, qs$ } from './dom.js';
 import { i18n$ } from './i18n.js';
 import { onBroadcast } from './broadcast.js';
-import µb from './background.js';
-
-/******************************************************************************/
-
-interface EditorState {
-    enabled: boolean;
-    trusted: boolean;
-    filters: string;
-}
-
-interface UserFiltersDetails {
-    changed?: boolean;
-    enabled?: boolean;
-    trusted?: boolean;
-    content?: string;
-    error?: string;
-}
-
-interface StoredUserFiltersBin {
-    'user-filters'?: string;
-    selectedFilterLists?: string[];
-    userFiltersTrusted?: boolean;
-}
-
-interface AutoCompleteDetails {
-    hintUpdateToken?: number;
-}
-
-interface CloudDataHandler {
-    onPush: () => string;
-    onPull: (data: string, append?: boolean) => void;
-}
-
-interface DiffMatchPatch {
-    diff: (text1: string[], text2: string[]) => Array<[number, string]>;
-}
-
-declare const CodeMirror: any;
-declare const vAPI: any;
-declare const uBlockDashboard: any;
-declare const self: any;
-declare const browser: any;
-declare const chrome: any;
-
-const extensionStorage = browser?.storage?.local || chrome?.storage?.local;
-
-const storageGet = async (keys: string | string[]): Promise<StoredUserFiltersBin> => {
-    const result = extensionStorage.get(keys);
-    if ( result instanceof Promise ) {
-        return await result;
-    }
-    return await new Promise(resolve => {
-        extensionStorage.get(keys, resolve);
-    });
-};
-
-const storageSet = async (bin: StoredUserFiltersBin): Promise<void> => {
-    const result = extensionStorage.set(bin);
-    if ( result instanceof Promise ) {
-        await result;
-        return;
-    }
-    await new Promise<void>(resolve => {
-        extensionStorage.set(bin, ( ) => { resolve(); });
-    });
-};
 
 /******************************************************************************/
 
@@ -117,14 +53,17 @@ uBlockDashboard.patchCodeMirrorEditor(cmEditor);
 
 /******************************************************************************/
 
+// Add auto-complete ability to the editor. Polling is used as the suggested
+// hints also depend on the tabs currently opened.
+
 {
     let hintUpdateToken = 0;
 
-    const getHints = async function(): Promise<void> {
+    const getHints = async function() {
         const hints = await vAPI.messaging.send('dashboard', {
             what: 'getAutoCompleteDetails',
             hintUpdateToken
-        }) as AutoCompleteDetails | undefined;
+        });
         if ( hints instanceof Object === false ) { return; }
         if ( hints.hintUpdateToken !== undefined ) {
             cmEditor.setOption('uboHints', hints);
@@ -142,19 +81,19 @@ uBlockDashboard.patchCodeMirrorEditor(cmEditor);
 
 vAPI.messaging.send('dashboard', {
     what: 'getTrustedScriptletTokens',
-}).then((tokens: string[]) => {
+}).then(tokens => {
     cmEditor.setOption('trustedScriptletTokens', tokens);
 });
 
 /******************************************************************************/
 
-let originalState: EditorState = {
+let originalState = {
     enabled: true,
     trusted: false,
     filters: '',
 };
 
-function getCurrentState(): EditorState {
+function getCurrentState() {
     const enabled = qs$('#enableMyFilters input').checked;
     return {
         enabled,
@@ -163,26 +102,26 @@ function getCurrentState(): EditorState {
     };
 }
 
-function rememberCurrentState(): void {
+function rememberCurrentState() {
     originalState = getCurrentState();
 }
 
-function currentStateChanged(): boolean {
+function currentStateChanged() {
     return JSON.stringify(getCurrentState()) !== JSON.stringify(originalState);
 }
 
-function getEditorText(): string {
+function getEditorText() {
     const text = cmEditor.getValue().trimEnd();
     return text === '' ? text : `${text}\n`;
 }
 
-function setEditorText(text: string): void {
+function setEditorText(text) {
     cmEditor.setValue(`${text.trimEnd()}\n\n`);
 }
 
 /******************************************************************************/
 
-function userFiltersChanged(details: UserFiltersDetails = {}): void {
+function userFiltersChanged(details = {}) {
     const changed = typeof details.changed === 'boolean'
         ? details.changed
         : self.hasUnsavedData();
@@ -209,9 +148,14 @@ function userFiltersChanged(details: UserFiltersDetails = {}): void {
 
 /******************************************************************************/
 
-function threeWayMerge(newContent: string): string {
+// https://github.com/gorhill/uBlock/issues/3704
+//   Merge changes to user filters occurring in the background with changes
+//   made in the editor. The code assumes that no deletion occurred in the
+//   background.
+
+function threeWayMerge(newContent) {
     const prvContent = originalState.filters.trim().split(/\n/);
-    const differ = new self.diff_match_patch() as DiffMatchPatch;
+    const differ = new self.diff_match_patch();
     const newChanges = differ.diff(
         prvContent,
         newContent.trim().split(/\n/)
@@ -220,7 +164,7 @@ function threeWayMerge(newContent: string): string {
         prvContent,
         getEditorText().trim().split(/\n/)
     );
-    const out: string[] = [];
+    const out = [];
     let i = 0, j = 0, k = 0;
     while ( i < prvContent.length ) {
         for ( ; j < newChanges.length; j++ ) {
@@ -253,27 +197,18 @@ function threeWayMerge(newContent: string): string {
 
 /******************************************************************************/
 
-async function renderUserFilters(): Promise<void> {
-    const bin = await storageGet([
-        'user-filters',
-        'selectedFilterLists',
-        'userFiltersTrusted',
-    ]) as StoredUserFiltersBin | undefined;
-    if ( bin instanceof Object === false ) { return; }
+async function renderUserFilters() {
+    const details = await vAPI.messaging.send('dashboard', {
+        what: 'readUserFilters',
+    });
+    if ( details instanceof Object === false || details.error ) { return; }
 
-    const enabled = Array.isArray(bin.selectedFilterLists) &&
-        bin.selectedFilterLists.includes('user-filters');
-    const trusted = bin.userFiltersTrusted === true;
-    const content = typeof bin['user-filters'] === 'string'
-        ? bin['user-filters']
-        : '';
+    cmEditor.setOption('trustedSource', details.trusted);
 
-    cmEditor.setOption('trustedSource', trusted);
+    qs$('#enableMyFilters input').checked = details.enabled;
+    qs$('#trustMyFilters input').checked = details.trusted;
 
-    qs$('#enableMyFilters input').checked = enabled;
-    qs$('#trustMyFilters input').checked = trusted;
-
-    setEditorText(content.trim());
+    setEditorText(details.content.trim());
     userFiltersChanged({ changed: false });
 
     rememberCurrentState();
@@ -281,9 +216,8 @@ async function renderUserFilters(): Promise<void> {
 
 /******************************************************************************/
 
-function handleImportFilePicker(ev: Event): void {
-    const target = ev.target as HTMLInputElement;
-    const file = target.files?.[0];
+function handleImportFilePicker(ev) {
+    const file = ev.target.files[0];
     if ( file === undefined || file.name === '' ) { return; }
     if ( file.type.indexOf('text') !== 0 ) { return; }
     const fr = new FileReader();
@@ -302,8 +236,11 @@ function handleImportFilePicker(ev: Event): void {
 
 dom.on('#importFilePicker', 'change', handleImportFilePicker);
 
-function startImportFilePicker(): void {
-    const input = qs$('#importFilePicker') as HTMLInputElement;
+function startImportFilePicker() {
+    const input = qs$('#importFilePicker');
+    // Reset to empty string, this will ensure an change event is properly
+    // triggered if the user pick a file, even if it is the same as the last
+    // one picked.
     input.value = '';
     input.click();
 }
@@ -312,7 +249,7 @@ dom.on('#importUserFiltersFromFile', 'click', startImportFilePicker);
 
 /******************************************************************************/
 
-function exportUserFiltersToFile(): void {
+function exportUserFiltersToFile() {
     const val = getEditorText();
     if ( val === '' ) { return; }
     const filename = i18n$('1pExportFilename')
@@ -326,34 +263,23 @@ function exportUserFiltersToFile(): void {
 
 /******************************************************************************/
 
-async function applyChanges(): Promise<void> {
+async function applyChanges() {
     const state = getCurrentState();
-    const nextEnabled = state.filters.trim() !== '' ? true : state.enabled;
-    const bin = await storageGet('selectedFilterLists') as StoredUserFiltersBin | undefined;
-    const selected = new Set(
-        Array.isArray(bin?.selectedFilterLists)
-            ? bin.selectedFilterLists
-            : []
-    );
-    if ( nextEnabled ) {
-        selected.add('user-filters');
-    } else {
-        selected.delete('user-filters');
-    }
-    qs$('#enableMyFilters input').checked = nextEnabled;
-    await storageSet({
-        'user-filters': state.filters.trim(),
-        selectedFilterLists: Array.from(selected),
-        userFiltersTrusted: state.trusted,
+    const details = await vAPI.messaging.send('dashboard', {
+        what: 'writeUserFilters',
+        content: state.filters,
+        enabled: state.enabled,
+        trusted: state.trusted,
     });
+    if ( details instanceof Object === false || details.error ) { return; }
     rememberCurrentState();
     userFiltersChanged({ changed: false });
-    void vAPI.messaging.send('dashboard', {
+    vAPI.messaging.send('dashboard', {
         what: 'reloadAllFilters',
     });
 }
 
-function revertChanges(): void {
+function revertChanges() {
     qs$('#enableMyFilters input').checked = originalState.enabled;
     qs$('#trustMyFilters input').checked = originalState.trusted;
     setEditorText(originalState.filters);
@@ -362,31 +288,32 @@ function revertChanges(): void {
 
 /******************************************************************************/
 
-function getCloudData(): string {
+function getCloudData() {
     return getEditorText();
 }
 
-function setCloudData(data: unknown, append?: boolean): void {
+function setCloudData(data, append) {
     if ( typeof data !== 'string' ) { return; }
     if ( append ) {
-        data = uBlockDashboard.mergeNewLines(getEditorText(), data as string);
+        data = uBlockDashboard.mergeNewLines(getEditorText(), data);
     }
-    cmEditor.setValue(data as string);
+    cmEditor.setValue(data);
 }
 
-(self.cloud as CloudDataHandler).onPush = getCloudData;
-(self.cloud as CloudDataHandler).onPull = setCloudData;
+self.cloud.onPush = getCloudData;
+self.cloud.onPull = setCloudData;
 
 /******************************************************************************/
 
 self.wikilink = 'https://github.com/gorhill/uBlock/wiki/Dashboard:-My-filters';
 
-self.hasUnsavedData = function(): boolean {
+self.hasUnsavedData = function() {
     return currentStateChanged();
 };
 
 /******************************************************************************/
 
+// Handle user interaction
 dom.on('#exportUserFiltersToFile', 'click', exportUserFiltersToFile);
 dom.on('#userFiltersApply', 'click', ( ) => { applyChanges(); });
 dom.on('#userFiltersRevert', 'click', revertChanges);
@@ -401,7 +328,7 @@ dom.on('#trustMyFilters input', 'change', userFiltersChanged);
     // https://github.com/gorhill/uBlock/issues/3706
     //   Save/restore cursor position
     {
-        const line = await vAPI.localStorage.getItemAsync('myFiltersCursorPosition') as number | undefined;
+        const line = await vAPI.localStorage.getItemAsync('myFiltersCursorPosition');
         if ( typeof line === 'number' ) {
             cmEditor.setCursor(line, 0);
         }
@@ -425,7 +352,7 @@ dom.on('#trustMyFilters input', 'change', userFiltersChanged);
 
     // https://github.com/gorhill/uBlock/issues/3704
     //   Merge changes to user filters occurring in the background
-    onBroadcast((msg: { what: string }) => {
+    onBroadcast(msg => {
         switch ( msg.what ) {
         case 'userFiltersUpdated': {
             cmEditor.startOperation();

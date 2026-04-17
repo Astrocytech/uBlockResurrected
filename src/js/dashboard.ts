@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Resurrected - a comprehensive, efficient content blocker
+    uBlock Origin - a comprehensive, efficient content blocker
     Copyright (C) 2014-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -23,28 +23,9 @@ import { dom, qs$ } from './dom.js';
 
 /******************************************************************************/
 
-interface VAPI {
-    messaging: {
-        send: (topic: string, details: object) => Promise<unknown>;
-    };
-    localStorage: {
-        setItem: (key: string, value: string) => void;
-        getItemAsync: (key: string) => Promise<string | null>;
-    };
-    defer: {
-        once: (delay: number) => { then: (callback: () => void) => void };
-    };
-}
-
-declare const vAPI: VAPI;
-
-interface DashboardConfig {
-    noDashboard?: boolean;
-}
-
-function discardUnsavedData(synchronous = false): boolean | Promise<boolean> {
-    const paneFrame = qs$('#iframe') as HTMLIFrameElement;
-    const paneWindow = paneFrame.contentWindow as Window & { hasUnsavedData?: () => boolean };
+function discardUnsavedData(synchronous = false) {
+    const paneFrame = qs$('#iframe');
+    const paneWindow = paneFrame.contentWindow;
     if (
         typeof paneWindow.hasUnsavedData !== 'function' ||
         paneWindow.hasUnsavedData() === false
@@ -57,25 +38,25 @@ function discardUnsavedData(synchronous = false): boolean | Promise<boolean> {
     }
 
     return new Promise(resolve => {
-        const modal = qs$('#unsavedWarning') as HTMLElement;
+        const modal = qs$('#unsavedWarning');
         dom.cl.add(modal, 'on');
         modal.focus();
 
-        const onDone = (status: boolean): void => {
+        const onDone = status => {
             dom.cl.remove(modal, 'on');
             dom.off(document, 'click', onClick, true);
             resolve(status);
         };
 
-        const onClick = (ev: Event): void => {
-            const target = ev.target as HTMLElement;
+        const onClick = ev => {
+            const target = ev.target;
             if ( target.matches('[data-i18n="dashboardUnsavedWarningStay"]') ) {
                 return onDone(false);
             }
             if ( target.matches('[data-i18n="dashboardUnsavedWarningIgnore"]') ) {
                 return onDone(true);
             }
-            if ( qs$(modal, '[data-i18n="dashboardUnsavedWarning"]')!.contains(target) ) {
+            if ( qs$(modal, '[data-i18n="dashboardUnsavedWarning"]').contains(target) ) {
                 return;
             }
             onDone(false);
@@ -85,23 +66,19 @@ function discardUnsavedData(synchronous = false): boolean | Promise<boolean> {
     });
 }
 
-function loadDashboardPanel(pane: string, first: boolean): void {
-    const tabButton = qs$(`[data-pane="${pane}"]`) as HTMLElement | null;
+function loadDashboardPanel(pane, first) {
+    const tabButton = qs$(`[data-pane="${pane}"]`);
     if ( tabButton === null || dom.cl.has(tabButton, 'selected') ) { return; }
     const loadPane = ( ) => {
         self.location.replace(`#${pane}`);
         dom.cl.remove('.tabButton.selected', 'selected');
         dom.cl.add(tabButton, 'selected');
         tabButton.scrollIntoView();
-        const iframe = qs$('#iframe') as HTMLIFrameElement;
-        iframe.contentWindow!.location.replace(pane);
+        const iframe = qs$('#iframe');
+        iframe.contentWindow.location.replace(pane);
         if ( pane !== 'no-dashboard.html' ) {
             iframe.addEventListener('load', ( ) => {
-                const wikilink = (iframe.contentWindow as unknown as { wikilink?: string }).wikilink;
-                const link = qs$('.wikilink') as HTMLAnchorElement | null;
-                if ( link ) {
-                    link.href = wikilink || '';
-                }
+                qs$('.wikilink').href = iframe.contentWindow.wikilink || '';
             }, { once: true });
             vAPI.localStorage.setItem('dashboardLastVisitedPane', pane);
         }
@@ -112,18 +89,14 @@ function loadDashboardPanel(pane: string, first: boolean): void {
     const r = discardUnsavedData();
     if ( r === false ) { return; }
     if ( r === true ) { return loadPane(); }
-    (r as Promise<boolean>).then(status => {
+    r.then(status => {
         if ( status === false ) { return; }
         loadPane();
     });
 }
 
-function onTabClickHandler(ev: Event): void {
-    const target = ev.target as HTMLElement;
-    const pane = dom.attr(target, 'data-pane');
-    if ( pane ) {
-        loadDashboardPanel(pane, false);
-    }
+function onTabClickHandler(ev) {
+    loadDashboardPanel(dom.attr(ev.target, 'data-pane'));
 }
 
 if ( self.location.hash.slice(1) === 'no-dashboard.html' ) {
@@ -131,6 +104,7 @@ if ( self.location.hash.slice(1) === 'no-dashboard.html' ) {
 }
 
 (async ( ) => {
+    // Wait for uBO's main process to be ready
     await new Promise(resolve => {
         const check = async ( ) => {
             try {
@@ -138,7 +112,7 @@ if ( self.location.hash.slice(1) === 'no-dashboard.html' ) {
                     what: 'readyToFilter'
                 });
                 if ( response ) { return resolve(true); }
-                const iframe = qs$('#iframe') as HTMLIFrameElement;
+                const iframe = qs$('#iframe');
                 if ( iframe.src !== '' ) {
                     iframe.src = '';
                 }
@@ -152,12 +126,13 @@ if ( self.location.hash.slice(1) === 'no-dashboard.html' ) {
     dom.cl.remove(dom.body, 'notReady');
 
     const results = await Promise.all([
-        vAPI.messaging.send('dashboard', { what: 'dashboardConfig' }) as Promise<DashboardConfig>,
+        // https://github.com/uBlockOrigin/uBlock-issues/issues/106
+        vAPI.messaging.send('dashboard', { what: 'dashboardConfig' }),
         vAPI.localStorage.getItemAsync('dashboardLastVisitedPane'),
     ]);
 
     {
-        const details = results[0] || {} as DashboardConfig;
+        const details = results[0] || {};
         if ( details.noDashboard ) {
             self.location.hash = '#no-dashboard.html';
             dom.cl.add(dom.body, 'noDashboard');
@@ -175,12 +150,14 @@ if ( self.location.hash.slice(1) === 'no-dashboard.html' ) {
 
         dom.on('.tabButton', 'click', onTabClickHandler);
 
+        // https://developer.mozilla.org/en-US/docs/Web/API/Window/beforeunload_event
         dom.on(self, 'beforeunload', ( ) => {
             if ( discardUnsavedData(true) ) { return; }
             event.preventDefault();
             event.returnValue = '';
         });
 
+        // https://developer.mozilla.org/en-US/docs/Web/API/Window/beforeunload_event
         dom.on(self, 'hashchange', ( ) => {
             const pane = self.location.hash.slice(1);
             if ( pane === '' ) { return; }

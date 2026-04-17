@@ -1,0 +1,444 @@
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/1p-filters.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/1p-filters.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/3p-filters.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/3p-filters.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ar/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ar/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/az/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/az/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/be/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/be/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/bg/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/bg/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/bn/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/bn/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/br_FR/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/br_FR/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/bs/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/bs/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ca/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ca/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/cs/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/cs/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/cv/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/cv/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/cy/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/cy/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/da/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/da/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/de/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/de/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/el/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/el/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/en/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/en/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/en_GB/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/en_GB/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/eo/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/eo/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/es/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/es/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/et/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/et/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/eu/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/eu/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/fa/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/fa/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/fi/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/fi/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/fil/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/fil/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/fr/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/fr/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/fy/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/fy/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/gl/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/gl/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/gu/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/gu/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/he/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/he/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/hi/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/hi/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/hr/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/hr/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/hu/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/hu/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/hy/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/hy/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/id/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/id/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/it/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/it/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ja/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ja/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ka/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ka/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/kk/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/kk/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/kn/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/kn/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ko/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ko/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/lt/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/lt/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/lv/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/lv/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/mk/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/mk/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ml/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ml/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/mr/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/mr/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ms/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ms/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/nb/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/nb/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/nl/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/nl/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/oc/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/oc/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/pa/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/pa/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/pl/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/pl/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/pt_BR/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/pt_BR/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/pt_PT/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/pt_PT/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ro/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ro/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ru/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ru/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/si/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/si/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/sk/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/sk/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/sl/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/sl/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/so/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/so/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/sq/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/sq/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/sr/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/sr/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/sv/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/sv/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/sw/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/sw/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ta/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ta/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/te/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/te/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/th/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/th/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/tr/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/tr/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/uk/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/uk/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/ur/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/ur/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/vi/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/vi/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/zh_CN/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/zh_CN/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/_locales/zh_TW/messages.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/_locales/zh_TW/messages.json differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/about.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/about.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/advanced-settings.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/advanced-settings.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/asset-viewer.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/asset-viewer.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/background.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/background.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/cloud-ui.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/cloud-ui.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/code-viewer.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/code-viewer.html differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src: core
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css/3p-filters.css and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css/3p-filters.css differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css: asset-viewer.css
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css/click2load.css and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css/click2load.css differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css/common.css and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css/common.css differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css: dashboard-pane-lite.css
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css: develop.css
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css: devtools.css
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css: document-blocked.css
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css/epicker-ui.css and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css/epicker-ui.css differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css/fa-icons.css and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css/fa-icons.css differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css: filtering-mode.css
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css/logger-ui.css and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css/logger-ui.css differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css: picker-ui.css
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/css/themes/default.css and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css/themes/default.css differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css: tool-overlay-ui.css
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/css: zapper-ui.css
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/dashboard.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/dashboard.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/devtools.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/devtools.html differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src: dist
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/document-blocked.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/document-blocked.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/dyna-rules.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/dyna-rules.html differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: cloud.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: flags-of-the-world
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: fontawesome
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: help16.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_128.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_16-loading.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_16-off.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_16.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_32-loading.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_32-off.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_32.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_64-loading.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_64-off.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img: icon_64.png
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img/photon.svg and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img/photon.svg differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img: photon.svg.backup
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img/ublock-defs.svg and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img/ublock-defs.svg differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/img/ublock.svg and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img/ublock.svg differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img: ublock128.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img: ublock16.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img: ublock256.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img: ublock32.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img: ublock48.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img: ublock64.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/img: ublock96.png
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: 1p-filters-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: 1p-filters.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: 1p-filters.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: 3p-filters-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: 3p-filters.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: 3p-filters.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: about-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: about.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: about.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: advanced-settings-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: advanced-settings.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: advanced-settings.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: arglist-parser.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: arglist-parser.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: asset-viewer-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: asset-viewer.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: asset-viewer.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: assets.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: assets.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: background.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: background.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: base64-custom.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: base64-custom.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: benchmarks.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: benchmarks.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: biditrie.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: biditrie.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: blocker-adapter.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: blocker-core
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: broadcast.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: broadcast.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: cachestorage.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: cachestorage.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: click2load.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: click2load.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: cloud-ui-lite.js
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/cloud-ui.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/cloud-ui.js differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: code-viewer-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: code-viewer.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: code-viewer.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/codemirror: search-thread.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/codemirror: search-thread.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/codemirror: search.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/codemirror: search.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/codemirror: ubo-dynamic-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/codemirror: ubo-dynamic-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/codemirror: ubo-static-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/codemirror: ubo-static-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: commands.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: commands.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: console.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: console.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: contentscript
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: contentscript-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: contentscript-extra.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: contentscript-extra.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: contentscript.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: contentscript.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: contextmenu.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: contextmenu.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: cosmetic-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: cosmetic-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dashboard-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dashboard-common-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: dashboard-common.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dashboard-common.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dashboard-lite.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dashboard-pane-lite.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dashboard-shell-lite.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: dashboard.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dashboard.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: devtools-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: devtools.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: devtools.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: diff-updater.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: diff-updater.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dnr-integration.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: document-blocked.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: document-blocked.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: dom-inspector.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dom-inspector.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: dom.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dom.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dyna-rules-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: dyna-rules.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dyna-rules.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: dynamic-net-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: dynamic-net-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: epicker-ui-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: epicker-ui.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: epicker-ui.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: fa-icons-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: fa-icons.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: filter-storage.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: filtering-compiler.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: filtering-context.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: filtering-context.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: filtering-engines.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: filtering-engines.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: hnswitches.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: hnswitches.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: hntrie.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: hntrie.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: html-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: html-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: httpheader-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: httpheader-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: i18n-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: i18n-fallback.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: i18n.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: i18n.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: jsonpath.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: jsonpath.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: logger-ui-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: logger-ui-inspector-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: logger-ui-inspector.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: logger-ui-inspector.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: logger-ui.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: logger-ui.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: logger.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: logger.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: lz4.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: lz4.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: matched-rules.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: messaging-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: messaging.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: messaging.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: mrucache.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: mrucache.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: mv3
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: pagestore.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: pagestore.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: popup-fenix-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: popup-fenix.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: popup-fenix.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: popup-picker.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: popup-zapper.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: redirect-engine.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: redirect-engine.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: redirect-resources.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: redirect-resources.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: regex-analyzer.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: regex-analyzer.ts
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/attribute.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/attribute.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/base.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/base.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/cookie.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/cookie.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/create-html.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/create-html.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/href-sanitizer.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/href-sanitizer.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/json-edit.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/json-edit.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/json-prune.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/json-prune.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/localstorage.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/localstorage.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/noeval.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/noeval.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/object-prune.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/object-prune.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/parse-replace.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/parse-replace.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/prevent-addeventlistener.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/prevent-addeventlistener.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/prevent-dialog.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/prevent-dialog.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/prevent-fetch.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/prevent-fetch.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/prevent-innerHTML.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/prevent-innerHTML.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/prevent-navigation.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/prevent-navigation.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/prevent-settimeout.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/prevent-settimeout.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/prevent-xhr.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/prevent-xhr.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/proxy-apply.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/proxy-apply.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/replace-argument.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/replace-argument.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/run-at.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/run-at.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/safe-self.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/safe-self.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/scriptlets.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/scriptlets.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/set-constant.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/set-constant.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/shared.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/shared.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/spoof-css.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/spoof-css.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/stack-trace.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/stack-trace.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/resources/utils.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/resources/utils.js differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: reverselookup-worker.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: reverselookup-worker.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: reverselookup.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: reverselookup.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: s14e-serializer.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: s14e-serializer.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: scripting
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: scriptlet-filtering-core.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: scriptlet-filtering-core.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: scriptlet-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: scriptlet-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: cosmetic-logger.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: cosmetic-logger.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: cosmetic-off.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: cosmetic-off.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: cosmetic-on.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: cosmetic-on.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: cosmetic-report.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: cosmetic-report.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: dom-inspector.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: dom-inspector.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: dom-survey-elements.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: dom-survey-elements.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: dom-survey-scripts.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: dom-survey-scripts.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: load-3p-css.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: load-3p-css.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: load-large-media-all.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: load-large-media-all.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: load-large-media-interactive.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: load-large-media-interactive.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: noscript-spoof.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: noscript-spoof.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: scriptlet-loglevel-1.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: scriptlet-loglevel-1.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: scriptlet-loglevel-2.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: scriptlet-loglevel-2.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: should-inject-contentscript.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: should-inject-contentscript.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: subscriber.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: subscriber.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/scriptlets: updater.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/scriptlets: updater.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: settings.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: settings.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: start.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: start.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: static-dnr-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: static-dnr-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: static-ext-filtering-db.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: static-ext-filtering-db.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: static-ext-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: static-ext-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: static-filtering-io.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: static-filtering-io.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: static-filtering-parser.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: static-filtering-parser.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: static-net-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: static-net-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: storage.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: storage.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: support-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: support.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: support.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: sw.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: tab.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: tab.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: tasks.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: tasks.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: text-encode.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: text-encode.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: text-utils.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: text-utils.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: theme-bundle.js
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/theme.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/theme.js differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: theme.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: traffic.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: traffic.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: ublock.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: ublock.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: uri-utils.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: uri-utils.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: url-net-filtering.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: url-net-filtering.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: urlskip.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: urlskip.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: utils.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: utils.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: vapi-background-ext.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: vapi-background.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: vapi-client.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: vapi-common.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: vapi-content.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: vapi.js
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/wasm/biditrie.wat and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/wasm/biditrie.wat differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js/wasm/hntrie.wat and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js/wasm/hntrie.wat differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: webext-bundle.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: webext-flavor.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: webext-flavor.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: webext.ts
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/js: whitelist.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/js: whitelist.ts
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/lib/diff/swatinem_diff.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/lib/diff/swatinem_diff.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/lib/publicsuffixlist/wasm/publicsuffixlist.wat and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/lib/publicsuffixlist/wasm/publicsuffixlist.wat differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/lib/punycode.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/lib/punycode.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/logger-ui.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/logger-ui.html differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src: matched-rules.html
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/no-dashboard.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/no-dashboard.html differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src: picker-ui.html
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src: popup-fenix-with-icons.ts
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/popup-fenix.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/popup-fenix.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/settings.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/settings.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/support.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/support.html differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src: types
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/README.txt and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/README.txt differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/amazon_ads.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/amazon_ads.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/amazon_apstag.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/amazon_apstag.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/ampproject_v0.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/ampproject_v0.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/chartbeat.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/chartbeat.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/click2load.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/click2load.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/dom-inspector.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/dom-inspector.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/epicker-ui.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/epicker-ui.html differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/fingerprint2.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/fingerprint2.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/fingerprint3.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/fingerprint3.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/google-analytics_analytics.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/google-analytics_analytics.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/google-analytics_cx_api.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/google-analytics_cx_api.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/google-analytics_ga.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/google-analytics_ga.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/google-analytics_inpage_linkid.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/google-analytics_inpage_linkid.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/google-ima.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/google-ima.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/googlesyndication_adsbygoogle.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/googlesyndication_adsbygoogle.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/googletagmanager_gtm.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/googletagmanager_gtm.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/googletagservices_gpt.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/googletagservices_gpt.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/hd-main.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/hd-main.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/nitropay_ads.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/nitropay_ads.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/nobab.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/nobab.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/nobab2.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/nobab2.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/noeval-silent.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/noeval-silent.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/noeval.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/noeval.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/nofab.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/nofab.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/outbrain-widget.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/outbrain-widget.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/popads-dummy.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/popads-dummy.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/popads.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/popads.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/prebid-ads.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/prebid-ads.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/scorecardresearch_beacon.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/scorecardresearch_beacon.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/web_accessible_resources/sensors-analytics.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/web_accessible_resources/sensors-analytics.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/src/whitelist.html and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src/whitelist.html differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/src: zapper-ui.html

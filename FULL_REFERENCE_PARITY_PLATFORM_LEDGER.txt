@@ -1,0 +1,17 @@
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/platform: chrome
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform: chromium
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform/common/managed_storage.json and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/platform/common/managed_storage.json differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/platform/common: vapi-background-ext.js
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform/common/vapi-background.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/platform/common/vapi-background.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform/common/vapi-client.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/platform/common/vapi-client.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform/common/vapi-common.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/platform/common/vapi-common.js differ
+Files /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform/common/vapi.js and /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/platform/common/vapi.js differ
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected/platform/common: webext.js
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform: dig
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform: firefox
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform: mv3
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform: nodejs
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform: npm
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform: opera
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform: safari
+Only in /home/glompy/Desktop/ASTROCYTECH/git_project/Blocker/temporary_folder/mv3-references/uBlock/platform: thunderbird
