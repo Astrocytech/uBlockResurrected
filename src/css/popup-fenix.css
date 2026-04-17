@@ -1,274 +1,12 @@
  /* External CSS values override */
-.fa-icon.fa-icon-badged {
-    display: inline-flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-}
-
 .fa-icon.fa-icon-badged > .fa-icon-badge {
-    position: relative !important;
-    top: auto !important;
-    bottom: auto !important;
-    left: auto !important;
-    transform: none !important;
-    margin-top: 2px;
-    font-size: 10px;
-}
-
-/* Winamp-Inspired Skin - Ultra-Clean Professional */
-
-/* Element 1: Main Container (#panes) */
-#panes {
-    background: #ffffff;
-    padding: 4px;
-}
-
-/* Element 4: Toolbar (#basicTools) */
-#basicTools {
-    background: #ffffff;
-    padding: 3px;
-    gap: 3px;
-}
-
-#basicTools .fa-icon,
-#basicTools a.fa-icon {
-    background: #f8f9fa;
-    border-radius: 3px;
-    padding: 5px;
-}
-
-#basicTools .fa-icon:hover,
-#basicTools a.fa-icon:hover {
-    background: #e9ecef;
-}
-
-#basicStats {
-    background: #ffffff;
-}
-
-/* Element 6: Sticky tools (save/revert/refresh) */
-#stickyTools .fa-icon {
-    background: #f8f9fa;
-    padding: 3px 5px;
-}
-
-/* Element 7: Firewall/Domain list (#firewall) */
-#firewall > div {
-    background: #ffffff;
-    border-bottom: 1px solid #f0f0f0;
-    padding: 3px 6px;
-}
-
-#firewall > div:nth-child(odd) {
-    background: #fafbfc;
-}
-
-/* Element 8: More/Less buttons - compact bar */
-#moreOrLess {
-    display: flex;
-    background: #e9ecef;
-    border-bottom: 1px solid #dee2e6;
-    padding: 1px;
-}
-
-#moreOrLess span {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 2px 4px;
-    font-size: 9px;
-    font-weight: 600;
-    color: #3b86ff;
-    cursor: pointer;
-    background: transparent;
-    gap: 1px;
-}
-
-#moreOrLess span:first-child {
-    border-right: 1px solid #dee2e6;
-}
-
-/* More points down, Less points up */
-#moreOrLess span:first-child .fa-icon {
-    transform: rotate(180deg);
-    display: inline-block;
-}
-
-#moreOrLess .fa-icon {
-    font-size: 7px;
-}
-
-#moreOrLess span:hover {
-    background: #d0d3d6;
-}
-
-#moreButton:hover, #lessButton:hover {
-    background: #dee2de;
-}
-
-#moreButton:active, #lessButton:active {
-    background: #ced4da;
-}
-
-/* Element 9: Main panel (#main) */
-#main {
-    background: #ffffff;
-}
-
-/* Element 10: Text styling */
-#basicStats span span:first-child {
-    color: #20345f;
-}
-
-#hostname span {
-    color: #20345f;
-}
-
-/* Hide horizontal rules */
-hr {
-    display: none;
-}
-
-/* Element 12: Firewall rule rows */
-#firewall > div {
-    background: #ffffff;
-    border-bottom: 1px solid #f5f5f5;
-    padding: 3px 6px;
-    color: #20345f;
-    font-size: 11px;
-}
-
-#firewall > div:nth-child(odd) {
-    background: #fafbfc;
-}
-
-/* Element 14: Extra tools icons */
-#extraTools .fa-icon {
-    color: #20345f;
-}
-
-#extraTools .fa-icon-badged .nope {
-    opacity: 0.4;
-}
-
-/* Element 15: Filter text styling */
-#firewall [data-des]::before {
-    color: #20345f;
-    font-weight: 600;
-}
-
-/* Element 17: Firewall allow/block rule cells */
-#firewall > div > span[data-src="/"],
-#firewall > div > span[data-src="."] {
-    background: transparent;
-}
-
-body.advancedUser #firewall > div > span.allowRule,
-#actionSelector > #dynaAllow {
-    background: #d4edda !important;
-}
-
-body.advancedUser #firewall > div > span.blockRule,
-#actionSelector > #dynaBlock {
-    background: #f8d7da !important;
-}
-
-body.advancedUser #firewall > div > span.noopRule,
-#actionSelector > #dynaNoop {
-    background: #e2e3e5 !important;
-}
-
-/* Row indicator colors */
-#firewall > div.allowed > span:first-of-type::before,
-#firewall > div.isDomain.totalAllowed > span:first-of-type::before {
-    background: #28a745 !important;
-}
-
-#firewall > div.blocked > span:first-of-type::before,
-#firewall > div.isDomain.totalBlocked > span:first-of-type::before {
-    background: #dc3545 !important;
-}
-
-#firewall > div.allowed.blocked > span:first-of-type::before,
-#firewall > div.isDomain.totalAllowed.totalBlocked > span:first-of-type::before {
-    background: #ffc107 !important;
-}
-
-#firewall > div.isRootContext > span:first-of-type::before {
-    background: #20345f !important;
-}
-
-/* Element 16: Firewall container */
-#firewall {
-    background: #fafbfc;
-}
-
-/* Element 13: Scrollbar */
-::-webkit-scrollbar {
-    width: 4px;
-}
-
-::-webkit-scrollbar-track {
-    background: #fafbfc;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #ced4da;
-    border-radius: 2px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #adb5bd;
-}
-
-/* Element 11: Firewall section header */
-#firewall > section {
-    background: #e9ecef;
-    padding: 5px 8px;
-    font-weight: 600;
-    color: #20345f;
-}
-
-/* Element 2: Hostname Area (#sticky) */
-#sticky {
-    background: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
-    padding: 6px 8px;
-}
-
-#hostname {
-    font-weight: 600;
-    font-size: 12px;
-    color: #20345f;
-}
-
-/* Element 3: Power Button */
-#switch .fa-icon svg {
-    fill: var(--popup-power-ink);
-    }
-body.off #switch .fa-icon svg {
-    fill: var(--checkbox-ink);
-    }
-#switch .fa-icon {
-    background: transparent;
-    }
-#switch {
-    background: transparent;
-    }
-#refresh,
-#refresh .fa-icon {
-    background: transparent;
-    }
-#refresh:hover,
-#refresh:hover .fa-icon {
-    background: transparent;
+    bottom: auto;
+    top: -20%;
     }
 
 /* Internal CSS values */
 :root body {
     overflow: hidden;
-    min-width: 380px;
     }
 :root body,
 :root.mobile body {
@@ -285,34 +23,6 @@ body.off #switch .fa-icon svg {
 :root body.loading {
     opacity: 0;
     }
-body:not([data-more*="d"]) #extraTools,
-body:not([data-more*="d"]) #extraTools > *,
-body:not([data-more*="d"]) #extraTools .hnSwitch,
-body:not([data-more*="d"]) #extraTools .tool,
-body:not([data-more*="d"]) #extraTools .fa-icon,
-body:not([data-more*="d"]) #extraTools .caption,
-body:not([data-more*="d"]) #extraTools svg {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    max-height: 0 !important;
-    max-width: 0 !important;
-    overflow: hidden !important;
-    position: absolute !important;
-    left: -9999px !important;
-    top: auto !important;
-    }
-body:not([data-more*="a"]) hr[data-more="a"] {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    margin: 0 !important;
-    }
-
-:root body.loading hr[data-more="a"] {
-    display: none !important;
-    }
 a {
     color: var(--ink-1);
         fill: var(--ink-1);
@@ -326,15 +36,13 @@ a {
     align-items: stretch;
     display: flex;
     flex-direction: row-reverse;
-    min-width: 380px;
     padding: 0;
     position: relative;
     }
 #main {
     align-self: flex-start;
-    max-width: 380px;
+    max-width: 340px;
     min-width: var(--popup-main-min-width);
-    width: 380px;
     }
 :root.portrait #main {
     align-self: inherit;
@@ -370,17 +78,10 @@ hr {
     padding: 0;
     stroke: none;
     stroke-width: 64;
-    background: transparent;
     }
 body.off #switch {
-    fill: var(--checkbox-ink);
-    stroke: none;
-    }
-#refresh {
-    background: transparent !important;
-    }
-#refresh:hover {
-    background: transparent !important;
+    fill: var(--surface-1);
+    stroke: var(--checkbox-ink);
     }
 .rulesetTools {
     background-color: transparent;
@@ -392,7 +93,7 @@ body.off #switch {
     width: 25%;
     }
 .rulesetTools [id] {
-    background-color: transparent !important;
+    background-color: var(--popup-ruleset-tool-surface);
     border-radius: 4px;
     cursor: pointer;
     fill: var(--popup-ruleset-tool-ink);
@@ -407,7 +108,7 @@ body.off #switch {
 .rulesetTools [id] > svg {
     fill: var(--ink-4);
     }
-#refresh,
+body.needReload #refresh,
 body.needSave #saveRules,
 body.needSave #revertRules {
     visibility: visible;
@@ -430,25 +131,19 @@ body.needSave #revertRules {
 #basicStats {
     column-gap: var(--popup-gap);
     display: grid;
-    grid-template: auto auto auto / 1fr;
+    grid-template: auto / auto;
     margin: var(--popup-gap) var(--popup-gap) var(--popup-gap-thin) var(--popup-gap);
-    padding: 5px 0;
     }
 #basicStats > span {
     justify-self: center;
     white-space: nowrap;
-    text-align: center;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 4px;
     }
-#basicStats > span > span[data-i18n] {
+#basicStats > [data-i18n] {
     font-size: 95%;
     }
-#basicStats > span > span:last-child {
+#basicStats > [data-i18n] + span {
     font-size: 105%;
-    font-weight: 600;
+    margin-bottom: var(--popup-gap-thin);
     }
 :root.portrait #basicStats {
     grid-template: auto / auto auto;
@@ -460,9 +155,9 @@ body.needSave #revertRules {
     margin-bottom: var(--popup-gap);
     white-space: unset;
     }
-:root.portrait #basicStats > span > span[data-i18n] {
+:root.portrait #basicStats > [data-i18n] {
     }
-:root.portrait #basicStats > span > span:last-child {
+:root.portrait #basicStats > [data-i18n] + span {
     text-align: end;
     }
 
@@ -498,36 +193,14 @@ body.needSave #revertRules {
     padding: var(--popup-gap)
              var(--popup-gap-thin);
     unicode-bidi: embed;
-    visibility: visible !important;
-    }
-body:not([data-more*="d"]) #extraTools .tool {
-    visibility: hidden !important;
-    display: none !important;
-    height: 0 !important;
-    width: 0 !important;
-    }
-body:not([data-more*="d"]) #extraTools .fa-icon,
-body:not([data-more*="d"]) #extraTools .fa-icon svg {
-    visibility: hidden !important;
-    display: none !important;
+    visibility: hidden;
     }
 .toolRibbon .tool:hover {
     color: var(--ink-1);
         fill: var(--ink-1);
     }
-.toolRibbon .tool .fa-icon {
-    visibility: visible !important;
-    color: var(--ink-1);
-    }
-.toolRibbon .tool .fa-icon svg {
-    fill: transparent !important;
-    stroke: var(--ink-1) !important;
-    stroke-width: 1.5 !important;
-    visibility: visible !important;
-    }
-.toolRibbon .tool .fa-icon svg[fill]:not([fill="none"]) {
-    fill: var(--ink-1) !important;
-    stroke: none !important;
+.toolRibbon .tool.enabled {
+    visibility: visible;
     }
 .toolRibbon .tool .caption {
     font: 10px/12px sans-serif;
@@ -539,33 +212,7 @@ body:not([data-more*="d"]) #extraTools .fa-icon svg {
     }
 
 #basicTools .needPick:not(.canPick) {
-    visibility: visible !important;
-    }
-#basicTools .needPick .fa-icon {
-    visibility: visible !important;
-    }
-#basicTools .needPick.hidden {
-    display: none;
-    }
-#basicTools .needPick.disabled {
-    opacity: 0.6;
-    pointer-events: none;
-    filter: grayscale(100%);
-    cursor: not-allowed;
-    }
-#gotoZap.disabled,
-#gotoPick.disabled,
-#gotoReport.disabled {
-    opacity: 0.6;
-    pointer-events: none;
-    filter: grayscale(100%);
-    cursor: not-allowed;
-    }
-#gotoZap.disabled svg,
-#gotoPick.disabled svg,
-#gotoReport.disabled svg,
-#gotoDashboard.disabled svg {
-    fill: var(--ink-3) !important;
+    visibility: hidden;
     }
 
 #extraTools .fa-icon {
@@ -573,11 +220,8 @@ body:not([data-more*="d"]) #extraTools .fa-icon svg {
     position: relative;
     }
 #extraTools .fa-icon > .nope {
-    display: none;
     height: 1.1em;
     left: 50%;
-    opacity: 0;
-    pointer-events: none;
     position: absolute;
     stroke: var(--popup-icon-x-ink);
     stroke-width: 2;
@@ -586,8 +230,6 @@ body:not([data-more*="d"]) #extraTools .fa-icon svg {
     width: 1.1em;
     }
 #extraTools > span.on .fa-icon >.nope {
-    display: block;
-    opacity: 1;
     visibility: visible;
     }
 
@@ -610,31 +252,36 @@ body:not([data-more*="d"]) #extraTools .fa-icon svg {
 #unprocessedRequestWarning > .dismiss > svg {
     width: 100%;
     }
-#userScriptsWarning {
-    background-color: #fc0;
-    color: rgb(var(--ink-80));
-    display: none;
-    font-size: var(--font-size-smaller);
-    padding: var(--popup-gap-thin);
-    }
-body.needUserScripts #userScriptsWarning {
-    display: block;
-    }
 
 #moreOrLess {
-    display: flex;
-}
-
+    column-gap: 0;
+    display: grid;
+    grid-template: auto / 1fr 1fr;
+    justify-items: stretch;
+    margin: 1px 0 0 0;
+    }
 #moreOrLess > span {
     cursor: pointer;
+    margin: 0;
+    padding: var(--popup-gap-thin) var(--popup-gap);
     user-select: none;
     white-space: nowrap;
-}
-
+    }
+:root.mobile #moreOrLess > span {
+    padding: var(--popup-gap);
+    }
+#moreButton .fa-icon {
+    transform: rotate(180deg);
+    }
+#lessButton {
+    border-inline-start: 1px solid var(--surface-1);
+    text-align: end;
+    }
 #moreButton.disabled,
 #lessButton.disabled {
-    opacity: 0.5;
-}
+    pointer-events: none;
+    visibility: hidden;
+    }
 
 #firewall {
     border: 0;
@@ -666,15 +313,15 @@ body.needUserScripts #userScriptsWarning {
     z-index: 50;
     }
 #firewall > section .fa-icon {
-    color: #3b86ff;
-    fill: #3b86ff;
+    color: var(--ink-4);
+        fill: var(--ink-4);
     font-size: 150%;
-    padding: 4px;
-}
+    padding: var(--popup-gap-thin);
+    }
 #firewall > section:hover .fa-icon {
-    color: #20345f;
-    fill: #20345f;
-}
+    color: var(--ink-1);
+        fill: var(--ink-1);
+    }
 #firewall.showBlocked > section .fa-icon,
 #firewall.showAllowed > section .fa-icon,
 #firewall.hideBlocked > section .fa-icon,
@@ -686,46 +333,41 @@ body.needUserScripts #userScriptsWarning {
     color: rgb(var(--primary-70));
         fill: rgb(var(--primary-70));
     }
-/* Filter expressions dropdown */
 #firewall > section .filterExpressions {
-    background-color: #ffffff;
-    border: 1px solid #dee2e6;
+    background-color: var(--surface-0);
+    border: 1px solid var(--border-4);
     display: none;
-}
+    }
 #firewall > section:hover .filterExpressions {
     display: flex;
     flex-direction: column;
-}
+    }
 #firewall > section .filterExpressions div {
-    border-bottom: 1px solid #f0f0f0;
-    padding: 3px 5px;
-}
+    border-bottom: 1px dotted #ddd;
+    padding: 0.25em;
+    }
 #firewall > section .filterExpressions div:last-of-type {
     border-bottom: 0;
-}
+    }
 #firewall > section .filterExpressions span {
     cursor: default;
     display: inline-flex;
-    margin: 0 3px 0 0;
-    padding: 2px 5px;
+    margin: 0 0.25em 0 0;
+    padding: 0.5em;
     white-space: nowrap;
-    border: 1px solid #dee2e6;
-    background: #f8f9fa;
-    color: #20345f;
-    font-size: 10px;
-}
+    border: 1px solid var(--surface-0);
+    }
 #firewall > section .filterExpressions span:last-of-type {
     margin: 0;
-}
+    }
 :root:not(.mobile) #firewall > section .filterExpressions span:not(.on):hover {
-    background-color: #e9ecef;
-    border-color: #3b86ff;
-}
+    background-color: rgb(var(--primary-70) / 15%);
+    border: 1px solid rgb(var(--primary-70));
+    }
 #firewall > section .filterExpressions span.on {
-    background-color: #3b86ff;
-    border-color: #3b86ff;
-    color: #ffffff;
-}
+    background-color: rgb(var(--primary-70) / 40%);
+    border: 1px solid rgb(var(--primary-70));
+    }
 #firewall > div {
     border: 0;
     display: flex;
@@ -1046,84 +688,14 @@ body:not([data-more*="b"]) [data-more="b"],
 body:not([data-more*="c"]) [data-more="c"],
 body:not([data-more*="d"]) [data-more="d"],
 body:not([data-more*="f"]) [data-more="f"] {
-    height: 0 !important;
-    max-height: 0 !important;
-    width: 0 !important;
-    max-width: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: 0 !important;
-    overflow: hidden !important;
-    visibility: hidden !important;
-    display: none !important;
-    }
-html > body:not([data-more*="d"]) #extraTools,
-html > body:not([data-more*="d"]) #extraTools > span,
-html > body:not([data-more*="d"]) #extraTools .tool,
-html > body:not([data-more*="d"]) #extraTools .fa-icon {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    height: 0 !important;
-    width: 0 !important;
-    max-height: 0 !important;
-    max-width: 0 !important;
-    clip: rect(0, 0, 0, 0) !important;
-    }
-body:not([data-more*="d"]) #extraTools {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    width: 0 !important;
-    overflow: hidden !important;
-    }
-body:not([data-more*="d"]) #extraTools > span {
-    display: none !important;
-    visibility: hidden !important;
-    width: 0 !important;
-    height: 0 !important;
-    overflow: hidden !important;
-    }
-body:not([data-more*="d"]) #extraTools,
-body:not([data-more*="d"]) #extraTools * {
-    display: none !important;
-    height: 0 !important;
-    max-height: 0 !important;
-    width: 0 !important;
-    max-width: 0 !important;
-    overflow: hidden !important;
-    visibility: hidden !important;
-    }
-body.off #extraTools,
-body.off #extraTools * {
-    display: none !important;
-    height: 0 !important;
-    max-height: 0 !important;
-    width: 0 !important;
-    max-width: 0 !important;
-    overflow: hidden !important;
-    visibility: hidden !important;
-    }
-body:not([data-more*="d"]).off #extraTools,
-body:not([data-more*="d"]).off #extraTools * {
-    display: none !important;
-    height: 0 !important;
-    max-height: 0 !important;
-    width: 0 !important;
-    max-width: 0 !important;
-    overflow: hidden !important;
-    visibility: hidden !important;
+    height: 0;
+    margin-bottom: 0 !important;
+    margin-top: 0 !important;
+    overflow-y: hidden;
+    visibility: hidden;
     }
 body[data-more*="d"] hr[data-more="a"] {
     display: none;
-    }
-body:not([data-more*="d"]) hr[data-more="a"],
-body[data-more=""] hr[data-more="a"] {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    margin: 0 !important;
-    }
     }
 body[data-more*="c"] hr[data-more="f"] {
     display: none;
@@ -1185,18 +757,11 @@ body:not([data-more*="e"]) [data-more="e"] {
 :root.desktop body:not(.off) #switch:hover {
     fill: rgb(var(--popup-power-ink-rgb) / 90%);
     }
-:root.desktop body:not(.off) #switch:hover .fa-icon svg {
-    fill: rgb(var(--popup-power-ink-rgb) / 90%);
-    }
 :root.desktop body.off #switch:hover {
-    fill: var(--checkbox-ink);
-    stroke: none;
-    }
-:root.desktop body.off #switch:hover .fa-icon svg {
-    fill: var(--checkbox-ink);
+    stroke: var(--popup-power-ink);
     }
 :root.desktop .rulesetTools [id]:hover {
-    background-color: transparent !important;
+    background-color: var(--popup-ruleset-tool-surface-hover);
     }
 :root.desktop .rulesetTools [id]:hover > svg {
     fill: var(--ink-2);
@@ -1208,34 +773,7 @@ body:not([data-more*="e"]) [data-more="e"] {
 :root.desktop .tool:hover {
     background-color: var(--popup-toolbar-surface-hover);
     }
-:root.desktop #moreOrLess span:hover {
-    background: #dee2e6;
-}
-
-html body.off #extraTools,
-html body.off #extraTools .hnSwitch,
-html body.off #extraTools .tool,
-html body.off #extraTools span,
-html body.off #extraTools .fa-icon,
-html body.off #extraTools .caption,
-html body.off #extraTools svg {
-    display: none !important;
-    visibility: hidden !important;
-    opacity: 0 !important;
-    height: 0 !important;
-    width: 0 !important;
-    max-height: 0 !important;
-    max-width: 0 !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    position: fixed !important;
-    clip-path: inset(50%) !important;
-    }
-html body.off hr[data-more="a"] {
-    display: none !important;
-    visibility: hidden !important;
-    height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    border: none !important;
+:root.desktop #moreOrLess > span:hover {
+    background-color: var(--surface-2);
+    /* background-color: var(--popup-toolbar-surface-hover); */
     }

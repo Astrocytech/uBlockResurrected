@@ -42,6 +42,10 @@ export const getPopupData = async (request: PopupRequest) => {
     }
   })();
   const pageDomain = domainFromHostname(pageHostname);
+  const canElementPicker =
+    tabId > 0 &&
+    /^(https?:|file:)/.test(pageURL) &&
+    pageURL.startsWith(chrome.runtime.getURL("")) === false;
 
   const pageStore = tabId > 0 ? await pageStoreFromTabId(tabId) : null;
 
@@ -180,6 +184,7 @@ export const getPopupData = async (request: PopupRequest) => {
     advancedUserEnabled: popupState.userSettings.advancedUserEnabled,
     appName: chrome.runtime.getManifest().name,
     appVersion: chrome.runtime.getManifest().version,
+    canElementPicker,
     colorBlindFriendly: popupState.userSettings.colorBlindFriendly,
     contentLastModified,
     cosmeticFilteringSwitch: noCosmeticFiltering !== true,
@@ -217,6 +222,7 @@ export const getPopupData = async (request: PopupRequest) => {
     noLargeMedia,
     noRemoteFonts,
     noScripting,
+    userFiltersAreEnabled: true,
     userSettings: popupState.userSettings,
     whitelist: popupState.whitelist,
     whitelistDefault: popupState.userSettings.netWhitelistDefault || [],
