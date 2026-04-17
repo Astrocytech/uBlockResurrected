@@ -438,8 +438,45 @@ const isHiddenExtensionPage = (rawURL: string) =>
   rawURL.startsWith(extensionOriginURL) &&
   rawURL.startsWith(documentBlockedURL) === false;
 
+const getLoggerVisibleTabs = async () => {
+  const tabs = await chrome.tabs.query({});
+  const visibleTabs: Array<[number, string]> = [];
+
+  for (const tab of tabs) {
+    if (typeof tab.id !== "number") {
+      continue;
+    }
+    const rawURL = tab.url || tab.pendingUrl || "";
+    if (rawURL !== "" && isHiddenExtensionPage(rawURL)) {
+      continue;
+    }
+    const pageStore = pageStores.get(tab.id);
+    const title =
+      tab.title ||
+      pageStore?.title ||
+      pageStore?.hostname ||
+      rawURL ||
+      `${tab.id}`;
+    visibleTabs.push([tab.id, title]);
+  }
+
+  visibleTabs.sort((a, b) => a[0] - b[0]);
+  return visibleTabs;
+};
+
+const computeLoggerTabIdsToken = (tabIds: Array<[number, string]>) => {
+  let token = tabIds.length;
+  for (const [tabId, title] of tabIds) {
+    token = (token * 33 + tabId) >>> 0;
+    token = (token * 33 + title.length) >>> 0;
+  }
+  return token;
+};
+
 const getLoggerData = async (details: { ownerId: number; tabIdsToken?: number }) => {
   const activeTab = await getActiveTab().catch(() => null);
+  const tabIds = await getLoggerVisibleTabs().catch(() => []);
+  const tabIdsToken = computeLoggerTabIdsToken(tabIds);
   const response: {
     activeTabId?: number;
     colorBlind: boolean;
@@ -452,24 +489,12 @@ const getLoggerData = async (details: { ownerId: number; tabIdsToken?: number })
     colorBlind: popupState.userSettings.colorBlindFriendly === true,
     entries:
       logger?.readAll instanceof Function ? logger.readAll(details.ownerId) : [],
-    tabIdsToken: pageStoresToken,
+    tabIdsToken,
     tooltips: popupState.userSettings.tooltipsDisabled === false,
   };
 
-  if (pageStoresToken !== details.tabIdsToken) {
-    response.tabIds = [];
-    for (const [tabId, pageStore] of pageStores) {
-      const rawURL = pageStore?.rawURL || "";
-      if (rawURL !== "" && isHiddenExtensionPage(rawURL)) {
-        continue;
-      }
-      let title = pageStore?.hostname || rawURL || `${tabId}`;
-      try {
-        const tab = await chrome.tabs.get(tabId);
-        title = tab?.title || title;
-      } catch {}
-      response.tabIds.push([tabId, title]);
-    }
+  if (tabIdsToken !== details.tabIdsToken) {
+    response.tabIds = tabIds;
   }
 
   if (response.activeTabId) {

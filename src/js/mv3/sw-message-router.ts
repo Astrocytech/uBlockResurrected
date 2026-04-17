@@ -220,7 +220,7 @@ export const createMessagingRouter = (deps: MessagingRouterDeps): MessagingRoute
                     ? handleDashboardMessage
                     : handleLoggerUIMessage;
 
-            run(payload || {}).then((response) => {
+            Promise.resolve(run(payload || {})).then((response) => {
                 if (seq !== undefined) {
                     sendResponse({ seq, payload: response });
                 } else {

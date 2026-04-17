@@ -880,17 +880,24 @@ if ( browserActionAPI !== undefined ) {
         return manifest.browser_action || manifest.action || {};
     };
     const titleTemplate = `${getManifestAction().default_title} ({badge})`;
+    const getToolbarIconPaths = function() {
+        const manifestAction = getManifestAction();
+        const defaultIcon = manifestAction.default_icon || {};
+        const fallback = {
+            '16': 'img/ublock16.png',
+            '32': 'img/ublock32.png',
+            '64': 'img/ublock64.png',
+        };
+        return {
+            '16': defaultIcon['16'] || fallback['16'],
+            '32': defaultIcon['32'] || fallback['32'],
+            '64': defaultIcon['64'] || fallback['64'],
+        };
+    };
+    const toolbarIcons = getToolbarIconPaths();
     const icons = [
-        { path: {
-            '16': 'img/icon_16-off.png',
-            '32': 'img/icon_32-off.png',
-            '64': 'img/icon_64-off.png',
-        } },
-        { path: {
-            '16': 'img/icon_16.png',
-            '32': 'img/icon_32.png',
-            '64': 'img/icon_64.png',
-        } },
+        { path: toolbarIcons },
+        { path: toolbarIcons },
     ];
 
     (( ) => {
@@ -1029,13 +1036,7 @@ if ( browserActionAPI !== undefined ) {
 
     vAPI.setDefaultIcon = function(flavor, text) {
         if ( browserAction.setIcon === undefined ) { return; }
-        browserAction.setIcon({
-            path: {
-                '16': `img/icon_16${flavor}.png`,
-                '32': `img/icon_32${flavor}.png`,
-                '64': `img/icon_64${flavor}.png`,
-            }
-        });
+        browserAction.setIcon({ path: toolbarIcons });
         browserAction.setBadgeText({ text });
         browserAction.setBadgeBackgroundColor({
             color: text === '!' ? '#FC0' : '#666'
