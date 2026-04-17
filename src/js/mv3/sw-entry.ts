@@ -618,6 +618,7 @@ const getLoggerData = async (details: { ownerId: number; tabIdsToken?: number })
 };
 
 const handlePopupPanelMessage = (request: PopupRequest) => {
+  void ensureLegacyBackend().catch(() => {});
   // Handle gotoURL directly
   if (request.what === "gotoURL") {
     const details = request.details || request;
@@ -725,6 +726,7 @@ const handleDashboardMessage = createDashboardMessageHandler({
 });
 
 const handleLoggerUIMessage = async (request: PopupRequest) => {
+  await ensureLegacyBackend().catch(() => {});
   switch (request.what) {
     case "readAll":
       if (logger?.ownerId !== undefined && logger.ownerId !== request.ownerId) {
@@ -2385,6 +2387,8 @@ registerChromeEventHandlers(
   applyPersistedHostnameSwitchesForTab,
   registerVideoAdBlocker,
 );
+
+void ensureLegacyBackend().catch(() => {});
 
 ensurePopupState()
   .then(() => {

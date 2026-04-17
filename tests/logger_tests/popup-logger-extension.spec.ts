@@ -96,7 +96,7 @@ const launchExtensionContext = async (userDataDir: string): Promise<BrowserConte
 };
 
 test.describe('Popup Logger Extension', () => {
-    test('popup logger button opens a bound logger tab and receives live requests', async () => {
+    test('popup logger button opens a bound logger tab and logs reloads after filtering is disabled', async () => {
         const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-logger-'));
         const { server, url } = await startTestServer();
 
@@ -136,21 +136,25 @@ test.describe('Popup Logger Extension', () => {
             await loggerPage.waitForLoadState('domcontentloaded');
 
             await expect(loggerPage.locator('#pageSelector')).toBeVisible();
+            const initialRows = await getRenderedLogRows(loggerPage);
+
+            const popupPage2 = await context.newPage();
+            await popupPage2.goto(
+                `chrome-extension://${extensionId}/popup-fenix.html?tabId=${activeTab.id}`,
+                { waitUntil: 'domcontentloaded' },
+            );
+
+            await popupPage2.locator('#switch').click();
+            await expect(popupPage2.locator('body')).toHaveClass(/off/);
+
+            await page.reload({ waitUntil: 'networkidle' });
+
             await expect.poll(
-                async () => getVisibleLogEntryCount(loggerPage),
+                async () => (await getRenderedLogRows(loggerPage)).length,
                 { timeout: 15000 },
-            ).toBeGreaterThan(0);
+            ).toBeGreaterThan(initialRows.length);
 
-            const beforeCount = await getVisibleLogEntryCount(loggerPage);
-
-            await page.evaluate(async () => {
-                await fetch(`/ping?ts=${Date.now()}`, { cache: 'no-store' });
-            });
-
-            await expect.poll(
-                async () => getVisibleLogEntryCount(loggerPage),
-                { timeout: 15000 },
-            ).toBeGreaterThanOrEqual(beforeCount);
+            await popupPage2.close();
         } finally {
             await context?.close();
             await new Promise<void>(resolve => server.close(() => resolve()));
@@ -159,6 +163,10 @@ test.describe('Popup Logger Extension', () => {
     });
 });
 
-const getVisibleLogEntryCount = async (page: Page): Promise<number> => {
-    return page.locator('#vwContent .logEntry').count();
+const getRenderedLogRows = async (page: Page): Promise<string[]> => {
+    return page.evaluate(() => {
+        return Array.from(document.querySelectorAll('#vwContent .logEntry'))
+            .map(entry => (entry.textContent || '').trim())
+            .filter(Boolean);
+    });
 };

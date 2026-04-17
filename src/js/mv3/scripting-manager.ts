@@ -8,12 +8,14 @@
 
 ******************************************************************************/
 
-import { storage } from './storage.js';
+import { storage } from './storage.ts';
 import µb from '../background.js';
 import cosmeticFilteringEngine from '../cosmetic-filtering.js';
 import staticNetFilteringEngine from '../static-net-filtering.js';
 import { redirectEngine } from '../redirect-engine.js';
 import scriptletFilteringEngine from '../scriptlet-filtering.js';
+
+const webextAPI = typeof browser !== 'undefined' ? browser : chrome;
 
 interface ContentScriptDirective {
     id: string;
@@ -43,7 +45,7 @@ class ScriptingManager {
     }
 
     async registerInjectables() {
-        if (typeof browser.scripting === 'undefined') {
+        if (typeof webextAPI.scripting === 'undefined') {
             console.log('[ScriptingManager] scripting API not available');
             return;
         }
@@ -56,7 +58,7 @@ class ScriptingManager {
                 return;
             }
 
-            await browser.scripting.registerContentScripts(directives);
+            await webextAPI.scripting.registerContentScripts(directives);
             console.log('[ScriptingManager] Registered', directives.length, 'content scripts');
         } catch (e) {
             console.error('[ScriptingManager] Failed to register content scripts:', e);
@@ -111,12 +113,12 @@ class ScriptingManager {
     }
 
     async getRegisteredContentScripts(): Promise<string[]> {
-        if (typeof browser.scripting?.getRegisteredContentScripts !== 'function') {
+        if (typeof webextAPI.scripting?.getRegisteredContentScripts !== 'function') {
             return [];
         }
 
         try {
-            const scripts = await browser.scripting.getRegisteredContentScripts();
+            const scripts = await webextAPI.scripting.getRegisteredContentScripts();
             return scripts.map(s => s.id);
         } catch (e) {
             console.error('[ScriptingManager] Failed to get registered scripts:', e);
@@ -125,12 +127,12 @@ class ScriptingManager {
     }
 
     async unregisterAllContentScripts() {
-        if (typeof browser.scripting?.unregisterContentScripts !== 'function') {
+        if (typeof webextAPI.scripting?.unregisterContentScripts !== 'function') {
             return;
         }
 
         try {
-            await browser.scripting.unregisterContentScripts({ ids: [] });
+            await webextAPI.scripting.unregisterContentScripts({ ids: [] });
             console.log('[ScriptingManager] Unregistered all content scripts');
         } catch (e) {
             console.error('[ScriptingManager] Failed to unregister scripts:', e);

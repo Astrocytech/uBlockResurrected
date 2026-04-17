@@ -19,7 +19,7 @@ import {
 
 import µb from '../js/background.js';
 import { onBroadcast } from '../js/broadcast.js';
-import { storage } from './mv3/storage.js';
+import { storage } from './mv3/storage.ts';
 import io from '../js/assets.js';
 import { dnrRulesetFromRawLists, mergeRules } from './static-dnr-filtering.js';
 import staticNetFilteringEngine from '../js/static-net-filtering.js';

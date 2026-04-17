@@ -8,7 +8,7 @@
 *******************************************************************************/
 
 import { popupState } from './sw-storage.js';
-import { createCounts, zeroHostnameDetails } from './sw-helpers.js';
+import { createCounts, zeroHostnameDetails, domainFromHostname } from './sw-helpers.js';
 import {
     ensureTabRequestState,
     persistTabRequestState,
@@ -26,6 +26,51 @@ export type TabRequestState = {
 export type CollectedHostnameData = {
     pageCounts: any;
     hostnameDict: Record<string, any>;
+};
+
+const getLogger = () => (globalThis as any).vAPI?.logger || (globalThis as any).logger;
+
+const writeNetworkLogEntry = (
+    details: {
+        tabId: number;
+        type: string;
+        method?: string;
+        url: string;
+    },
+    blocked?: boolean,
+) => {
+    const logger = getLogger();
+    if (logger?.enabled !== true || typeof details.url !== 'string' || details.url === '') {
+        return;
+    }
+
+    let hostname = '';
+    try {
+        hostname = new URL(details.url).hostname;
+    } catch {
+        return;
+    }
+
+    const domain = domainFromHostname(hostname);
+    logger.writeOne({
+        realm: 'network',
+        method: details.method || 'GET',
+        type: details.type,
+        tabId: details.tabId,
+        tabDomain: domain,
+        tabHostname: hostname,
+        docDomain: domain,
+        docHostname: hostname,
+        domain,
+        hostname,
+        url: details.url,
+        filter: blocked === undefined
+            ? undefined
+            : {
+                raw: blocked ? 'blocked' : 'allowed',
+                result: blocked ? 1 : 2,
+            },
+    });
 };
 
 export const recordTabRequest = (details: chrome.webRequest.WebRequestBodyDetails) => {
@@ -49,6 +94,7 @@ export const recordTabRequest = (details: chrome.webRequest.WebRequestBodyDetail
         state.hostnameDict[hostname] = zeroHostnameDetails(hostname);
         incrementCounts(state.pageCounts, details.type);
         incrementCounts(state.hostnameDict[hostname].counts, details.type);
+        writeNetworkLogEntry(details);
         // Note: tabRequestStates would need to be imported or passed
         popupState.globalAllowedRequestCount += 1;
         void Promise.all([
@@ -64,6 +110,9 @@ export const recordTabRequest = (details: chrome.webRequest.WebRequestBodyDetail
     }
     incrementCounts(state.pageCounts, details.type);
     incrementCounts(state.hostnameDict[hostname].counts, details.type);
+    if (details.type === 'main_frame') {
+        writeNetworkLogEntry(details);
+    }
     void persistTabRequestState(details.tabId);
 };
 
@@ -100,6 +149,7 @@ export const finalizeTrackedRequest = async (
     }
     incrementCounts(state.pageCounts, details.type, blocked);
     incrementCounts(state.hostnameDict[hostname].counts, details.type, blocked);
+    writeNetworkLogEntry(details, blocked);
     if (blocked) {
         popupState.globalBlockedRequestCount += 1;
     } else {

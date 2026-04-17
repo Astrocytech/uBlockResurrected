@@ -64,9 +64,9 @@ import webRequest from './traffic.js';
 import µb from './background.js';
 import blockerAdapter from './blocker-adapter.js';
 
-import { scriptingManager } from './mv3/scripting-manager.js';
+import { scriptingManager } from './mv3/scripting-manager.ts';
 import { dnrIntegration } from './dnr-integration.js';
-import { debug } from './mv3/debug.js';
+import { debug } from './mv3/debug.ts';
 
 /******************************************************************************/
 

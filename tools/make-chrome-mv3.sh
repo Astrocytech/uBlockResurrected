@@ -65,8 +65,11 @@ npx esbuild storage.ts --bundle --format=iife --outfile=storage-bundle.js --targ
 echo "*** Bundling webext.ts"
 npx esbuild webext.ts --bundle --format=iife --outfile=webext-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
-# Bundle messaging.ts (external flag doesn't work for dynamic imports, use --bundle false)
-npx esbuild messaging.ts --bundle --format=iife --outfile=messaging-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+# Bundle messaging.ts from source tree so MV3 submodules resolve correctly
+echo "*** Bundling messaging.ts"
+cd /home/glompy/Desktop/ASTROCYTECH/git_project/uBlockResurrected
+npx esbuild src/js/messaging.ts --bundle --format=iife --outfile=$DES/js/messaging-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+cd $DES/js
 
 # Bundle uri-utils.ts
 npx esbuild uri-utils.ts --bundle --format=iife --outfile=uri-utils-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true

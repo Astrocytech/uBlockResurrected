@@ -9,6 +9,7 @@
 ******************************************************************************/
 
 const MAX_MATCHED_RULES = 500;
+const webextAPI = typeof browser !== 'undefined' ? browser : chrome;
 
 class MatchedRulesDebug {
     private matchedRulesBuffer: Map<number, any[]> = new Map();
@@ -20,7 +21,7 @@ class MatchedRulesDebug {
     }
 
     private initialize() {
-        if (typeof browser?.declarativeNetRequest?.onRuleMatchedDebug === 'undefined') {
+        if (typeof webextAPI?.declarativeNetRequest?.onRuleMatchedDebug === 'undefined') {
             console.log('[Debug] onRuleMatchedDebug not available');
             return;
         }
@@ -29,7 +30,7 @@ class MatchedRulesDebug {
     }
 
     toggleDeveloperMode(state: boolean): void {
-        if (typeof browser?.declarativeNetRequest?.onRuleMatchedDebug === 'undefined') {
+        if (typeof webextAPI?.declarativeNetRequest?.onRuleMatchedDebug === 'undefined') {
             console.log('[Debug] Cannot toggle developer mode - API not available');
             return;
         }
@@ -48,7 +49,7 @@ class MatchedRulesDebug {
             this.addMatchedRule(details);
         };
 
-        browser.declarativeNetRequest.onRuleMatchedDebug.addListener(this.listener);
+        webextAPI.declarativeNetRequest.onRuleMatchedDebug.addListener(this.listener);
         this.isListening = true;
         console.log('[Debug] Developer mode enabled - listening for matched rules');
     }
@@ -56,7 +57,7 @@ class MatchedRulesDebug {
     private removeListener(): void {
         if (!this.isListening || !this.listener) return;
 
-        browser.declarativeNetRequest.onRuleMatchedDebug.removeListener(this.listener);
+        webextAPI.declarativeNetRequest.onRuleMatchedDebug.removeListener(this.listener);
         this.listener = null;
         this.isListening = false;
         console.log('[Debug] Developer mode disabled');

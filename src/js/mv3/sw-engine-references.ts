@@ -5,33 +5,98 @@
 
 *******************************************************************************/
 
+type MV3LoggerDetails = {
+    tstamp?: number;
+    [key: string]: unknown;
+};
+
+const logBufferObsoleteAfter = 30 * 1000;
+let logBuffer: string[] | null = null;
+let lastReadTime = 0;
+let writePtr = 0;
+let janitorToken = 0;
+
+const scheduleJanitor = (logger: any) => {
+    const token = ++janitorToken;
+    self.setTimeout(() => {
+        if ( token !== janitorToken || logBuffer === null ) { return; }
+        if ( lastReadTime >= (Date.now() - logBufferObsoleteAfter) ) {
+            scheduleJanitor(logger);
+            return;
+        }
+        logger.enabled = false;
+        logger.ownerId = undefined;
+        logBuffer = null;
+        writePtr = 0;
+    }, logBufferObsoleteAfter);
+};
+
+const boxEntry = (details: MV3LoggerDetails) => {
+    details.tstamp = Date.now() / 1000 | 0;
+    return JSON.stringify(details);
+};
+
+const fallbackLogger = {
+    enabled: false,
+    ownerId: undefined as number | undefined,
+    writeOne(details: MV3LoggerDetails) {
+        if ( logBuffer === null ) { return; }
+        const box = boxEntry(details);
+        if ( writePtr !== 0 && box === logBuffer[writePtr - 1] ) { return; }
+        if ( writePtr === logBuffer.length ) {
+            logBuffer.push(box);
+        } else {
+            logBuffer[writePtr] = box;
+        }
+        writePtr += 1;
+    },
+    readAll(ownerId: number) {
+        this.ownerId = ownerId;
+        if ( logBuffer === null ) {
+            this.enabled = true;
+            logBuffer = [];
+            scheduleJanitor(this);
+        }
+        const out = logBuffer.slice(0, writePtr);
+        logBuffer.fill('', 0, writePtr);
+        writePtr = 0;
+        lastReadTime = Date.now();
+        return out;
+    },
+};
+
 export const setEngineReferences = () => {
     try {
-        const cosmeticFilteringEngine = (globalThis as any).vAPI?.cosmeticFilteringEngine || (globalThis as any).cosmeticFilteringEngine;
-        const staticNetFilteringEngine = (globalThis as any).vAPI?.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
-        const staticExtFilteringEngine = (globalThis as any).vAPI?.staticExtFilteringEngine || (globalThis as any).staticExtFilteringEngine;
-        const logger = (globalThis as any).vAPI?.logger || (globalThis as any).logger;
-        const µb = (globalThis as any).vAPI?.µb || (globalThis as any).µb;
-        let filteringContext = (globalThis as any).vAPI?.filteringContext || (globalThis as any).filteringContext;
-        const filteringEngines = (globalThis as any).vAPI?.filteringEngines || (globalThis as any).filteringEngines;
-        const io = (globalThis as any).vAPI?.io || (globalThis as any).io;
-        const publicSuffixList = (globalThis as any).vAPI?.publicSuffixList || (globalThis as any).publicSuffixList;
-        
-        const redirectEngine = (globalThis as any).vAPI?.redirectEngine || (globalThis as any).redirectEngine;
-        const staticFilteringReverseLookup = (globalThis as any).vAPI?.staticFilteringReverseLookup;
-        const scriptletFilteringEngine = (globalThis as any).vAPI?.scriptletFilteringEngine;
-        const htmlFilteringEngine = (globalThis as any).vAPI?.htmlFilteringEngine;
-        const permanentURLFiltering = (globalThis as any).vAPI?.permanentURLFiltering;
-        const sessionURLFiltering = (globalThis as any).vAPI?.sessionURLFiltering;
-        const webRequest = (globalThis as any).vAPI?.webRequest;
-        
-        (globalThis as any).vAPI.redirectEngine = redirectEngine;
-        (globalThis as any).vAPI.staticFilteringReverseLookup = staticFilteringReverseLookup;
-        (globalThis as any).vAPI.scriptletFilteringEngine = scriptletFilteringEngine;
-        (globalThis as any).vAPI.htmlFilteringEngine = htmlFilteringEngine;
-        (globalThis as any).vAPI.permanentURLFiltering = permanentURLFiltering;
-        (globalThis as any).vAPI.sessionURLFiltering = sessionURLFiltering;
-        (globalThis as any).vAPI.webRequest = webRequest;
+        const vAPIRef = ((globalThis as any).vAPI ??= {});
+        vAPIRef.logger = vAPIRef.logger || (globalThis as any).logger || fallbackLogger;
+        (globalThis as any).logger = vAPIRef.logger;
+
+        const cosmeticFilteringEngine = vAPIRef.cosmeticFilteringEngine || (globalThis as any).cosmeticFilteringEngine;
+        const staticNetFilteringEngine = vAPIRef.staticNetFilteringEngine || (globalThis as any).staticNetFilteringEngine;
+        const staticExtFilteringEngine = vAPIRef.staticExtFilteringEngine || (globalThis as any).staticExtFilteringEngine;
+        const logger = vAPIRef.logger;
+        const µb = vAPIRef.µb || (globalThis as any).µb;
+        let filteringContext = vAPIRef.filteringContext || (globalThis as any).filteringContext || µb?.filteringContext;
+        const filteringEngines = vAPIRef.filteringEngines || (globalThis as any).filteringEngines;
+        const io = vAPIRef.io || (globalThis as any).io;
+        const publicSuffixList = vAPIRef.publicSuffixList || (globalThis as any).publicSuffixList;
+
+        const redirectEngine = vAPIRef.redirectEngine || (globalThis as any).redirectEngine;
+        const staticFilteringReverseLookup = vAPIRef.staticFilteringReverseLookup;
+        const scriptletFilteringEngine = vAPIRef.scriptletFilteringEngine;
+        const htmlFilteringEngine = vAPIRef.htmlFilteringEngine;
+        const permanentURLFiltering = vAPIRef.permanentURLFiltering;
+        const sessionURLFiltering = vAPIRef.sessionURLFiltering;
+        const webRequest = vAPIRef.webRequest;
+
+        vAPIRef.redirectEngine = redirectEngine;
+        vAPIRef.staticFilteringReverseLookup = staticFilteringReverseLookup;
+        vAPIRef.scriptletFilteringEngine = scriptletFilteringEngine;
+        vAPIRef.htmlFilteringEngine = htmlFilteringEngine;
+        vAPIRef.permanentURLFiltering = permanentURLFiltering;
+        vAPIRef.sessionURLFiltering = sessionURLFiltering;
+        vAPIRef.webRequest = webRequest;
+        vAPIRef.filteringContext = filteringContext;
         
         if (!filteringContext) {
             const createFilterContext = (init?: Partial<{
@@ -152,6 +217,8 @@ export const setEngineReferences = () => {
             };
             
             filteringContext = createRootFilterContext();
+            vAPIRef.filteringContext = filteringContext;
+            (globalThis as any).filteringContext = filteringContext;
         }
 
         return {
