@@ -921,6 +921,7 @@ if ( browserActionAPI !== undefined ) {
         // Firefox uses an internal cache for each setIcon's paths:
         // https://searchfox.org/mozilla-central/rev/5ff2d7683078c96e4b11b8a13674daded935aa44/browser/components/extensions/parent/ext-browserAction.js#631
         if ( vAPI.webextFlavor.soup.has('chromium') === false ) { return; }
+        if ( vAPI.webextFlavor.soup.has('mv3') ) { return; }
 
         const imgs = [];
         for ( let i = 0; i < icons.length; i++ ) {

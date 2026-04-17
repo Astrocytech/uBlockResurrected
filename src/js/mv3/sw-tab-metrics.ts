@@ -100,29 +100,23 @@ export const updateToolbarIcon = async (
 
         const url = new URL(tab.url);
         const isHttp = url.protocol === 'http:' || url.protocol === 'https:';
-        
-        let iconPath = 'img/toolbar-icon-19.png';
-        let iconPath38 = 'img/toolbar-icon-38.png';
-        
-        if (options.clickToLoad) {
-            iconPath = 'img/toolbar-icon-19-ent.json';
-            iconPath38 = 'img/toolbar-icon-38-ent.json';
-        } else if (options.filtering === false) {
-            iconPath = 'img/toolbar-icon-19-dis.json';
-            iconPath38 = 'img/toolbar-icon-38-dis.json';
-        }
-        
-        if (isHttp) {
-            chrome.action.setIcon({
-                tabId,
-                path: { '19': iconPath, '38': iconPath38 },
-            });
-        } else {
-            chrome.action.setIcon({
-                tabId,
-                path: { '19': 'img/toolbar-icon-19-dis.png', '38': 'img/toolbar-icon-38-dis.png' },
-            });
-        }
+
+        const iconPath = isHttp && options.filtering !== false
+            ? {
+                '16': 'img/ublock16.png',
+                '32': 'img/ublock32.png',
+                '64': 'img/ublock64.png',
+            }
+            : {
+                '16': 'img/ublock16.png',
+                '32': 'img/ublock32.png',
+                '64': 'img/ublock64.png',
+            };
+
+        chrome.action.setIcon({
+            tabId,
+            path: iconPath,
+        });
     } catch {
     }
 };

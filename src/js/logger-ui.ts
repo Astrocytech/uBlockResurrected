@@ -2548,29 +2548,72 @@ const popupManager = (( ) => {
     let realTabId = 0;
     let popup = null;
     let popupObserver = null;
+    let popupResizeTimer;
 
     const resizePopup = function() {
         if ( popup === null ) { return; }
-        const popupBody = popup.contentWindow.document.body;
-        if ( popupBody.clientWidth !== 0 && popup.clientWidth !== popupBody.clientWidth ) {
-            popup.style.setProperty('width', popupBody.clientWidth + 'px');
+        const popupDocument = popup.contentWindow?.document;
+        const popupBody = popupDocument?.body;
+        const popupRoot = popupDocument?.documentElement;
+        if ( popupBody === null || popupRoot === null ) { return; }
+        const width = Math.max(
+            popupBody.scrollWidth,
+            popupBody.clientWidth,
+            popupRoot.scrollWidth,
+            popupRoot.clientWidth,
+            380,
+        );
+        const height = Math.max(
+            popupBody.scrollHeight,
+            popupBody.clientHeight,
+            popupRoot.scrollHeight,
+            popupRoot.clientHeight,
+        );
+        if ( width !== 0 && popup.clientWidth !== width ) {
+            popup.style.setProperty('width', width + 'px');
         }
-        if ( popupBody.clientHeight !== 0 && popup.clientHeight !== popupBody.clientHeight ) {
-            popup.style.setProperty('height', popupBody.clientHeight + 'px');
+        if ( height !== 0 && popup.clientHeight !== height ) {
+            popup.style.setProperty('height', height + 'px');
         }
     };
 
+    const queuePopupResize = function() {
+        if ( popupResizeTimer !== undefined ) {
+            clearTimeout(popupResizeTimer);
+        }
+        popupResizeTimer = self.setTimeout(( ) => {
+            popupResizeTimer = undefined;
+            resizePopup();
+        }, 50);
+    };
+
+    const schedulePopupResizes = function() {
+        queuePopupResize();
+        self.requestAnimationFrame(( ) => {
+            queuePopupResize();
+            self.requestAnimationFrame(queuePopupResize);
+        });
+    };
+
     const onLoad = function() {
-        resizePopup();
+        schedulePopupResizes();
         popupObserver.observe(popup.contentDocument.body, {
             subtree: true,
-            attributes: true
+            attributes: true,
+            childList: true,
+            characterData: true,
+        });
+        popupObserver.observe(popup.contentDocument.documentElement, {
+            subtree: true,
+            attributes: true,
+            childList: true,
+            characterData: true,
         });
     };
 
     const setTabId = function(tabId) {
         if ( popup === null ) { return; }
-        dom.attr(popup, 'src', `popup-fenix.html?portrait=1&tabId=${tabId}`);
+        dom.attr(popup, 'src', `popup-fenix.html?tabId=${tabId}&intab=1`);
     };
 
     const onTabIdChanged = function() {
@@ -2593,6 +2636,7 @@ const popupManager = (( ) => {
         const parent = qs$('#inspectors');
         const rect = parent.getBoundingClientRect();
         popup.style.setProperty('right', `${rect.right - parent.clientWidth}px`);
+        popup.style.setProperty('width', '480px');
         dom.cl.add(parent, 'popupOn');
 
         dom.on(document, 'tabIdChanged', onTabIdChanged);
@@ -2608,6 +2652,10 @@ const popupManager = (( ) => {
         dom.off(popup, 'load', onLoad);
         popupObserver.disconnect();
         popupObserver = null;
+        if ( popupResizeTimer !== undefined ) {
+            clearTimeout(popupResizeTimer);
+            popupResizeTimer = undefined;
+        }
         dom.attr(popup, 'src', '');
     
         realTabId = 0;

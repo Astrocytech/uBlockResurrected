@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: logger_tests/popup-logger-extension.spec.ts >> Popup Logger Extension >> popup logger button opens a bound logger tab and logs reloads after filtering is disabled
-- Location: tests/logger_tests/popup-logger-extension.spec.ts:99:5
+- Name: logger_tests/debug-popup-panel-sizing.spec.ts >> debug logger popup panel sizing
+- Location: tests/logger_tests/debug-popup-panel-sizing.spec.ts:89:1
 
 # Error details
 
