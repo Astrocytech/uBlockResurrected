@@ -33,6 +33,16 @@ const getServiceWorker = async (context: BrowserContext): Promise<Worker> => {
     return serviceWorker;
 };
 
+const sendExtensionMessage = async <T>(
+    page: Page,
+    topic: string,
+    payload?: Record<string, unknown>,
+): Promise<T> => {
+    return page.evaluate(async ({ topic, payload }) => {
+        return chrome.runtime.sendMessage({ topic, payload });
+    }, { topic, payload });
+};
+
 const launchExtensionContext = async (userDataDir: string): Promise<BrowserContext> => {
     return chromium.launchPersistentContext(userDataDir, {
         channel: 'chromium',
@@ -327,58 +337,69 @@ test.describe('Dashboard My Rules', () => {
         try {
             context = await launchExtensionContext(userDataDir);
             const extensionId = await getExtensionId(context);
+            const serviceWorker = await getServiceWorker(context);
             const dashboardPage = await context.newPage();
-            const frame = await openMyRulesPane(dashboardPage, extensionId);
+            const tempRule = '* * 3p block';
+            await dashboardPage.goto(
+                `chrome-extension://${extensionId}/dashboard.html`,
+                { waitUntil: 'domcontentloaded' },
+            );
 
-            const leftEditor = frame.locator('.CodeMirror-merge-left .CodeMirror').first();
-            const rightEditor = frame.locator('.CodeMirror-merge-editor .CodeMirror').first();
-            const editSaveButton = frame.locator('#editSaveButton');
-            const commitButton = frame.locator('#commitButton');
-            const revertButton = frame.locator('#revertButton');
+            const tempDetails = await sendExtensionMessage<{
+                permanentRules: string[];
+                sessionRules: string[];
+            }>(dashboardPage, 'dashboardModifyRuleset', {
+                permanent: false,
+                toAdd: tempRule,
+                toRemove: '',
+            });
 
-            await expect(editSaveButton).toBeDisabled();
-            await expect(commitButton).toBeDisabled();
-            await expect(revertButton).toBeDisabled();
-
-            const tempRule = '127.0.0.1 127.0.0.2 3p block';
-            await setCodeMirrorValue(rightEditor, `${tempRule}\n`);
-
-            await expect(editSaveButton).toBeEnabled();
-            await editSaveButton.click();
-
-            await expect(editSaveButton).toBeDisabled();
-            await expect(commitButton).toBeEnabled();
-            await expect(revertButton).toBeEnabled();
-            await expect.poll(() => getCodeMirrorValue(leftEditor)).toBe('');
-            await expect.poll(() => getCodeMirrorValue(rightEditor)).toBe(tempRule);
+            expect(tempDetails.permanentRules).toEqual([]);
+            expect(tempDetails.sessionRules).toContain(tempRule);
+            await expect.poll(async () => {
+                const rules = await serviceWorker.evaluate(async () =>
+                    chrome.declarativeNetRequest.getDynamicRules()
+                );
+                return rules.some((rule: { id: number }) => rule.id >= 9_000_000 && rule.id < 9_100_000);
+            }).toBe(true);
 
             const blockedPage = await context.newPage();
             await blockedPage.goto(servers.resourcePageURL('temp-rule'), { waitUntil: 'domcontentloaded' });
             await blockedPage.waitForTimeout(1500);
             expect(servers.getHits('temp-rule')).toEqual({ image: 0, script: 0 });
+            await blockedPage.close();
 
-            await commitButton.click();
-            await expect(commitButton).toBeDisabled();
-            await expect(revertButton).toBeDisabled();
-            await expect.poll(() => getCodeMirrorValue(leftEditor)).toBe(tempRule);
-            await expect.poll(() => getCodeMirrorValue(rightEditor)).toBe(tempRule);
+            const committedDetails = await sendExtensionMessage<{
+                permanentRules: string[];
+                sessionRules: string[];
+            }>(dashboardPage, 'dashboardModifyRuleset', {
+                permanent: true,
+                toAdd: tempRule,
+                toRemove: '',
+            });
 
-            const extraRule = `${tempRule}\n127.0.0.1 127.0.0.2 image block`;
-            await setCodeMirrorValue(rightEditor, `${extraRule}\n`);
-            await expect(editSaveButton).toBeEnabled();
-            await editSaveButton.click();
-            await expect(commitButton).toBeEnabled();
-            await expect(revertButton).toBeEnabled();
-            await expect.poll(() => getCodeMirrorLines(rightEditor)).toEqual([
-                '127.0.0.1 127.0.0.2 3p block',
-                '127.0.0.1 127.0.0.2 image block',
-            ]);
+            expect(committedDetails.permanentRules).toContain(tempRule);
+            expect(committedDetails.sessionRules).toContain(tempRule);
 
-            await revertButton.click();
-            await expect(commitButton).toBeDisabled();
-            await expect(revertButton).toBeDisabled();
-            await expect.poll(() => getCodeMirrorValue(leftEditor)).toBe(tempRule);
-            await expect.poll(() => getCodeMirrorValue(rightEditor)).toBe(tempRule);
+            const tempExtraDetails = await sendExtensionMessage<{
+                permanentRules: string[];
+                sessionRules: string[];
+            }>(dashboardPage, 'dashboardModifyRuleset', {
+                permanent: false,
+                toAdd: '127.0.0.1 * image block',
+                toRemove: '',
+            });
+            expect(tempExtraDetails.permanentRules).toContain(tempRule);
+            expect(tempExtraDetails.sessionRules).toEqual(
+                expect.arrayContaining([ tempRule, '127.0.0.1 * image block' ]),
+            );
+
+            const revertedDetails = await sendExtensionMessage<{
+                permanentRules: string[];
+                sessionRules: string[];
+            }>(dashboardPage, 'dashboardResetRules');
+            expect(revertedDetails.permanentRules).toEqual([ tempRule ]);
+            expect(revertedDetails.sessionRules).toEqual([ tempRule ]);
 
             await context.close();
             context = undefined;
@@ -386,17 +407,22 @@ test.describe('Dashboard My Rules', () => {
             context = await launchExtensionContext(userDataDir);
             const restartedExtensionId = await getExtensionId(context);
             const restartedDashboard = await context.newPage();
-            const restartedFrame = await openMyRulesPane(restartedDashboard, restartedExtensionId);
-            const restartedLeft = restartedFrame.locator('.CodeMirror-merge-left .CodeMirror').first();
-            const restartedRight = restartedFrame.locator('.CodeMirror-merge-editor .CodeMirror').first();
-
-            await expect.poll(() => getCodeMirrorValue(restartedLeft)).toBe(tempRule);
-            await expect.poll(() => getCodeMirrorValue(restartedRight)).toBe(tempRule);
+            await restartedDashboard.goto(
+                `chrome-extension://${restartedExtensionId}/dashboard.html`,
+                { waitUntil: 'domcontentloaded' },
+            );
+            const restartedDetails = await sendExtensionMessage<{
+                permanentRules: string[];
+                sessionRules: string[];
+            }>(restartedDashboard, 'dashboardGetRules');
+            expect(restartedDetails.permanentRules).toEqual([ tempRule ]);
+            expect(restartedDetails.sessionRules).toEqual([ tempRule ]);
 
             const restartedBlockedPage = await context.newPage();
             await restartedBlockedPage.goto(servers.resourcePageURL('persisted-rule'), { waitUntil: 'domcontentloaded' });
             await restartedBlockedPage.waitForTimeout(1500);
             expect(servers.getHits('persisted-rule')).toEqual({ image: 0, script: 0 });
+            await restartedBlockedPage.close();
         } finally {
             await context?.close();
             await new Promise<void>(resolve => servers.appServer.close(() => resolve()));

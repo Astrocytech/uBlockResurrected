@@ -140,6 +140,26 @@ export const createMessagingRouter = (deps: MessagingRouterDeps): MessagingRoute
             return;
         }
 
+        if (typeof channel === 'string') {
+            const handler = handlers.get(channel);
+            if (handler) {
+                try {
+                    const result = handler(msg, respond);
+                    if (result instanceof Promise) {
+                        const response = await result;
+                        if (response !== undefined) {
+                            respond(response);
+                        }
+                    } else if (result !== undefined) {
+                        respond(result);
+                    }
+                } catch (error) {
+                    respond({ error: (error as Error).message });
+                }
+                return;
+            }
+        }
+
         console.log(`MV3: ${channel} channel - delegating to legacy handler`);
         respond(null);
     }
@@ -248,20 +268,35 @@ export const createMessagingRouter = (deps: MessagingRouterDeps): MessagingRoute
 
                 if (result instanceof Promise) {
                     result.then((response) => {
-                        if (seq !== undefined && response !== undefined) {
-                            sendResponse({ seq, payload: response });
+                        if (response !== undefined) {
+                            if (seq !== undefined) {
+                                sendResponse({ seq, payload: response });
+                            } else {
+                                sendResponse(response);
+                            }
                         }
                     }).catch((error) => {
                         if (seq !== undefined) {
                             sendResponse({ seq, payload: { error: error.message } });
+                        } else {
+                            sendResponse({ error: error.message });
                         }
                     });
                     return true;
+                }
+                if (result !== undefined) {
+                    if (seq !== undefined) {
+                        sendResponse({ seq, payload: result });
+                    } else {
+                        sendResponse(result);
+                    }
                 }
             } catch (e) {
                 console.error('Runtime handler error:', e);
                 if (seq !== undefined) {
                     sendResponse({ seq, payload: { error: (e as Error).message } });
+                } else {
+                    sendResponse({ error: (e as Error).message });
                 }
             }
         } else {

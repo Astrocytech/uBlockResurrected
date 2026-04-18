@@ -43,6 +43,39 @@ export const ensurePopupState = async (): Promise<void> => {
     if (popupState.initialized) return;
     popupState.initPromise = popupState.initPromise.then(async () => {
         if (popupState.initialized) return;
+        const stored = await chrome.storage.local.get([
+            'userSettings',
+            'dynamicFilteringString',
+            'permanentSwitches',
+            'whitelist',
+        ]);
+
+        popupState.userSettings = {
+            ...userSettingsDefault,
+            ...(stored.userSettings || {}),
+        };
+
+        popupState.permanentFirewall.reset();
+        if ( typeof stored.dynamicFilteringString === 'string' ) {
+            popupState.permanentFirewall.fromString(stored.dynamicFilteringString);
+        }
+        popupState.sessionFirewall.assign(popupState.permanentFirewall);
+
+        const permanentSwitches = stored.permanentSwitches instanceof Object
+            ? stored.permanentSwitches as Record<string, Record<string, boolean>>
+            : {};
+        popupState.permanentHostnameSwitches = cloneHostnameSwitchState(permanentSwitches);
+        popupState.sessionHostnameSwitches = cloneHostnameSwitchState(permanentSwitches);
+
+        if ( Array.isArray(stored.whitelist) ) {
+            popupState.whitelist = stored.whitelist.filter((entry): entry is string => typeof entry === 'string');
+        } else if ( typeof stored.whitelist === 'string' ) {
+            popupState.whitelist = stored.whitelist.split('\n').filter(Boolean);
+        } else {
+            popupState.whitelist = [];
+        }
+
+        popupState.initialized = true;
     });
     await popupState.initPromise;
 };

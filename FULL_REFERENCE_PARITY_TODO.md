@@ -45,11 +45,11 @@ High-level state today:
 - Dashboard shell and remaining tabs: `Partial`
 - MV3 backend/service worker: `Partial`
 - Shared assets, locales, web-accessible resources: `Partial`
-- Build/platform layout: `Structural drift`
+- Build/platform layout: `Partial`
 
 Bottom line:
 - The project is not yet a full mirror of the reference.
-- The remaining parity gap is now concentrated in long-tail pages/tools and platform/layout drift.
+- The remaining parity gap is now concentrated in platform/layout drift and final forensic parity review.
 
 ## Section A: HTML/UI Surface Inventory
 
@@ -60,13 +60,13 @@ These are source HTML files currently reported as different from the reference.
 - `src/3p-filters.html` — `Mirrored-ish`
 - `src/about.html` — `Mirrored-ish`
 - `src/advanced-settings.html` — `Mirrored-ish`
-- `src/asset-viewer.html` — `Not mirrored`
+- `src/asset-viewer.html` — `Mirrored-ish`
 - `src/background.html` — `Not mirrored`
 - `src/cloud-ui.html` — `Not mirrored`
 - `src/code-viewer.html` — `Not mirrored`
 - `src/dashboard.html` — `Mirrored-ish`
-- `src/devtools.html` — `Not mirrored`
-- `src/document-blocked.html` — `Not mirrored`
+- `src/devtools.html` — `Mirrored-ish`
+- `src/document-blocked.html` — `Mirrored-ish`
 - `src/dyna-rules.html` — `Mirrored-ish`
 - `src/logger-ui.html` — `Mirrored-ish`
 - `src/no-dashboard.html` — `Not mirrored`
@@ -97,9 +97,9 @@ These are source HTML files currently reported as different from the reference.
 - `src/css/themes/default.css` — `Not mirrored`
 
 ### CSS files missing here but present in the reference
-- `src/css/asset-viewer.css` — `Not mirrored`
-- `src/css/devtools.css` — `Not mirrored`
-- `src/css/document-blocked.css` — `Not mirrored`
+- `src/css/asset-viewer.css` — `Mirrored-ish`
+- `src/css/devtools.css` — `Mirrored-ish`
+- `src/css/document-blocked.css` — `Mirrored-ish`
 
 ### Extra CSS files only in this repo
 - `src/css/dashboard-pane-lite.css` — `Structural drift`
@@ -235,9 +235,9 @@ The JS tree has two different kinds of drift:
 - `src/js/logger-ui.ts` — `Mirrored-ish`
 - `src/js/logger-ui-inspector.ts` — `Partial`
 - `src/js/advanced-settings.ts` — `Mirrored-ish`
-- `src/js/asset-viewer.ts` — `Not mirrored`
-- `src/js/devtools.ts` — `Not mirrored`
-- `src/js/document-blocked.ts` — `Not mirrored`
+- `src/js/asset-viewer.ts` — `Mirrored-ish`
+- `src/js/devtools.ts` — `Mirrored-ish`
+- `src/js/document-blocked.ts` — `Mirrored-ish`
 - `src/js/messaging.ts` — `Partial`
 - `src/js/start.ts` — `Partial`
 - `src/js/background.ts` — `Partial`
@@ -527,7 +527,8 @@ Known diffs:
 ### Tooling only in this repo
 - `tools/bundle-sw.js` — `Structural drift`
 - `tools/dist/` — `Structural drift`
-- `tools/make-chrome-mv3.sh` — `Structural drift` with functional impact
+- `tools/make-chrome-mv3.sh` — `Partial`
+- `tools/make-mv3.sh` — `Mirrored-ish`
 
 ### Tooling only in the reference
 - `tools/make-chromium-meta.py`
@@ -543,8 +544,8 @@ Known diffs:
 - `tools/make-thunderbird.sh`
 
 Assessment:
-- Tooling/platform parity is `Structural drift`
-- but some of it can affect shipped parity, especially packaging and asset copying
+- Tooling/platform parity is `Partial`
+- the reference-style MV3 entrypoint now exists and the Chromium platform tree is mirrored structurally, but `platform/common/*` still contains intentional MV3 adaptations
 
 ## Section L: Functional Risk Areas Still Open
 
@@ -555,9 +556,6 @@ These are the highest-risk areas where source drift is most likely still user-vi
 - picker/zapper/reporter end-to-end behavior
 - filter-list dashboard behavior
 - advanced settings page
-- document-blocked page
-- devtools page
-- asset viewer
 - shipped web-accessible resources and scriptlet resources
 - localization completeness
 
@@ -579,13 +577,13 @@ Do not call the repo fully mirrored until all of the following are true:
 Recommended order from here:
 
 1. Finish dashboard-adjacent pages:
-   `advanced-settings`, `asset-viewer`, `devtools`, `document-blocked`, `logger-ui`, `no-dashboard`, `background`, `cloud-ui`, `code-viewer`
-2. Reconcile MV3 backend/service worker drift.
-3. Reconcile `src/js/resources/*`.
-4. Reconcile `src/web_accessible_resources/*`.
-5. Reconcile shared CSS/theme/icons.
-6. Reconcile locales.
-7. Reconcile `platform/common/*` and packaging logic.
+   `logger-ui`, `no-dashboard`, `background`, `cloud-ui`, `code-viewer`
+2. Reconcile `platform/common/*` and packaging logic.
+3. Reconcile MV3 backend/service worker drift.
+4. Reconcile `src/js/resources/*`.
+5. Reconcile `src/web_accessible_resources/*`.
+6. Reconcile shared CSS/theme/icons.
+7. Reconcile locales.
 8. Run side-by-side behavioral verification against the reference.
 
 ## Section O: Completeness Statement

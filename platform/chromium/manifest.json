@@ -1,0 +1,135 @@
+{
+  "author": "Raymond Hill & contributors",
+  "background": {
+    "service_worker": "js/sw.js",
+    "type": "module"
+  },
+  "action": {
+    "browser_style": false,
+    "default_icon": {
+      "16": "img/ublock16.png",
+      "32": "img/ublock32.png",
+      "64": "img/ublock64.png"
+    },
+    "default_title": "uBlock Resurrected",
+    "default_popup": "popup-fenix.html"
+  },
+  "default_locale": "en",
+  "description": "__MSG_extShortDesc__",
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "icons": {
+    "16": "img/ublock16.png",
+    "32": "img/ublock32.png",
+    "48": "img/ublock48.png",
+    "64": "img/ublock64.png",
+    "96": "img/ublock96.png",
+    "128": "img/ublock128.png",
+    "256": "img/ublock256.png"
+  },
+  "manifest_version": 3,
+  "name": "uBlock Resurrected",
+  "options_page": "dashboard.html",
+  "commands": {
+    "launch-element-zapper": {
+      "description": "__MSG_popupTipZapper__"
+    },
+    "launch-element-picker": {
+      "description": "__MSG_popupTipPicker__"
+    },
+    "launch-logger": {
+      "description": "__MSG_popupTipLog__"
+    },
+    "open-dashboard": {
+      "description": "__MSG_popupTipDashboard__"
+    },
+    "relax-blocking-mode": {
+      "description": "__MSG_relaxBlockingMode__"
+    },
+    "toggle-cosmetic-filtering": {
+      "description": "__MSG_toggleCosmeticFiltering__"
+    },
+    "toggle-javascript": {
+      "description": "__MSG_toggleJavascript__"
+    }
+  },
+  "permissions": [
+    "alarms",
+    "contextMenus",
+    "declarativeNetRequest",
+    "declarativeNetRequestFeedback",
+    "downloads",
+    "privacy",
+    "scripting",
+    "storage",
+    "tabs",
+    "unlimitedStorage",
+    "webNavigation",
+    "webRequest"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*",
+        "file://*/*"
+      ],
+      "js": [
+        "/js/vapi.js",
+        "/js/vapi-client.js",
+        "/js/contentscript.js"
+      ],
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*",
+        "https://youtube.com/*"
+      ],
+      "js": [
+        "/js/yt-inject.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://easylist.to/*",
+        "https://*.fanboy.co.nz/*",
+        "https://filterlists.com/*",
+        "https://forums.lanik.us/*",
+        "https://github.com/*",
+        "https://*.github.io/*"
+      ],
+      "js": [
+        "/js/scriptlets/subscriber.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://github.com/uBlockOrigin/*",
+        "https://ublockorigin.github.io/*",
+        "https://*.reddit.com/r/uBlockOrigin/*"
+      ],
+      "js": [
+        "/js/scriptlets/updater.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": false
+    }
+  ],
+  "short_name": "uBlock₀",
+  "version": "0.1.0.0",
+  "web_accessible_resources": [
+    {
+      "resources": ["/web_accessible_resources/*", "/debug-logs.html", "/js/epicker-ui-bundle.js", "/css/epicker-ui.css", "/js/vapi-content.js", "/zapper-ui.html", "/css/zapper-ui.css", "/js/scripting/zapper-ui.js", "/js/scripting/tool-overlay-ui.js", "/js/scripting/tool-overlay.js", "/js/scripting/zapper.js", "/js/scripting/dom.js", "/js/scripting/ext.js", "/picker-ui.html", "/css/picker-ui.css", "/js/scripting/picker-ui.js", "/js/scripting/picker.js", "/assets/assets.json"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

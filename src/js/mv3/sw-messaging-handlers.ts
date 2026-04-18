@@ -276,27 +276,51 @@ export const registerMessagingHandlers = (
 
     // Continue with more handlers...
     messaging.on('dashboardGetRules', async (_, callback) => {
-        const details = await deps.getDashboardRules();
-        if ( callback ) {
-            callback(details);
+        try {
+            const details = await deps.getDashboardRules();
+            if ( callback ) {
+                callback(details);
+            }
+            return details;
+        } catch (e) {
+            const result = { error: (e as Error).message };
+            if ( callback ) {
+                callback(result);
+            }
+            return result;
         }
-        return details;
     });
 
     messaging.on('dashboardModifyRuleset', async (payload, callback) => {
-        const details = await deps.modifyDashboardRuleset(payload || {});
-        if ( callback ) {
-            callback(details);
+        try {
+            const details = await deps.modifyDashboardRuleset(payload || {});
+            if ( callback ) {
+                callback(details);
+            }
+            return details;
+        } catch (e) {
+            const result = { error: (e as Error).message };
+            if ( callback ) {
+                callback(result);
+            }
+            return result;
         }
-        return details;
     });
 
     messaging.on('dashboardResetRules', async (_, callback) => {
-        const details = await deps.resetDashboardRules();
-        if ( callback ) {
-            callback(details);
+        try {
+            const details = await deps.resetDashboardRules();
+            if ( callback ) {
+                callback(details);
+            }
+            return details;
+        } catch (e) {
+            const result = { error: (e as Error).message };
+            if ( callback ) {
+                callback(result);
+            }
+            return result;
         }
-        return details;
     });
 
     messaging.on('getWhitelist', async (_, callback) => {

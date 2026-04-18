@@ -9,6 +9,10 @@ echo "*** uBlock0.chromium-mv3: Building Chromium MV3 extension (Refactored)"
 
 BLDIR=dist/build
 DES="$BLDIR"/uBlock0.chromium-mv3
+PLATFORM_DIR=platform/chromium
+if [ ! -d "$PLATFORM_DIR" ]; then
+    PLATFORM_DIR=platform/chrome
+fi
 mkdir -p $DES
 rm -rf $DES/*
 
@@ -17,7 +21,7 @@ bash ./tools/copy-common-files.sh $DES
 
 # Chrome MV3-specific
 echo "*** uBlock0.chromium-mv3: Copying chrome-specific files"
-cp platform/chrome/manifest.json $DES/
+cp "$PLATFORM_DIR"/manifest.json $DES/
 
 echo "*** uBlock0.chromium-mv3: Bundling JS files"
 cd $DES/js

@@ -119,6 +119,8 @@ import { registerVideoAdBlocker } from "./sw-video-blocker.js";
 
 import { registerChromeEventHandlers } from "./sw-chrome-events.js";
 
+import * as s14e from "../s14e-serializer.js";
+
 import {
   pageStoreFromTabId,
   mustLookup,
@@ -437,6 +439,49 @@ const isHiddenExtensionPage = (rawURL: string) =>
   rawURL.startsWith(extensionOriginURL) &&
   rawURL.startsWith(documentBlockedURL) === false;
 
+const purgeAllCachesForDevTools = async () => {
+  const bytesBefore = await chrome.storage.local.getBytesInUse(null);
+  const keys = await chrome.storage.local.get(null);
+  const cacheKeys = Object.keys(keys).filter(
+    (key) => key.startsWith("assetCache_") || key.startsWith("cachedAsset_"),
+  );
+  if (cacheKeys.length !== 0) {
+    await chrome.storage.local.remove(cacheKeys);
+  }
+  await chrome.storage.local.remove(["filterLists", "cachedAssets"]);
+  const bytesAfter = await chrome.storage.local.getBytesInUse(null);
+  return [
+    `Storage used before: ${formatCount(bytesBefore)}B`,
+    `Storage used after: ${formatCount(bytesAfter)}B`,
+  ].join("\n");
+};
+
+const getDevToolsResponse = async (request: any) => {
+  switch (request.what) {
+    case "purgeAllCaches":
+      return purgeAllCachesForDevTools();
+    case "snfeBenchmark":
+    case "cfeBenchmark":
+    case "sfeBenchmark":
+      return "Benchmark not implemented in MV3";
+    case "snfeToDNR":
+      return s14e.serialize("Static network filters already use DNR in MV3");
+    case "snfeDump": {
+      const dynamicRules = await chrome.declarativeNetRequest.getDynamicRules();
+      return [
+        `Dynamic DNR rule count: ${dynamicRules.length}`,
+        JSON.stringify(dynamicRules, null, 2),
+      ].join("\n");
+    }
+    case "snfeQuery":
+      return "Static network filter query is not implemented in MV3";
+    case "cfeDump":
+      return JSON.stringify(popupState.specificCosmeticFilters || {}, null, 2);
+    default:
+      return undefined;
+  }
+};
+
 const getLoggerVisibleTabs = async () => {
   const tabs = await chrome.tabs.query({});
   const visibleTabs: Array<[number, string]> = [];
@@ -598,6 +643,7 @@ const handleDashboardMessage = createDashboardMessageHandler({
     assetKeys?: string[];
     preferOrigin?: boolean;
   }) => updateFilterListsNow(request, popupState, ensurePopupState),
+  syncFirewallDnrRules,
   syncPowerSwitchDnrRules,
   findFilterListFromNetFilter,
   findFilterListFromCosmeticFilter,
@@ -656,6 +702,7 @@ const defaultDashboardRoutedRequests = new Set([
   "launchReporter",
   "launchElementPicker",
   "scriptlet",
+  "getAssetContent",
   "getTrustedScriptletTokens",
   "listsFromNetFilter",
   "listsFromCosmeticFilter",
@@ -724,9 +771,22 @@ registerMessagingHandlers(Messaging, {
   applyFilterListSelection,
   reloadAllFilterLists,
   updateFilterListsNow,
-  getDashboardRules: () => getPopupData({ what: "getDashboardRules" }),
-  modifyDashboardRuleset: modifyDashboardRulesetFromModule,
-  resetDashboardRules: resetDashboardRulesFromModule,
+  getDashboardRules: () =>
+    handleDashboardMessage({ what: "getRules" }),
+  modifyDashboardRuleset: (payload: any) =>
+    modifyDashboardRulesetFromModule(
+      payload,
+      popupState,
+      ensurePopupState,
+      persistPermanentFirewall,
+      syncFirewallDnrRules,
+    ),
+  resetDashboardRules: () =>
+    resetDashboardRulesFromModule(
+      popupState,
+      ensurePopupState,
+      syncFirewallDnrRules,
+    ),
   getLocalData,
   backupUserData,
   restoreUserData,
@@ -1000,6 +1060,16 @@ Messaging.on("retrieveGenericCosmeticSelectors", async (payload, callback) => {
 // dashboardResetRules, getWhitelist, setWhitelist from sw-messaging-handlers.
 
 Messaging.on("documentBlocked", async (request, callback) => {
+  if (
+    request.what === "listsFromNetFilter" ||
+    request.what === "listsFromCosmeticFilter"
+  ) {
+    const result = await handleDashboardMessage(request);
+    if (callback) {
+      callback(result);
+    }
+    return result;
+  }
   if (request.what === "closeThisTab") {
     const tabId = request._sender?.tab?.id;
     if (typeof tabId === "number") {
@@ -1030,6 +1100,60 @@ Messaging.on("documentBlocked", async (request, callback) => {
       callback({ success: true });
     }
     return { success: true };
+  }
+  if (request.what === "toggleHostnameSwitch") {
+    const hostname = request.hostname as string;
+    const switchName = request.name as string;
+    const state = request.state !== false;
+    const persist = request.persist === true;
+
+    if (hostname && switchName === "no-strict-blocking") {
+      await ensurePopupState();
+      const sessionSwitches = cloneHostnameSwitchState(
+        popupState.sessionHostnameSwitches,
+      );
+      sessionSwitches[hostname] = {
+        ...(sessionSwitches[hostname] || {}),
+        [switchName]: state,
+      };
+      popupState.sessionHostnameSwitches = sessionSwitches;
+
+      if (persist) {
+        popupState.permanentHostnameSwitches = cloneHostnameSwitchState(
+          sessionSwitches,
+        );
+        await persistPermanentHostnameSwitches();
+      }
+
+      await syncHostnameSwitchDnrRules();
+      broadcastFilteringBehaviorChanged();
+
+      const result = { success: true };
+      if (callback) {
+        callback(result);
+      }
+      return result;
+    }
+
+    const result = await toggleHostnameSwitch(request);
+    if (callback) {
+      callback(result);
+    }
+    return result;
+  }
+  if (callback) {
+    callback({ success: false });
+  }
+  return { success: false };
+});
+
+Messaging.on("devTools", async (request, callback) => {
+  const result = await getDevToolsResponse(request);
+  if (result !== undefined) {
+    if (callback) {
+      callback(result);
+    }
+    return result;
   }
   if (callback) {
     callback({ success: false });
@@ -1266,26 +1390,9 @@ Messaging.on("default", async (request, callback) => {
   }
   if (request.what === "purgeAllCaches") {
     try {
-      // Get bytes in use before
-      const bytesBefore = await chrome.storage.local.getBytesInUse(null);
-
-      // Clear all cached assets
-      const keys = await chrome.storage.local.get(null);
-      const cacheKeys = Object.keys(keys).filter(
-        (k) => k.startsWith("assetCache_") || k.startsWith("cachedAsset_"),
-      );
-      for (const key of cacheKeys) {
-        await chrome.storage.local.remove(key);
-      }
-      await chrome.storage.local.remove(["filterLists", "cachedAssets"]);
-
-      // Get bytes in use after
-      const bytesAfter = await chrome.storage.local.getBytesInUse(null);
-
       const result = {
         success: true,
-        before: bytesBefore,
-        after: bytesAfter,
+        report: await purgeAllCachesForDevTools(),
       };
       if (callback) {
         callback(result);

@@ -104,6 +104,7 @@ export type DashboardMessageHandlerDeps = {
     updateToolbarIcon: (tabId: number, options: { filtering?: boolean }) => Promise<void>;
     reloadAllFilterLists: () => Promise<any>;
     updateFilterListsNow: (request?: { assetKeys?: string[]; preferOrigin?: boolean }) => Promise<any>;
+    syncFirewallDnrRules: () => Promise<void>;
     syncPowerSwitchDnrRules: () => Promise<void>;
     findFilterListFromNetFilter: (rawFilter: string) => Promise<any[]>;
     findFilterListFromCosmeticFilter: (rawFilter: string) => Promise<any[]>;
@@ -128,6 +129,7 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
         updateToolbarIcon,
         reloadAllFilterLists,
         updateFilterListsNow,
+        syncFirewallDnrRules,
         syncPowerSwitchDnrRules,
         findFilterListFromNetFilter,
         findFilterListFromCosmeticFilter,
@@ -152,6 +154,40 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
             }
             await new Promise(resolve => self.setTimeout(resolve, 25));
         }
+    };
+
+    const getSwitchRuleset = (permanent: boolean) => {
+        const vAPIRef = (globalThis as any).vAPI;
+        return permanent ? vAPIRef?.permanentSwitches : vAPIRef?.sessionSwitches;
+    };
+
+    const getURLRuleset = (permanent: boolean) => {
+        const vAPIRef = (globalThis as any).vAPI;
+        return permanent ? vAPIRef?.permanentURLFiltering : vAPIRef?.sessionURLFiltering;
+    };
+
+    const getRulesSnapshot = () => {
+        const permanentSwitches = getSwitchRuleset(true);
+        const sessionSwitches = getSwitchRuleset(false);
+        const permanentURLFiltering = getURLRuleset(true);
+        const sessionURLFiltering = getURLRuleset(false);
+        let pslSelfieValue: string | null = null;
+        if ( getEngineState().publicSuffixList?.toSelfie ) {
+            try {
+                pslSelfieValue = getEngineState().publicSuffixList.toSelfie();
+            } catch {}
+        }
+        return {
+            permanentRules: popupState.permanentFirewall.toArray().concat(
+                permanentSwitches?.toArray?.() || [],
+                permanentURLFiltering?.toArray?.() || [],
+            ),
+            sessionRules: popupState.sessionFirewall.toArray().concat(
+                sessionSwitches?.toArray?.() || [],
+                sessionURLFiltering?.toArray?.() || [],
+            ),
+            pslSelfie: pslSelfieValue,
+        };
     };
 
     return async (request: DashboardRequest) => {
@@ -611,6 +647,7 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
                     content: text,
                     assetKey: url,
                     sourceURL: url,
+                    trustedSource: popupState.trustedLists?.[url] === true,
                 };
             } catch (e) {
                 return { error: (e as Error).message };
@@ -619,34 +656,34 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
         case 'listsFromNetFilter': {
             const rawFilter = request.rawFilter as string;
             if ( !rawFilter ) {
-                return { notFound: true };
+                return {};
             }
             const reverseLookup = getEngineState().staticFilteringReverseLookup;
             if ( reverseLookup ) {
                 try {
                     return await reverseLookup.fromNetFilter(rawFilter);
                 } catch {
-                    return { notFound: true };
+                    return {};
                 }
             }
             const results = await findFilterListFromNetFilter(rawFilter);
-            return results.length > 0 ? { [rawFilter]: results } : { notFound: true };
+            return results.length > 0 ? { [rawFilter]: results } : {};
         }
         case 'listsFromCosmeticFilter': {
             const rawFilter = request.rawFilter as string;
             if ( !rawFilter ) {
-                return { notFound: true };
+                return {};
             }
             const reverseLookup = getEngineState().staticFilteringReverseLookup;
             if ( reverseLookup ) {
                 try {
                     return await reverseLookup.fromExtendedFilter({ rawFilter });
                 } catch {
-                    return { notFound: true };
+                    return {};
                 }
             }
             const results = await findFilterListFromCosmeticFilter(rawFilter);
-            return results.length > 0 ? { [rawFilter]: results } : { notFound: true };
+            return results.length > 0 ? { [rawFilter]: results } : {};
         }
         case 'scriptlet': {
             const tabId = request.tabId as number;
@@ -701,95 +738,55 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
                 noDashboardURL: '/no-dashboard.html',
                 noDashboard: popupState.noDashboard === true,
             };
-        case 'getRules': {
-            const stored = await chrome.storage.local.get('dynamicRules');
-            const storedFirewall = await chrome.storage.local.get('permanentFirewall');
-            const storedSwitches = await chrome.storage.local.get('permanentSwitches');
-            const storedSession = await chrome.storage.local.get('sessionFirewall');
-            let urlFilters: any[] = [];
-            const permanentURLFiltering = (globalThis as any).vAPI?.permanentURLFiltering;
-            if ( permanentURLFiltering?.toArray ) {
-                try {
-                    urlFilters = permanentURLFiltering.toArray();
-                } catch {}
-            }
-            if ( urlFilters.length === 0 ) {
-                const storedURLFilters = await chrome.storage.local.get('permanentURLFiltering');
-                urlFilters = storedURLFilters?.permanentURLFiltering || [];
-            }
-            let pslSelfieValue: string | null = null;
-            if ( getEngineState().publicSuffixList?.toSelfie ) {
-                try {
-                    pslSelfieValue = getEngineState().publicSuffixList.toSelfie();
-                } catch {}
-            }
-            return {
-                dynamicRules: stored?.dynamicRules || [],
-                permanentRules: storedFirewall?.permanentFirewall || [],
-                sessionRules: storedSession?.sessionFirewall || [],
-                firewall: storedFirewall?.permanentFirewall || [],
-                switches: storedSwitches?.permanentSwitches || [],
-                urlFilters,
-                sessionFirewall: storedSession?.sessionFirewall || [],
-                pslSelfie: pslSelfieValue,
-            };
-        }
+        case 'getRules':
+            return getRulesSnapshot();
         case 'modifyRuleset': {
-            const { type, action, raw, rule } = request;
             getEngineState().cosmeticFilteringEngine?.removeFromSelectorCache?.('*');
-            if ( type === 'user' && raw ) {
-                const stored = await chrome.storage.local.get('userRules');
-                const existingRules = stored?.userRules || [];
-                if ( action === 'remove' ) {
-                    const index = existingRules.indexOf(raw);
-                    if ( index > -1 ) {
-                        existingRules.splice(index, 1);
+            const permanent = request.permanent === true;
+            const switchRuleset = getSwitchRuleset(permanent);
+            const firewallRuleset = permanent
+                ? popupState.permanentFirewall
+                : popupState.sessionFirewall;
+            const urlRuleset = getURLRuleset(permanent);
+
+            for ( const rawRule of String(request.toRemove || '').trim().split(/\s*[\n\r]+\s*/) ) {
+                const rule = rawRule.trim();
+                if ( rule === '' ) { continue; }
+                const parts = rule.split(/\s+/);
+                if ( firewallRuleset.removeFromRuleParts(parts) === false ) {
+                    if ( switchRuleset?.removeFromRuleParts?.(parts) === false ) {
+                        urlRuleset?.removeFromRuleParts?.(parts);
                     }
-                } else {
-                    existingRules.push(raw);
                 }
-                await chrome.storage.local.set({ userRules: existingRules });
             }
-            if ( type === 'firewall' && rule ) {
-                const stored = await chrome.storage.local.get('permanentFirewall');
-                const rules = stored?.permanentFirewall || [];
-                if ( action === 'remove' ) {
-                    const index = rules.findIndex((r: any) => r.src === rule.src && r.dest === rule.dest && r.type === rule.type);
-                    if ( index > -1 ) {
-                        rules.splice(index, 1);
+            for ( const rawRule of String(request.toAdd || '').trim().split(/\s*[\n\r]+\s*/) ) {
+                const rule = rawRule.trim();
+                if ( rule === '' ) { continue; }
+                const parts = rule.split(/\s+/);
+                if ( firewallRuleset.addFromRuleParts(parts) === false ) {
+                    if ( switchRuleset?.addFromRuleParts?.(parts) === false ) {
+                        urlRuleset?.addFromRuleParts?.(parts);
                     }
-                } else {
-                    rules.push(rule);
                 }
-                await chrome.storage.local.set({ permanentFirewall: rules });
             }
-            if ( type === 'switch' && rule ) {
-                const stored = await chrome.storage.local.get('permanentSwitches');
-                const rules = stored?.permanentSwitches || [];
-                if ( action === 'remove' ) {
-                    const index = rules.findIndex((r: any) => r.hostname === rule.hostname && r.switch === rule.switch);
-                    if ( index > -1 ) {
-                        rules.splice(index, 1);
-                    }
-                } else {
-                    rules.push(rule);
+
+            if ( permanent ) {
+                if ( switchRuleset?.changed ) {
+                    await (globalThis as any).µb?.saveHostnameSwitches?.();
+                    switchRuleset.changed = false;
                 }
-                await chrome.storage.local.set({ permanentSwitches: rules });
-            }
-            if ( type === 'urlRuleset' && rule ) {
-                const stored = await chrome.storage.local.get('permanentURLFiltering');
-                const rules = stored?.permanentURLFiltering || [];
-                if ( action === 'remove' ) {
-                    const index = rules.findIndex((r: any) => r.urlPattern === rule.urlPattern);
-                    if ( index > -1 ) {
-                        rules.splice(index, 1);
-                    }
-                } else {
-                    rules.push(rule);
+                if ( firewallRuleset.changed ) {
+                    await (globalThis as any).µb?.savePermanentFirewallRules?.();
+                    firewallRuleset.changed = false;
                 }
-                await chrome.storage.local.set({ permanentURLFiltering: rules });
+                if ( urlRuleset?.changed ) {
+                    await (globalThis as any).µb?.savePermanentURLFilteringRules?.();
+                    urlRuleset.changed = false;
+                }
             }
-            return { success: true };
+
+            await syncFirewallDnrRules();
+            return getRulesSnapshot();
         }
         case 'supportUpdateNow': {
             try {
