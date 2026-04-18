@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Resurrected - a browser extension to block requests.
+    uBlock Origin - a browser extension to block requests.
     Copyright (C) 2021-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify

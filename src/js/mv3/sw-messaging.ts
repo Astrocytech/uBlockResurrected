@@ -122,9 +122,5 @@ export const broadcastFilteringBehaviorChangedToTabs = async (): Promise<void> =
 };
 
 export const withDisabledRuntimeOnConnect = async <T>(callback: () => Promise<T>): Promise<T> => {
-    const originalOnConnect = chrome.runtime.onConnect;
-    try {
-        callback();
-    } finally {
-    }
+    return await callback();
 };

@@ -109,13 +109,13 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
             const isSelected = selectedLists?.selectedFilterLists?.includes(userFiltersPath) || false;
             const isTrusted = popupState.trustedLists?.[userFiltersPath] === true;
             return {
-                userFilters: items.userFilters || '',
+                content: items.userFilters || '',
                 enabled: enabled?.userFiltersEnabled !== false ? isSelected : false,
                 trusted: isTrusted,
             };
         }
         case 'writeUserFilters': {
-            const userFilters = request.userFilters as string;
+            const userFilters = (request.content ?? request.userFilters) as string;
             const enabled = request.enabled as boolean;
             if ( typeof userFilters === 'string' ) {
                 const maxFilterSize = 10 * 1024 * 1024;
@@ -575,6 +575,9 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
         }
         case 'cfeDump':
             return { dump: getEngineState().cosmeticFilteringEngine ? 'Cosmetic filtering engine state not available' : 'No engine' };
+        case 'readyToFilter':
+            await ensurePopupState();
+            return true;
         case 'dashboardConfig':
             return {
                 defaultURL: '/dashboard.html',
@@ -605,6 +608,8 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
             }
             return {
                 dynamicRules: stored?.dynamicRules || [],
+                permanentRules: storedFirewall?.permanentFirewall || [],
+                sessionRules: storedSession?.sessionFirewall || [],
                 firewall: storedFirewall?.permanentFirewall || [],
                 switches: storedSwitches?.permanentSwitches || [],
                 urlFilters,

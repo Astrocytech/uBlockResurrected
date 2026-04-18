@@ -59,23 +59,70 @@ export const firewallRuleResourceTypes = (type: string) => {
     case "1p-script":
       return ["script"];
     case "3p-frame":
-      return ["sub_frame"];
+      return ["sub_frame", "object"];
     case "3p":
-      return ["image", "script", "sub_frame"];
-    case "*":
       return [
         "image",
         "script",
         "sub_frame",
+        "stylesheet",
         "xmlhttprequest",
         "media",
         "font",
         "object",
         "other",
+        "ping",
+        "websocket",
+      ];
+    case "*":
+      return [
+        "image",
+        "script",
+        "sub_frame",
+        "stylesheet",
+        "xmlhttprequest",
+        "media",
+        "font",
+        "object",
+        "other",
+        "ping",
+        "websocket",
       ];
     default:
       return [];
   }
+};
+
+const firewallRulePriority = (
+  src: string,
+  dest: string,
+  type: string,
+  actionName: string,
+) => {
+  let precedence = 1000;
+
+  if (dest !== "*" && type === "*") {
+    precedence = 7000;
+  } else if (type === "3p-script" || type === "1p-script" || type === "3p-frame") {
+    precedence = 5000;
+  } else if (type === "3p") {
+    precedence = 4000;
+  } else if (type === "image" || type === "inline-script") {
+    precedence = 3000;
+  }
+
+  if (src !== "*") {
+    precedence += 500;
+  }
+
+  if (dest !== "*") {
+    precedence += 250;
+  }
+
+  const actionRank =
+    actionName === "noop" ? 30 : actionName === "allow" ? 20 : 10;
+
+  return 2_000_000 + precedence * 10 + actionRank;
 };
 
 export const compileFirewallRulesToDnr = async (
@@ -98,10 +145,7 @@ export const compileFirewallRulesToDnr = async (
       }
       addRules.push({
         id: nextRuleId++,
-        priority:
-          2000000 +
-          (actionName === "allow" || actionName === "noop" ? 10000 : 0) +
-          (src !== "*" ? 1000 : 0),
+        priority: firewallRulePriority(src, dest, type, actionName),
         action: {
           type: "modifyHeaders",
           responseHeaders: [
@@ -141,10 +185,7 @@ export const compileFirewallRulesToDnr = async (
 
       addRules.push({
         id: nextRuleId++,
-        priority:
-          2000000 +
-          (actionName === "allow" || actionName === "noop" ? 10000 : 0) +
-          (src !== "*" ? 1000 : 0),
+        priority: firewallRulePriority(src, dest, type, actionName),
         action: {
           type:
             actionName === "allow" || actionName === "noop" ? "allow" : "block",

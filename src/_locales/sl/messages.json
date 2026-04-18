@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ignoriraj generične kozmetične filtre",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "<p>Generični vizualni filtri so vizualni filtri, ki naj bi bili uporabljeni na vseh spletnih straneh.<p>Kljub temu, da je njihova uporaba v uBlock₀ učinkovita, generični vizualni filtri lahko, na nekaterih spletnih straneh (še posebno na velikih in starih), pripomorejo k opazni dodatni porabi pomnilnika in uporabi CPE.<p>Omogočitev te funkcije bo zmanjšala porabo pomnilnika in uporabo CPE, ki nastane kot rezultat dodajanja generičnih vizualnih filtrov, in tudi zmanjšala porabo pomnilnika dodatka uBlock₀.<p>Priporočeno je, da omogočite to možnost na manj zmogljivih napravah.",
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "uBlock Resurrected wiki: Dnevnik omrežnih zahtev",
+    "message": "uBlock Origin wiki: Dnevnik omrežnih zahtev",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blokiran",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "Preberi dokumentacijo na <code>uBlock/wiki</code>, da izveš vse o funkcijah uBlock Resurrected.",
+    "message": "Preberi dokumentacijo na <code>uBlock/wiki</code>, da izveš vse o funkcijah uBlock Origin.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Prijavi težave z uBlock Resurrected na <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code>sledilnik težav</span>. <u>Potreben je GitHub račun.</u>",
+    "message": "Prijavi težave z uBlock Origin na <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code>sledilnik težav</span>. <u>Potreben je GitHub račun.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Detects uBlock Resurrected",
+    "message": "Detects uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Malfunctions when uBlock Resurrected is enabled",
+    "message": "Malfunctions when uBlock Origin is enabled",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Seznami filtrov",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Zunanje odvisnosti (GPLv3-kompatibilne):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBR's own filter lists are freely hosted on the following <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
+    "message": "uBO's own filter lists are freely hosted on the following <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

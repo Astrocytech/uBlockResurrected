@@ -41,6 +41,9 @@ npx esbuild popup-fenix.ts --bundle --format=iife --outfile=popup-fenix-bundle.j
 # Bundle epicker-ui.ts
 npx esbuild epicker-ui.ts --bundle --format=iife --outfile=epicker-ui-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
+# Bundle dom-inspector.ts for the web-accessible inspector page
+npx esbuild dom-inspector.ts --bundle --format=iife --outfile=dom-inspector.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
 # Bundle webext-flavor.ts
 npx esbuild webext-flavor.ts --bundle --format=iife --outfile=webext-flavor.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
@@ -53,6 +56,16 @@ npx esbuild i18n.ts --bundle --format=iife --outfile=i18n-bundle.js --target=chr
 # Bundle dashboard-common.ts
 echo "*** Bundling dashboard-common.ts"
 npx esbuild dashboard-common.ts --bundle --format=iife --outfile=dashboard-common-bundle.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
+# Bundle cloud-ui.js as a classic script so self.cloud is initialized before
+# the restored reference dashboard panes run their non-module bundles.
+echo "*** Bundling cloud-ui.js"
+npx esbuild cloud-ui.js --bundle --format=iife --outfile=cloud-ui.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+
+# Bundle CodeMirror helpers to the .js paths referenced by restored pages.
+mkdir -p codemirror
+npx esbuild codemirror/search.ts --bundle --format=iife --outfile=codemirror/search.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
+npx esbuild codemirror/search-thread.ts --bundle --format=iife --outfile=codemirror/search-thread.js --target=chrome120 --platform=browser --minify=false --allow-overwrite 2>&1 || true
 
 # Bundle dashboard.ts
 echo "*** Bundling dashboard.ts"
@@ -180,6 +193,53 @@ sed -i 's|<script src="js/popup-fenix.js" type="module"></script>|<script src="j
 sed -i 's|<script src="js/fa-icons.js" type="module"></script>||' $DES/popup-fenix.html
 sed -i 's|<script src="js/theme.js" type="module"></script>|<script src="js/theme-bundle.js"></script>|' $DES/popup-fenix.html
 sed -i 's|<script src="js/i18n.js" type="module"></script>|<script src="js/i18n-bundle.js"></script>|' $DES/popup-fenix.html
+
+# Update restored reference pages to use emitted MV3 bundles where this build
+# does not ship same-name module entrypoints.
+for html in \
+    1p-filters.html \
+    3p-filters.html \
+    about.html \
+    advanced-settings.html \
+    asset-viewer.html \
+    dashboard.html \
+    devtools.html \
+    document-blocked.html \
+    dyna-rules.html \
+    logger-ui.html \
+    settings.html \
+    support.html \
+    whitelist.html
+do
+    [ -f "$DES/$html" ] || continue
+    sed -i 's|<script src="js/fa-icons.js" type="module"></script>|<script src="js/fa-icons-bundle.js"></script>|' "$DES/$html"
+    sed -i 's|<script src="js/i18n.js" type="module"></script>|<script src="js/i18n-bundle.js"></script>|' "$DES/$html"
+    sed -i 's|<script src="js/dashboard-common.js" type="module"></script>|<script src="js/dashboard-common-bundle.js"></script>|' "$DES/$html"
+done
+
+sed -i 's|<script src="js/1p-filters.js" type="module"></script>|<script src="js/1p-filters-bundle.js"></script>|' $DES/1p-filters.html
+sed -i 's|<script src="js/3p-filters.js" type="module"></script>|<script src="js/3p-filters-bundle.js"></script>|' $DES/3p-filters.html
+sed -i 's|<script src="js/about.js" type="module"></script>|<script src="js/about-bundle.js"></script>|' $DES/about.html
+sed -i 's|<script src="js/advanced-settings.js" type="module"></script>|<script src="js/advanced-settings-bundle.js"></script>|' $DES/advanced-settings.html
+sed -i 's|<script src="js/asset-viewer.js" type="module"></script>|<script src="js/asset-viewer-bundle.js"></script>|' $DES/asset-viewer.html
+sed -i 's|<script src="js/dashboard.js" type="module"></script>|<script src="js/dashboard-bundle.js"></script>|' $DES/dashboard.html
+sed -i 's|<script src="js/devtools.js" type="module"></script>|<script src="js/devtools-bundle.js"></script>|' $DES/devtools.html
+sed -i 's|<script src="js/document-blocked.js" type="module"></script>|<script src="js/document-blocked-bundle.js"></script>|' $DES/document-blocked.html
+sed -i 's|<script src="js/dyna-rules.js" type="module"></script>|<script src="js/dyna-rules-bundle.js"></script>|' $DES/dyna-rules.html
+sed -i 's|<script src="js/logger-ui.js" type="module"></script>|<script src="js/logger-ui-bundle.js"></script>|' $DES/logger-ui.html
+sed -i 's|<script src="js/logger-ui-inspector.js" type="module"></script>|<script src="js/logger-ui-inspector-bundle.js"></script>|' $DES/logger-ui.html
+sed -i 's|<script src="js/cloud-ui.js" type="module"></script>|<script src="js/cloud-ui.js"></script>|' $DES/1p-filters.html
+sed -i 's|<script src="js/cloud-ui.js" type="module"></script>|<script src="js/cloud-ui.js"></script>|' $DES/3p-filters.html
+sed -i 's|<script src="js/cloud-ui.js" type="module"></script>|<script src="js/cloud-ui.js"></script>|' $DES/dyna-rules.html
+sed -i 's|<script src="js/cloud-ui.js" type="module"></script>|<script src="js/cloud-ui.js"></script>|' $DES/whitelist.html
+sed -i 's|<script src="js/settings.js" type="module"></script>|<script src="js/settings-bundle.js"></script>|' $DES/settings.html
+sed -i 's|<script src="js/support.js" type="module"></script>|<script src="js/support-bundle.js"></script>|' $DES/support.html
+sed -i 's|<script src="js/whitelist.js" type="module"></script>|<script src="js/whitelist-bundle.js"></script>|' $DES/whitelist.html
+
+# Update web-accessible resource entry pages to use emitted MV3 bundles
+sed -i 's|<script src="../js/i18n.js" type="module"></script>|<script src="../js/i18n-bundle.js"></script>|' $DES/web_accessible_resources/epicker-ui.html
+sed -i 's|<script src="../js/epicker-ui.js" type="module"></script>|<script src="../js/epicker-ui-bundle.js"></script>|' $DES/web_accessible_resources/epicker-ui.html
+sed -i 's|<script src="../js/dom-inspector.js" type="module"></script>|<script src="../js/dom-inspector.js"></script>|' $DES/web_accessible_resources/dom-inspector.html
 
 # Fix CSS variables for Chrome MV3 popup
 echo "*** uBlock0.chromium-mv3: Adding CSS fallback styles"

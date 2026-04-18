@@ -237,11 +237,11 @@ vAPI.browserSettings = (( ) => {
                 case 'webrtcIPAddress': {
                     // https://github.com/uBlockOrigin/uBlock-issues/issues/1928
                     // https://www.reddit.com/r/uBlockOrigin/comments/sl7p74/
-                    //   Hypothetical: some browsers _think_ uBR is still using
+                    //   Hypothetical: some browsers _think_ uBO is still using
                     //   the setting possibly based on cached state from the
-                    //   past, and making an explicit API call that uBR is not
+                    //   past, and making an explicit API call that uBO is not
                     //   using the setting appears to solve those unexpected
-                    //   reported occurrences of uBR interfering despite never
+                    //   reported occurrences of uBO interfering despite never
                     //   using the API.
                     const mustEnable = !details[setting];
                     if ( this.canLeakLocalIPAddresses === false ) {
@@ -328,33 +328,22 @@ vAPI.Tabs = class {
     }
 
     async executeScript(...args) {
-        console.log('[DEBUG vapi-background] executeScript - checking available APIs:');
-        
         let result;
         const scriptArgs = args[1] || {};
-        
-        // For code injection (not file injection), use tabs API in Firefox
-        // because Firefox MV3 scripting API doesn't support code strings
-        if (scriptArgs.code && typeof webext.tabs !== 'undefined' && typeof webext.tabs.executeScript === 'function') {
-            console.log('[DEBUG vapi-background] Using tabs API for code injection');
+
+        if ( scriptArgs.code && typeof webext.tabs?.executeScript === 'function' ) {
             try {
                 result = await webext.tabs.executeScript(...args);
-                console.log('[DEBUG vapi-background] tabs.executeScript result:', result);
-            } catch(e) {
-                console.error('[DEBUG vapi-background] tabs.executeScript error:', e);
+            } catch {
             }
             return Array.isArray(result) ? result : [];
         }
-        
-        // MV3 uses browser.scripting.executeScript for file injection only
+
         if ( typeof browser.scripting !== 'undefined' ) {
-            // Skip if no file is specified
-            if (!scriptArgs.file) {
-                console.log('[DEBUG vapi-background] No file specified, skipping scripting API');
+            if ( !scriptArgs.file ) {
                 return [];
             }
-            
-            console.log('[DEBUG vapi-background] Using scripting API (MV3)');
+
             try {
                 const target = {
                     tabId: args[0],
@@ -371,23 +360,15 @@ vAPI.Tabs = class {
                 if ( scriptArgs.runAt === 'document_start' ) {
                     execOptions.injectImmediately = true;
                 }
-                
-                console.log('[DEBUG vapi-background] scripting.executeScript options:', execOptions);
+
                 result = await browser.scripting.executeScript(execOptions);
-                console.log('[DEBUG vapi-background] scripting.executeScript result:', result);
-            } catch(e) {
-                console.error('[DEBUG vapi-background] scripting.executeScript error:', e);
+            } catch {
             }
-        } else if ( typeof webext.tabs !== 'undefined' && typeof webext.tabs.executeScript === 'function' ) {
-            console.log('[DEBUG vapi-background] Using webext tabs API (MV2)');
+        } else if ( typeof webext.tabs?.executeScript === 'function' ) {
             try {
                 result = await webext.tabs.executeScript(...args);
-                console.log('[DEBUG vapi-background] webext.tabs.executeScript result:', result);
-            } catch(e) {
-                console.error('[DEBUG vapi-background] webext.tabs.executeScript error:', e);
+            } catch {
             }
-        } else {
-            console.error('[DEBUG vapi-background] No executeScript API available');
         }
         return Array.isArray(result) ? result : [];
     }
@@ -412,7 +393,6 @@ vAPI.Tabs = class {
     }
 
     async insertCSS(tabId, details) {
-        console.log('[MV3-DEBUG insertCSS] tabId:', tabId, 'supportsUserStylesheets:', vAPI.supportsUserStylesheets, 'css length:', details.code ? details.code.length : 0);
         if ( typeof browser.scripting !== 'undefined' ) {
             const options = {
                 target: { tabId },
@@ -426,13 +406,10 @@ vAPI.Tabs = class {
             if ( vAPI.supportsUserStylesheets ) {
                 options.origin = 'USER';
             }
-            console.log('[MV3-DEBUG insertCSS] Using browser.scripting.insertCSS with options:', JSON.stringify({...options, css: options.css ? options.css.substring(0, 100) : null}));
             try {
                 await browser.scripting.insertCSS(options);
-                console.log('[MV3-DEBUG insertCSS] Success!');
                 return;
-            } catch (e) {
-                console.error('[MV3-DEBUG insertCSS] Error:', e);
+            } catch {
             }
         }
         if ( vAPI.supportsUserStylesheets ) {
@@ -880,24 +857,17 @@ if ( browserActionAPI !== undefined ) {
         return manifest.browser_action || manifest.action || {};
     };
     const titleTemplate = `${getManifestAction().default_title} ({badge})`;
-    const getToolbarIconPaths = function() {
-        const manifestAction = getManifestAction();
-        const defaultIcon = manifestAction.default_icon || {};
-        const fallback = {
-            '16': 'img/ublock16.png',
-            '32': 'img/ublock32.png',
-            '64': 'img/ublock64.png',
-        };
-        return {
-            '16': defaultIcon['16'] || fallback['16'],
-            '32': defaultIcon['32'] || fallback['32'],
-            '64': defaultIcon['64'] || fallback['64'],
-        };
-    };
-    const toolbarIcons = getToolbarIconPaths();
     const icons = [
-        { path: toolbarIcons },
-        { path: toolbarIcons },
+        { path: {
+            '16': 'img/icon_16-off.png',
+            '32': 'img/icon_32-off.png',
+            '64': 'img/icon_64-off.png',
+        } },
+        { path: {
+            '16': 'img/icon_16.png',
+            '32': 'img/icon_32.png',
+            '64': 'img/icon_64.png',
+        } },
     ];
 
     (( ) => {
@@ -1037,7 +1007,13 @@ if ( browserActionAPI !== undefined ) {
 
     vAPI.setDefaultIcon = function(flavor, text) {
         if ( browserAction.setIcon === undefined ) { return; }
-        browserAction.setIcon({ path: toolbarIcons });
+        browserAction.setIcon({
+            path: {
+                '16': `img/icon_16${flavor}.png`,
+                '32': `img/icon_32${flavor}.png`,
+                '64': `img/icon_64${flavor}.png`,
+            }
+        });
         browserAction.setBadgeText({ text });
         browserAction.setBadgeBackgroundColor({
             color: text === '!' ? '#FC0' : '#666'
@@ -1061,7 +1037,7 @@ if ( browserActionOnClicked instanceof Object ) {
 /******************************************************************************/
 
 // https://github.com/uBlockOrigin/uBlock-issues/issues/710
-//   uBR uses only ports to communicate with its auxiliary pages and
+//   uBO uses only ports to communicate with its auxiliary pages and
 //   content scripts. Whether a message can trigger a privileged operation is
 //   decided based on whether the port from which a message is received is
 //   privileged, which is a status evaluated once, at port connection time.
@@ -1098,7 +1074,7 @@ vAPI.messaging = {
         port.onDisconnect.addListener(port =>
             this.onPortDisconnect(port)
         );
-        port.onMessage.addListener((request, port) =>
+        port.onMessage.addListener(request =>
             this.onPortMessage(request, port)
         );
         const portDetails = { port };
@@ -1161,14 +1137,7 @@ vAPI.messaging = {
             break;
         }
         case 'userCSS': {
-            console.log('[MV3-DEBUG userCSS handler] tabId:', tabId, 'portDetails:', JSON.stringify({tabId: portDetails.tabId, frameId: portDetails.frameId, privileged: portDetails.privileged}), 'msg.add count:', msg.add ? msg.add.length : 0, 'msg.remove count:', msg.remove ? msg.remove.length : 0);
-            if ( msg.add && msg.add.length > 0 ) {
-                console.log('[MV3-DEBUG userCSS] First CSS sample:', msg.add[0].substring(0, 200));
-            }
-            if ( tabId === undefined ) { 
-                console.log('[MV3-DEBUG userCSS] tabId is undefined, breaking');
-                break; 
-            }
+            if ( tabId === undefined ) { break; }
             const promises = [];
             if ( msg.add ) {
                 const details = {
@@ -1179,7 +1148,6 @@ vAPI.messaging = {
                 };
                 for ( const cssText of msg.add ) {
                     details.code = cssText;
-                    console.log('[MV3-DEBUG userCSS] Calling insertCSS for:', cssText.substring(0, 100));
                     promises.push(vAPI.tabs.insertCSS(tabId, details));
                 }
             }
@@ -1191,12 +1159,10 @@ vAPI.messaging = {
                 };
                 for ( const cssText of msg.remove ) {
                     details.code = cssText;
-                    console.log('[MV3-DEBUG userCSS] Calling removeCSS for:', cssText.substring(0, 100));
                     promises.push(vAPI.tabs.removeCSS(tabId, details));
                 }
             }
             Promise.all(promises).then(( ) => {
-                console.log('[MV3-DEBUG userCSS] All CSS operations completed');
                 callback();
             });
             break;
@@ -1293,10 +1259,10 @@ vAPI.messaging = {
 
 // https://github.com/gorhill/uBlock/issues/3474
 // https://github.com/gorhill/uBlock/issues/2823
-//   Foil ability of web pages to identify uBR through
+//   Foil ability of web pages to identify uBO through
 //   its web accessible resources.
 // https://github.com/gorhill/uBlock/issues/3497
-//   Prevent web pages from interfering with uBR's element picker
+//   Prevent web pages from interfering with uBO's element picker
 // https://github.com/uBlockOrigin/uBlock-issues/issues/550
 //   Support using a new secret for every network request.
 
@@ -1306,7 +1272,7 @@ vAPI.messaging = {
     const shortSecrets = [];
     let lastShortSecretTime = 0;
 
-    // Long secrets are valid until revoked or uBR restarts. The realm is one
+    // Long secrets are valid until revoked or uBO restarts. The realm is one
     // value out of 36^18 = over 10^28 values.
     const longSecrets = new Set();
 
@@ -1546,7 +1512,7 @@ vAPI.Net = class {
 // To be defined by platform-specific code.
 
 vAPI.scriptletsInjector = (( ) => {
-    self.uBR_scriptletsInjected = '';
+    self.uBO_scriptletsInjected = '';
 }).toString();
 
 /******************************************************************************/

@@ -79,12 +79,8 @@ export default (function() {
 	 * @returns {Array} A new string of characters returned by the callback
 	 * function.
 	 */
-function mapDomain(string, fn) {
-       // Handle null or undefined input
-       if (string === null || string === undefined) {
-           return "";
-       }
-       var parts = string.split('@');
+	function mapDomain(string, fn) {
+		var parts = string.split('@');
 		var result = '';
 		if (parts.length > 1) {
 			// In email addresses, only the domain name should be punycoded. Leave
@@ -439,12 +435,8 @@ function mapDomain(string, fn) {
 	 * @returns {String} The Unicode representation of the given Punycode
 	 * string.
 	 */
-function toUnicode(input) {
-       // Handle null or undefined input
-       if (input === null || input === undefined) {
-           return "";
-       }
-       return mapDomain(input, function(string) {
+	function toUnicode(input) {
+		return mapDomain(input, function(string) {
 			return regexPunycode.test(string)
 				? decode(string.slice(4).toLowerCase())
 				: string;
@@ -462,12 +454,8 @@ function toUnicode(input) {
 	 * @returns {String} The Punycode representation of the given domain name or
 	 * email address.
 	 */
-function toASCII(input) {
-       // Handle null or undefined input
-       if (input === null || input === undefined) {
-           return "";
-       }
-       return mapDomain(input, function(string) {
+	function toASCII(input) {
+		return mapDomain(input, function(string) {
 			return regexNonASCII.test(string)
 				? 'xn--' + encode(string)
 				: string;

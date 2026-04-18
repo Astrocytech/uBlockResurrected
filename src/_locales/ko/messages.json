@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "범용 요소 숨김 필터 무시",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "범용 요소 숨김 필터는 모든 웹사이트에 공통적으로 적용되는 필터입니다. 이 옵션을 활성화하면 범용 요소 숨김 필터링을 처리하는 과정에서 발생하는 웹 페이지의 메모리 및 CPU 부하를 제거할 수 있습니다.\n\n사양이 낮은 기기에서는 이 옵션을 활성화하는 것을 권장합니다.",
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "uBlock Resurrected 위키: 로거",
+    "message": "uBlock Origin 위키: 로거",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "차단됨",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "<code>uBlock/wiki</code>의 문서를 읽고 uBlock Resurrected의 모든 기능에 대해 알아보세요.",
+    "message": "<code>uBlock/wiki</code>의 문서를 읽고 uBlock Origin의 모든 기능에 대해 알아보세요.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>중요:</b> uBlock Resurrected과 유사한 목적의 다른 차단기를 함께 사용하지 마세요. 일부 웹사이트에서 필터 문제가 발생할 수 있습니다.",
+    "message": "<b>중요:</b> uBlock Origin과 유사한 목적의 다른 차단기를 함께 사용하지 마세요. 일부 웹사이트에서 필터 문제가 발생할 수 있습니다.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "uBlock Resurrected 자체에 대한 이슈는 <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> 이슈 트래커</span>에 보고해주세요. GitHub 계정이 필요합니다.",
+    "message": "uBlock Origin 자체에 대한 이슈는 <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> 이슈 트래커</span>에 보고해주세요. GitHub 계정이 필요합니다.",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "uBlock Resurrected 사용을 감지합니다",
+    "message": "uBlock Origin 사용을 감지합니다",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "uBlock Resurrected을 켜면 깨집니다",
+    "message": "uBlock Origin을 켜면 깨집니다",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "필터 목록",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "외부 종속성 (GPLv3 호환):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "아래 <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>에서 uBR의 필터 목록을 무료로 호스팅해 줍니다:",
+    "message": "아래 <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>에서 uBO의 필터 목록을 무료로 호스팅해 줍니다:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Resurrected이 다음 페이지를 로드하는것을 방지했습니다:",
+    "message": "uBlock Origin이 다음 페이지를 로드하는것을 방지했습니다:",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

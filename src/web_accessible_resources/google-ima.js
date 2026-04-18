@@ -6,7 +6,7 @@
  * Modifications to the original code below this comment:
  * - Avoid JS syntax not supported by older browser versions
  * - Add missing shim event
- * - Modified to avoid jshint warnings as per uBR's config
+ * - Modified to avoid jshint warnings as per uBO's config
  * - Added `OmidVerificationVendor` to `ima`
  * - Have `AdError.getInnerError()` return `null`
  * - Have `AdDisplayContainer` constructor add DIV element to container

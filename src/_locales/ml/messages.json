@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "ജനറിക് കോസ്മെറ്റിക് ഫിൽട്ടറുകൾ അവഗണിക്കുക",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "എല്ലാ വെബ് സൈറ്റുകളിലും പ്രയോഗിക്കാൻ ഉദ്ദേശിക്കുന്ന കോസ്മെറ്റിക് ഫിൽട്ടറുകളാണ് ജനറിക് കോസ്മെറ്റിക് ഫിൽട്ടറുകൾ. ഈ ഓപ്ഷൻ പ്രവർത്തനക്ഷമമാക്കുന്നത് ജനറിക് കോസ്മെറ്റിക് ഫിൽട്ടറുകൾ കൈകാര്യം ചെയ്യുന്നതിന്റെ ഫലമായി വെബ് പേജുകളിൽ ചേർത്ത മെമ്മറിയും സിപിയു ഓവർഹെഡും ഇല്ലാതാക്കും.\n\nശക്തി കുറഞ്ഞ ഉപകരണങ്ങളിൽ ഈ ഓപ്‌ഷൻ പ്രവർത്തനക്ഷമമാക്കാൻ ശുപാർശ ചെയ്യുന്നു.",
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "തടഞ്ഞു",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "Read the documentation at <code>uBlock/wiki</code> to learn about all of uBlock Resurrected's features.",
+    "message": "Read the documentation at <code>uBlock/wiki</code> to learn about all of uBlock Origin's features.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>Important:</b> Avoid using other similarly-purposed blockers along with uBlock Resurrected, as this may cause filter issues on specific websites.",
+    "message": "<b>Important:</b> Avoid using other similarly-purposed blockers along with uBlock Origin, as this may cause filter issues on specific websites.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Report issues with uBlock Resurrected itself to the <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> issue tracker</span>. <u>Requires a GitHub account.</u>",
+    "message": "Report issues with uBlock Origin itself to the <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> issue tracker</span>. <u>Requires a GitHub account.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Detects uBlock Resurrected",
+    "message": "Detects uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Malfunctions when uBlock Resurrected is enabled",
+    "message": "Malfunctions when uBlock Origin is enabled",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "ലിസ്റ്റുകൾ ഫിൽട്ടർ ചെയ്യുക",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "ബാഹ്യ ഡിപൻഡൻസികൾ (GPLv3- അനുയോജ്യമാണ്):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBR- യുടെ സ്വന്തം ഫിൽട്ടർ ലിസ്റ്റുകൾ ഇനിപ്പറയുന്നവയിൽ സ്വതന്ത്രമായി ഹോസ്റ്റുചെയ്യുന്നു <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
+    "message": "uBO- യുടെ സ്വന്തം ഫിൽട്ടർ ലിസ്റ്റുകൾ ഇനിപ്പറയുന്നവയിൽ സ്വതന്ത്രമായി ഹോസ്റ്റുചെയ്യുന്നു <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

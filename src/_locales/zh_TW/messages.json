@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -328,7 +328,7 @@
     "description": "A checkbox in the Settings pane"
   },
   "settingsContextMenuPrompt": {
-    "message": "將 uBlock Resurrected 加入右鍵選單",
+    "message": "將 uBlock Origin 加入右鍵選單",
     "description": "English: Make use of context menu where appropriate"
   },
   "settingsColorBlindPrompt": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "忽略一般元素隱藏過濾規則",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "「通用網頁元素過濾規則」是會套用在所有網站上的網頁元素過濾規則。啟用此選項會消除網頁處理此類規則時增加的額外記憶體與 CPU 使用量。\n\n建議在效能較弱的裝置上啟用此選項。",
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "信任名單中的規則適用的頁面不會被 uBlock Resurrected 過濾或阻擋。每行一個規則。",
+    "message": "信任名單中的規則適用的頁面不會被 uBlock Origin 過濾或阻擋。每行一個規則。",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "uBlock Resurrected wiki：記錄器",
+    "message": "uBlock Origin wiki：記錄器",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "已套用規則",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "已封鎖",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "欲了解 uBlock Resurrected 所有的功能，請詳閱 <code>uBlock/wiki</code> 中的文件。",
+    "message": "欲了解 uBlock Origin 所有的功能，請詳閱 <code>uBlock/wiki</code> 中的文件。",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>特別注意：</b>不要把其他同性質的阻擋工具跟 uBlock Resurrected 混用，否則可能會在特定網站造成過濾問題。",
+    "message": "<b>特別注意：</b>不要把其他同性質的阻擋工具跟 uBlock Origin 混用，否則可能會在特定網站造成過濾問題。",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "請到 <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> 議題追蹤系統</span>回報 uBlock Resurrected 本身的問題。需要 GitHub 帳號。",
+    "message": "請到 <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> 議題追蹤系統</span>回報 uBlock Origin 本身的問題。需要 GitHub 帳號。",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "偵測到 uBlock Resurrected",
+    "message": "偵測到 uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "開啟 uBlock Resurrected 的時候運作不正常",
+    "message": "開啟 uBlock Origin 的時候運作不正常",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "過濾規則清單",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "外部相依套件（與 GPLv3 相容）：",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBR 自家的過濾規則清單由下列 <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> 免費代管：",
+    "message": "uBO 自家的過濾規則清單由下列 <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a> 免費代管：",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Resurrected 已防止下列頁面載入：",
+    "message": "uBlock Origin 已防止下列頁面載入：",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

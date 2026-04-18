@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ігнорувати загальні косметичні фільтри",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Загальні косметичні фільтри — це ті косметичні фільтри, які призначені для застосування на всіх вебсайтах. Увімкнення цієї опції усуне навантаження на пам'ять і процесор, що додається до вебсторінок у результаті обробки загальних косметичних фільтрів.\n\nРадимо вмикати цю опцію на менш потужних пристроях.",
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "uBlock Resurrected wiki: журнал",
+    "message": "uBlock Origin wiki: журнал",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "насичений",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "заблокований",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "Прочитайте документацію на <code>uBlock/вікі</code>, щоб дізнатися про всі функції uBlock Resurrected.",
+    "message": "Прочитайте документацію на <code>uBlock/вікі</code>, щоб дізнатися про всі функції uBlock Origin.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>Важливо:</b> Уникайте використання інших блокувальників аналогічного призначення разом із uBlock Resurrected, оскільки це може спричинити проблеми з фільтрами на певних вебсайтах.",
+    "message": "<b>Важливо:</b> Уникайте використання інших блокувальників аналогічного призначення разом із uBlock Origin, оскільки це може спричинити проблеми з фільтрами на певних вебсайтах.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Повідомити про проблеми самого uBlock Resurrected <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\">відстежувач проблем <code>uBlockOrigin/uBlock-issue</code>. <u>Потрібен обліковий запис GitHub.</u>",
+    "message": "Повідомити про проблеми самого uBlock Origin <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\">відстежувач проблем <code>uBlockOrigin/uBlock-issue</code>. <u>Потрібен обліковий запис GitHub.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Виявляє uBlock Resurrected",
+    "message": "Виявляє uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Щось не працює, якщо увімкнено uBlock Resurrected",
+    "message": "Щось не працює, якщо увімкнено uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Списки фільтрів",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Зовнішні залежності (сумісні з GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Списки власних фільтрів uBR вільно розміщуються на таких <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>:",
+    "message": "Списки власних фільтрів uBO вільно розміщуються на таких <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {

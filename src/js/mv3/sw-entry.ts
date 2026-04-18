@@ -10,8 +10,7 @@
 ******************************************************************************/
 
 import "./sw-runtime-shim.js";
-import "../start.ts";
-import legacyBackground from "../background.js";
+const legacyBackground: any = undefined;
 
 import {
   createCounts,
@@ -532,11 +531,7 @@ const handlePopupPanelMessage = (request: PopupRequest) => {
 
   // Handle launchReporter - open support page
   if (request.what === "launchReporter") {
-    chrome.tabs.create({
-      url: "https://github.com/gorhill/uBlock/issues",
-      active: true,
-    });
-    return { success: true };
+    return handleDashboardMessage(request);
   }
 
   return createMessageHandlers({
@@ -651,6 +646,34 @@ const handleLoggerUIMessage = async (request: PopupRequest) => {
   }
 };
 
+// Requests in this set already have MV3-safe implementations in the modular
+// dashboard handler. Route them there first so the giant legacy fallback block
+// in sw-entry.ts does not reintroduce stale MV2-era behavior.
+const defaultDashboardRoutedRequests = new Set([
+  "gotoURL",
+  "reloadTab",
+  "dismissUnprocessedRequest",
+  "launchReporter",
+  "launchElementPicker",
+  "scriptlet",
+  "getTrustedScriptletTokens",
+  "listsFromNetFilter",
+  "listsFromCosmeticFilter",
+  "getSupportData",
+  "loggerDisabled",
+  "readAll",
+  "toggleInMemoryFilter",
+  "hasInMemoryFilter",
+  "releaseView",
+  "snfeBenchmark",
+  "cfeBenchmark",
+  "sfeBenchmark",
+  "snfeToDNR",
+  "snfeDump",
+  "snfeQuery",
+  "cfeDump",
+]);
+
 const Messaging = createMessagingRouter({
   getLegacyMessaging,
   handlePopupPanelMessage,
@@ -683,6 +706,8 @@ const setWhitelist = async (payload: { whitelist: string }) => {
   await ensurePopupState();
   popupState.whitelist = whitelist;
   await chrome.storage.local.set({ whitelist: whitelist.join("\n") });
+  await syncWhitelistDnrRules();
+  broadcastFilteringBehaviorChanged();
   return { success: true };
 };
 
@@ -971,67 +996,8 @@ Messaging.on("retrieveGenericCosmeticSelectors", async (payload, callback) => {
 
 // Use getTabId from sw-messaging-handlers module
 
-// Use userSettings, setUserSettings, dashboardGetRules from sw-messaging-handlers module
-
-Messaging.on("dashboardModifyRuleset", async (payload, callback) => {
-  const details = await modifyDashboardRulesetFromModule(
-    payload || {},
-    popupState,
-    ensurePopupState,
-    persistPermanentFirewall,
-    syncFirewallDnrRules,
-  );
-  if (callback) {
-    callback(details);
-  }
-  return details;
-});
-
-Messaging.on("dashboardResetRules", async (_, callback) => {
-  const details = await resetDashboardRulesFromModule(
-    popupState,
-    ensurePopupState,
-    syncFirewallDnrRules,
-  );
-  if (callback) {
-    callback(details);
-  }
-  return details;
-});
-
-Messaging.on("getWhitelist", async (_, callback) => {
-  await ensurePopupState();
-  const response = {
-    whitelist: popupState.whitelist || [],
-    whitelistDefault: userSettingsDefault.netWhitelistDefault || [],
-    reBadHostname: reWhitelistBadHostname.source,
-    reHostnameExtractor: reWhitelistHostnameExtractor.source,
-  };
-  if (callback) {
-    callback(response);
-  }
-  return response;
-});
-
-Messaging.on("setWhitelist", async (payload, callback) => {
-  const whitelist =
-    typeof payload?.whitelist === "string"
-      ? payload.whitelist.split("\n").filter(Boolean)
-      : [];
-  await ensurePopupState();
-  popupState.whitelist = whitelist;
-  const storage = chrome.storage.local;
-  await storage.set({ whitelist: whitelist.join("\n") });
-  await syncWhitelistDnrRules();
-
-  // Notify about filtering behavior change
-  broadcastFilteringBehaviorChanged();
-
-  if (callback) {
-    callback({ success: true });
-  }
-  return { success: true };
-});
+// Use userSettings, setUserSettings, dashboardGetRules, dashboardModifyRuleset,
+// dashboardResetRules, getWhitelist, setWhitelist from sw-messaging-handlers.
 
 Messaging.on("documentBlocked", async (request, callback) => {
   if (request.what === "closeThisTab") {
@@ -1151,41 +1117,12 @@ Messaging.on("scriptlets", async (request, callback) => {
 Messaging.on("default", async (request, callback) => {
   const what = request.what || request?.details?.what;
 
-  if (what === "gotoURL") {
-    const details = request.details || request;
-    const url = details.url as string;
-    const tabId = details.tabId as number;
-    const newTab = details.newTab as boolean;
-
-    if (newTab) {
-      const created = await chrome.tabs.create({ url, active: true });
-      if (callback) {
-        callback({ tabId: created.id });
-      }
-      return { tabId: created.id };
-    } else if (typeof tabId === "number") {
-      await chrome.tabs.update(tabId, { url, active: true });
-      if (callback) {
-        callback({ tabId });
-      }
-      return { tabId };
-    } else {
-      const tabs = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (tabs[0]?.id) {
-        await chrome.tabs.update(tabs[0].id, { url, active: true });
-        if (callback) {
-          callback({ tabId: tabs[0].id });
-        }
-        return { tabId: tabs[0].id };
-      }
-    }
+  if (typeof what === "string" && defaultDashboardRoutedRequests.has(what)) {
+    const delegated = await handleDashboardMessage({ ...request, what });
     if (callback) {
-      callback({ success: false });
+      callback(delegated);
     }
-    return { success: false };
+    return delegated;
   }
 
   if (what === "assetViewerRead") {
@@ -1202,58 +1139,6 @@ Messaging.on("default", async (request, callback) => {
       callback({ success: true });
     }
     return { success: true };
-  }
-  if (request.what === "gotoURL") {
-    const details = request.details || request;
-    const url = details.url as string;
-    const tabId = details.tabId as number;
-    const newTab = details.newTab as boolean;
-
-    if (newTab) {
-      const created = await chrome.tabs.create({ url, active: true });
-      if (callback) {
-        callback({ tabId: created.id });
-      }
-      return { tabId: created.id };
-    } else if (typeof tabId === "number") {
-      await chrome.tabs.update(tabId, { url, active: true });
-      if (callback) {
-        callback({ tabId });
-      }
-      return { tabId };
-    } else {
-      const tabs = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (tabs[0]?.id) {
-        await chrome.tabs.update(tabs[0].id, { url, active: true });
-        if (callback) {
-          callback({ tabId: tabs[0].id });
-        }
-        return { tabId: tabs[0].id };
-      }
-    }
-    if (callback) {
-      callback({ success: false });
-    }
-    return { success: false };
-  }
-  if (request.what === "reloadTab") {
-    const tabId = request.tabId as number;
-    const bypassCache = request.bypassCache as boolean;
-
-    if (typeof tabId === "number") {
-      await chrome.tabs.reload(tabId, { bypassCache: !!bypassCache });
-      if (callback) {
-        callback({ success: true });
-      }
-      return { success: true };
-    }
-    if (callback) {
-      callback({ success: false });
-    }
-    return { success: false };
   }
   if (request.what === "getHiddenElementCount") {
     const tabId = request.tabId as number;
@@ -1301,19 +1186,6 @@ Messaging.on("default", async (request, callback) => {
     }
     return { count: 0 };
   }
-  if (request.what === "launchReporter") {
-    const url = request.url as string;
-    if (url) {
-      const reporterUrl = chrome.runtime.getURL(
-        `reporter.html?url=${encodeURIComponent(url)}`,
-      );
-      await chrome.tabs.create({ url: reporterUrl, active: true });
-    }
-    if (callback) {
-      callback({ success: true });
-    }
-    return { success: true };
-  }
   if (request.what === "readyToFilter") {
     const tabId = request.tabId as number;
     const url = request.url as string;
@@ -1356,73 +1228,8 @@ Messaging.on("default", async (request, callback) => {
     }
     return { success: true };
   }
-  if (request.what === "loggerDisabled") {
-    const tabId = request.tabId as number;
-    const hostname = request.hostname as string;
-
-    // Clear in-memory filters when logger is disabled
-    popupState.inMemoryFilter = "";
-    await chrome.storage.local.set({ inMemoryFilter: "" });
-
-    if (typeof tabId === "number" && hostname) {
-      try {
-        await chrome.tabs.sendMessage(tabId, { what: "clickToLoad", hostname });
-      } catch (e) {
-        // Ignore errors
-      }
-    }
-    if (callback) {
-      callback({ success: true });
-    }
-    return { success: true };
-  }
-  if (request.what === "dismissUnprocessedRequest") {
-    const tabId = request.tabId as number;
-    if (typeof tabId === "number") {
-      try {
-        await chrome.tabs.sendMessage(tabId, {
-          what: "dismissUnprocessedRequest",
-        });
-      } catch (e) {
-        // Ignore errors
-      }
-    }
-    if (callback) {
-      callback({ success: true });
-    }
-    return { success: true };
-  }
   if (request.what === "updateLists") {
     await reloadAllFilterLists(popupState, ensurePopupState);
-    if (callback) {
-      callback({ success: true });
-    }
-    return { success: true };
-  }
-  if (request.what === "scriptlet") {
-    const tabId = request.tabId as number;
-    const scriptletSrc = request.scriptletSrc as string;
-    const scriptlet = request.scriptlet as string;
-
-    let scriptletFile = scriptletSrc;
-
-    // If using scriptlet name (like reference), construct path
-    if (!scriptletFile && scriptlet) {
-      scriptletFile = `/js/scriptlets/${scriptlet}.js`;
-    }
-
-    if (typeof tabId === "number" && scriptletFile) {
-      try {
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: [scriptletFile],
-          injectImmediately: false,
-          runAt: "document_end",
-        });
-      } catch (e) {
-        /* ignore */
-      }
-    }
     if (callback) {
       callback({ success: true });
     }
@@ -1445,430 +1252,6 @@ Messaging.on("default", async (request, callback) => {
       callback({ success: true });
     }
     return { success: true };
-  }
-  if (request.what === "getTrustedScriptletTokens") {
-    const result: string[] = [];
-    // Get tokens from redirect engine if available
-    try {
-      const redirectEngine =
-        (globalThis as any).vAPI?.redirectEngine ||
-        (globalThis as any).redirectEngine;
-      if (redirectEngine?.tokens) {
-        result.push(...redirectEngine.tokens);
-      }
-    } catch (e) {
-      // Return empty array if not available
-    }
-    if (callback) {
-      callback(result);
-    }
-    return result;
-  }
-  if (request.what === "listsFromNetFilter") {
-    const rawFilter = request.rawFilter as string;
-    if (rawFilter) {
-      const results = await findFilterListFromNetFilter(rawFilter);
-      if (callback) {
-        callback(results);
-      }
-      return results;
-    }
-    if (callback) {
-      callback({});
-    }
-    return {};
-  }
-  if (request.what === "listsFromCosmeticFilter") {
-    const rawFilter = request.rawFilter as string;
-    if (rawFilter) {
-      const results = await findFilterListFromCosmeticFilter(rawFilter);
-      if (callback) {
-        callback(results);
-      }
-      return results;
-    }
-    if (callback) {
-      callback({});
-    }
-    return {};
-  }
-  if (request.what === "getSupportData") {
-    const items = await chrome.storage.local.get([
-      "userSettings",
-      "filterLists",
-      "selectedFilterLists",
-      "hiddenSettings",
-      "whitelist",
-      "dynamicRules",
-      "permanentFirewall",
-      "permanentSwitches",
-      "perSiteFiltering",
-      "cloudData",
-      "userFilters",
-    ]);
-    const manifest = chrome.runtime.getManifest();
-
-    // Calculate filter counts from lists
-    let netFilterCount = 0;
-    let cosmeticFilterCount = 0;
-    let scriptletFilterCount = 0;
-
-    if (items.filterLists) {
-      for (const [key, list] of Object.entries(
-        items.filterLists as Record<string, any>,
-      )) {
-        if (list?.content) {
-          const lines = list.content.split("\n");
-          const netFilters = lines.filter(
-            (l) =>
-              !l.startsWith("!") &&
-              !l.startsWith("#") &&
-              l.trim() &&
-              !l.includes("##") &&
-              !l.includes("#@#"),
-          );
-          const cosmeticFilters = lines.filter(
-            (l) =>
-              !l.startsWith("!") &&
-              (l.includes("##") ||
-                l.includes("#@#") ||
-                l.includes("#?") ||
-                l.includes("##@")),
-          );
-          const scriptletFilters = lines.filter(
-            (l) => !l.startsWith("!") && l.includes("+js("),
-          );
-          netFilterCount += netFilters.length;
-          cosmeticFilterCount += cosmeticFilters.length;
-          scriptletFilterCount += scriptletFilters.length;
-        }
-      }
-    }
-
-    // Add user filters count
-    if (items.userFilters) {
-      const userLines = items.userFilters.split("\n");
-      netFilterCount += userLines.filter(
-        (l) => !l.startsWith("!") && l.trim() && !l.includes("##"),
-      ).length;
-      cosmeticFilterCount += userLines.filter(
-        (l) => !l.startsWith("!") && l.includes("##"),
-      ).length;
-    }
-
-    // Try to get counts from filtering engines
-    let engineNetFilterCount = 0;
-    let engineCosmeticFilterCount = 0;
-    try {
-      const staticNetFilteringEngine =
-        (globalThis as any).vAPI?.staticNetFilteringEngine ||
-        (globalThis as any).staticNetFilteringEngine;
-      if (staticNetFilteringEngine?.acceptedCount) {
-        engineNetFilterCount = staticNetFilteringEngine.acceptedCount;
-      }
-    } catch (e) {}
-
-    try {
-      const cosmeticFilteringEngine =
-        (globalThis as any).vAPI?.cosmeticFilteringEngine ||
-        (globalThis as any).cosmeticFilteringEngine;
-      if (cosmeticFilteringEngine?.acceptedCount) {
-        engineCosmeticFilterCount = cosmeticFilteringEngine.acceptedCount;
-      }
-    } catch (e) {}
-
-    // Use engine counts if available
-    if (engineNetFilterCount > 0) netFilterCount = engineNetFilterCount;
-    if (engineCosmeticFilterCount > 0)
-      cosmeticFilterCount = engineCosmeticFilterCount;
-
-    const supportData = {
-      userSettings: items.userSettings || {},
-      filterLists: items.filterLists || {},
-      selectedFilterLists: items.selectedFilterLists || [],
-      hiddenSettings: items.hiddenSettings || {},
-      netWhitelist: items.whitelist || "",
-      dynamicRules: items.dynamicRules || [],
-      permanentFirewallRules: items.permanentFirewall || [],
-      permanentHostnameSwitches: items.permanentSwitches || [],
-      perSiteFiltering: items.perSiteFiltering || {},
-      version: manifest?.version || "1.0.0",
-      platform: "chrome",
-      netFilterCount,
-      cosmeticFilterCount,
-      scriptletFilterCount,
-      htmlFilterCount: 0,
-      cloudStorageUsed: items.cloudData
-        ? JSON.stringify(items.cloudData).length
-        : 0,
-      storageUsed: await chrome.storage.local.getBytesInUse(),
-    };
-    if (callback) {
-      callback(supportData);
-    }
-    return supportData;
-  }
-  if (request.what === "snfeBenchmark") {
-    const result = { duration: 0, count: 0 };
-    try {
-      const staticNetFilteringEngine =
-        (globalThis as any).vAPI?.staticNetFilteringEngine ||
-        (globalThis as any).staticNetFilteringEngine;
-      if (staticNetFilteringEngine) {
-        const startTime = Date.now();
-        const filters = staticNetFilteringEngine.filterParser?.filters;
-        const count = filters ? filters.size || 0 : 0;
-
-        // Run simple benchmark - count filters
-        for (let i = 0; i < 1000; i++) {
-          staticNetFilteringEngine.matchRequest?.("http://example.com/test");
-        }
-
-        result.duration = Date.now() - startTime;
-        result.count = count;
-      }
-    } catch (e) {
-      /* ignore */
-    }
-    if (callback) {
-      callback(result);
-    }
-    return result;
-  }
-  if (request.what === "cfeBenchmark") {
-    const result = { duration: 0, count: 0 };
-    try {
-      const cosmeticFilteringEngine =
-        (globalThis as any).vAPI?.cosmeticFilteringEngine ||
-        (globalThis as any).cosmeticFilteringEngine;
-      if (cosmeticFilteringEngine) {
-        const startTime = Date.now();
-        const count = cosmeticFilteringEngine.specificFilters?.size || 0;
-
-        // Run simple benchmark
-        for (let i = 0; i < 1000; i++) {
-          cosmeticFilteringEngine.retrieveSpecificSelectors?.({
-            hostname: "example.com",
-          });
-        }
-
-        result.duration = Date.now() - startTime;
-        result.count = count;
-      }
-    } catch (e) {
-      /* ignore */
-    }
-    if (callback) {
-      callback(result);
-    }
-    return result;
-  }
-  if (request.what === "sfeBenchmark") {
-    const result = { duration: 0, count: 0 };
-    try {
-      const staticNetFilteringEngine =
-        (globalThis as any).vAPI?.staticNetFilteringEngine ||
-        (globalThis as any).staticNetFilteringEngine;
-      if (staticNetFilteringEngine) {
-        const startTime = Date.now();
-        const count = staticNetFilteringEngine.acceptedCount || 0;
-
-        result.duration = Date.now() - startTime;
-        result.count = count;
-      }
-    } catch (e) {
-      /* ignore */
-    }
-    if (callback) {
-      callback(result);
-    }
-    return result;
-  }
-  if (request.what === "snfeToDNR") {
-    const result = { rules: [], errors: [] };
-    try {
-      const staticNetFilteringEngine =
-        (globalThis as any).vAPI?.staticNetFilteringEngine ||
-        (globalThis as any).staticNetFilteringEngine;
-      const stored = await chrome.storage.local.get("userFilters");
-      const filterLists = await chrome.storage.local.get("filterLists");
-      const selectedLists = await chrome.storage.local.get(
-        "selectedFilterLists",
-      );
-
-      const allFilters: string[] = [];
-
-      // Get user filters
-      if (stored?.userFilters) {
-        allFilters.push(
-          ...stored.userFilters
-            .split("\n")
-            .filter((l) => l.trim() && !l.startsWith("!")),
-        );
-      }
-
-      // Get selected filter list content
-      if (selectedLists?.selectedFilterLists && filterLists?.filterLists) {
-        for (const listKey of selectedLists.selectedFilterLists) {
-          const listData = filterLists.filterLists[listKey];
-          if (listData?.content) {
-            allFilters.push(
-              ...listData.content
-                .split("\n")
-                .filter((l) => l.trim() && !l.startsWith("!")),
-            );
-          }
-        }
-      }
-
-      // Convert to DNR rules (simplified)
-      let ruleId = 1;
-      for (const filter of allFilters.slice(0, 1000)) {
-        try {
-          if (
-            filter.includes("||") ||
-            filter.includes("|") ||
-            filter.includes("^")
-          ) {
-            result.rules.push({
-              id: ruleId++,
-              priority: 1,
-              action: { type: "block" },
-              condition: {
-                urlFilter: filter.replace(/\*/g, ".*").replace(/\^/g, ".*"),
-              },
-            });
-          }
-        } catch (e) {}
-      }
-    } catch (e) {
-      result.errors.push((e as Error).message);
-    }
-    if (callback) {
-      callback(result);
-    }
-    return result;
-  }
-  if (request.what === "snfeDump") {
-    const result: any = {
-      filterCount: 0,
-      memoryUse: 0,
-      acceptedCount: 0,
-      discardedCount: 0,
-      filterParser: {},
-      hostnameToFilterMapSize: 0,
-      domainToFilterMapSize: 0,
-    };
-    try {
-      const staticNetFilteringEngine =
-        (globalThis as any).vAPI?.staticNetFilteringEngine ||
-        (globalThis as any).staticNetFilteringEngine;
-      if (staticNetFilteringEngine) {
-        result.filterCount = staticNetFilteringEngine.acceptedCount || 0;
-        result.acceptedCount = staticNetFilteringEngine.acceptedCount || 0;
-        result.discardedCount = staticNetFilteringEngine.discardedCount || 0;
-        result.memoryUse = result.filterCount * 100;
-        result.hostnameToFilterMapSize =
-          staticNetFilteringEngine.hostnameToFilterMap?.size || 0;
-        result.domainToFilterMapSize =
-          staticNetFilteringEngine.domainToFilterMap?.size || 0;
-
-        // Get filter parser stats
-        if (staticNetFilteringEngine.filterParser) {
-          result.filterParser = {
-            filterCount:
-              staticNetFilteringEngine.filterParser.filters?.size || 0,
-            ruleCount: staticNetFilteringEngine.filterParser.rules?.size || 0,
-          };
-        }
-      }
-    } catch (e) {
-      /* ignore */
-    }
-    if (callback) {
-      callback(result);
-    }
-    return result;
-  }
-  if (request.what === "snfeQuery") {
-    const result = { matches: [], statistics: {} };
-    const url = request.url as string;
-    const type = request.type as string;
-    if (url) {
-      try {
-        const staticNetFilteringEngine =
-          (globalThis as any).vAPI?.staticNetFilteringEngine ||
-          (globalThis as any).staticNetFilteringEngine;
-        const redirectEngine =
-          (globalThis as any).vAPI?.redirectEngine ||
-          (globalThis as any).redirectEngine;
-        if (staticNetFilteringEngine?.matchRequest) {
-          const startTime = Date.now();
-          const match = staticNetFilteringEngine.matchRequest({
-            url,
-            type,
-            redirectEngine,
-          });
-          const duration = Date.now() - startTime;
-
-          if (match) {
-            result.matches.push({
-              filter: match.filter,
-              type: match.type,
-              raw: match.raw,
-            });
-          }
-
-          result.statistics = {
-            duration,
-            url,
-            type,
-            filterCount: staticNetFilteringEngine.acceptedCount || 0,
-          };
-        }
-      } catch (e) {
-        /* ignore */
-      }
-    }
-    if (callback) {
-      callback(result);
-    }
-    return result;
-  }
-  if (request.what === "cfeDump") {
-    const result: any = {
-      cosmeticFilterCount: 0,
-      specificFilterCount: 0,
-      genericFilterCount: 0,
-      acceptedCount: 0,
-      discardedCount: 0,
-      netSelectorCacheCount: 0,
-      proceduralFilterCount: 0,
-    };
-    try {
-      const cosmeticFilteringEngine =
-        (globalThis as any).vAPI?.cosmeticFilteringEngine ||
-        (globalThis as any).cosmeticFilteringEngine;
-      if (cosmeticFilteringEngine) {
-        result.cosmeticFilterCount = cosmeticFilteringEngine.acceptedCount || 0;
-        result.acceptedCount = cosmeticFilteringEngine.acceptedCount || 0;
-        result.discardedCount = cosmeticFilteringEngine.discardedCount || 0;
-        result.specificFilterCount =
-          cosmeticFilteringEngine.specificFilters?.size || 0;
-        result.genericFilterCount =
-          cosmeticFilteringEngine.genericFilters?.size || 0;
-        result.netSelectorCacheCount =
-          cosmeticFilteringEngine.netSelectorCacheCountMax || 0;
-        result.proceduralFilterCount =
-          cosmeticFilteringEngine.proceduralFilters?.size || 0;
-      }
-    } catch (e) {
-      /* ignore */
-    }
-    if (callback) {
-      callback(result);
-    }
-    return result;
   }
   if (request.what === "purgeAllCaches") {
     try {
@@ -1904,128 +1287,6 @@ Messaging.on("default", async (request, callback) => {
       }
       return result;
     }
-  }
-  // Logger UI handlers
-  if (request.what === "readAll") {
-    const tabId = request.tabId as number;
-    const offset = request.offset as number;
-    const limit = request.limit as number;
-    const filter = request.filter as string;
-    const ownerId = request.ownerId as number;
-
-    // Check ownership - if another logger view exists, don't return data
-    const loggerOwnerId = popupState.loggerOwnerId;
-    if (loggerOwnerId !== undefined && loggerOwnerId !== ownerId) {
-      const result = { unavailable: true };
-      if (callback) {
-        callback(result);
-      }
-      return result;
-    }
-
-    // Set ownership
-    popupState.loggerOwnerId = ownerId;
-
-    const items = await chrome.storage.local.get("loggerEntries");
-    let entries = items?.loggerEntries || [];
-
-    // Filter by tabId if provided
-    if (typeof tabId === "number") {
-      entries = entries.filter((e: any) => e.tabId === tabId);
-    }
-
-    // Apply filter if provided
-    if (filter) {
-      const filterLower = filter.toLowerCase();
-      entries = entries.filter((e: any) => {
-        const text = e.text || "";
-        const url = e.url || "";
-        return (
-          text.toLowerCase().includes(filterLower) ||
-          url.toLowerCase().includes(filterLower)
-        );
-      });
-    }
-
-    const userSettings = await chrome.storage.local.get("userSettings");
-    const result = {
-      entries: entries.slice(offset || 0, (offset || 0) + (limit || 100)),
-      total: entries.length,
-      colorBlind: userSettings?.userSettings?.colorBlindFriendly || false,
-      tooltips: true,
-      tabIds: [...new Set(entries.map((e: any) => e.tabId).filter(Boolean))],
-    };
-
-    if (callback) {
-      callback(result);
-    }
-    return result;
-  }
-  if (request.what === "toggleInMemoryFilter") {
-    const filter = request.filter as string;
-    const tabId = request.tabId as number;
-    const kind = request.kind as string;
-
-    if (filter && typeof tabId === "number") {
-      const stored = await chrome.storage.local.get("loggerInMemoryFilters");
-      const filters = stored?.loggerInMemoryFilters || {};
-      const tabFilters = filters[tabId] || [];
-
-      if (kind === "add") {
-        if (!tabFilters.includes(filter)) {
-          tabFilters.push(filter);
-        }
-      } else {
-        const index = tabFilters.indexOf(filter);
-        if (index > -1) tabFilters.splice(index, 1);
-      }
-
-      filters[tabId] = tabFilters;
-      await chrome.storage.local.set({ loggerInMemoryFilters: filters });
-    }
-
-    if (callback) {
-      callback({ success: true });
-    }
-    return { success: true };
-  }
-  if (request.what === "hasInMemoryFilter") {
-    const filter = request.filter as string;
-    const tabId = request.tabId as number;
-
-    let hasFilter = false;
-    if (filter && typeof tabId === "number") {
-      const stored = await chrome.storage.local.get("loggerInMemoryFilters");
-      const filters = stored?.loggerInMemoryFilters || {};
-      hasFilter = (filters[tabId] || []).includes(filter);
-    }
-
-    if (callback) {
-      callback({ hasFilter });
-    }
-    return { hasFilter };
-  }
-  if (request.what === "releaseView") {
-    // Release logger view and clear owner
-    const ownerId = request.ownerId as number;
-
-    // Check ownership before releasing
-    if (ownerId !== popupState.loggerOwnerId) {
-      if (callback) {
-        callback({ success: false });
-      }
-      return { success: false };
-    }
-
-    // Clear ownership and in-memory filters
-    popupState.loggerOwnerId = undefined;
-    popupState.inMemoryFilter = "";
-    await chrome.storage.local.set({ loggerOwnerId: null, inMemoryFilter: "" });
-
-    if (callback) {
-      callback({ success: true });
-    }
-    return { success: true };
   }
   if (request.what === "saveURLFilteringRules") {
     const rules = request.rules as any[];
@@ -2228,35 +1489,6 @@ ${
       callback(result);
     }
     return result;
-  }
-  // launchElementPicker
-  if (request.what === "launchElementPicker") {
-    const tabId = request.tabId as number;
-    const frameId = request.frameId as number;
-    const target = request.target as string;
-
-    // Clear context menu coordinates like reference does
-    epickerArgs.mouse = "";
-
-    if (typeof tabId === "number") {
-      try {
-        // Set the target for the picker
-        epickerArgs.target = target || "";
-
-        await chrome.tabs.executeScript(tabId, {
-          file: "/js/contentscript-extra.js",
-          frameId: frameId || 0,
-          matchAboutBlank: true,
-          runAt: "document_start",
-        });
-      } catch (e) {
-        /* ignore */
-      }
-    }
-    if (callback) {
-      callback({ success: true });
-    }
-    return { success: true };
   }
   if (callback) {
     callback(undefined);

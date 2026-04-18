@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Allgemeine kosmetische Filter ignorieren",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Allgemeine kosmetische Filter können auf alle Websites angewendet werden. Diese Option reduziert die CPU- und Speicherauslastung, die durch das Verarbeiten allgemeiner kosmetischer Filter auf Websites entsteht.\n\nEs wird empfohlen, diese Option auf weniger leistungsfähigen Geräten zu aktivieren.",
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "Ausnahmeregeln bestimmen, auf welchen Webseiten uBlock Resurrected deaktiviert werden soll. Ein Eintrag pro Zeile.",
+    "message": "Ausnahmeregeln bestimmen, auf welchen Webseiten uBlock Origin deaktiviert werden soll. Ein Eintrag pro Zeile.",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "uBlock Resurrected-Wiki: Protokoll der Netzwerkanfragen",
+    "message": "uBlock Origin-Wiki: Protokoll der Netzwerkanfragen",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "Ereignisreich",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blockiert",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "Lesen Sie die Dokumentation auf <code>uBlock/wiki</code>, um mehr über alle Funktionen von uBlock Resurrected zu erfahren.",
+    "message": "Lesen Sie die Dokumentation auf <code>uBlock/wiki</code>, um mehr über alle Funktionen von uBlock Origin zu erfahren.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>Wichtig:</b> Vermeiden Sie es, andere ähnliche Blocker zusammen mit uBlock Resurrected zu verwenden, da dies bei einigen Websites zu Filterproblemen führen kann.",
+    "message": "<b>Wichtig:</b> Vermeiden Sie es, andere ähnliche Blocker zusammen mit uBlock Origin zu verwenden, da dies bei einigen Websites zu Filterproblemen führen kann.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Bitte melden Sie Probleme mit uBlock Resurrected an den <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> Issue Tracker</span>. <u>Erfordert ein GitHub-Konto.</u>",
+    "message": "Bitte melden Sie Probleme mit uBlock Origin an den <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> Issue Tracker</span>. <u>Erfordert ein GitHub-Konto.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Erkennt uBlock Resurrected",
+    "message": "Erkennt uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Funktioniert nicht richtig, wenn uBlock Resurrected aktiviert ist",
+    "message": "Funktioniert nicht richtig, wenn uBlock Origin aktiviert ist",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Filterlisten",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Externe Abhängigkeiten (GPLv3-kompatibel):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Die uBR-eigenen Filterlisten werden auf den folgenden <a href=\"https://de.wikipedia.org/wiki/Content_Delivery_Network\">CDNs</a> frei zur Verfügung gestellt:",
+    "message": "Die uBO-eigenen Filterlisten werden auf den folgenden <a href=\"https://de.wikipedia.org/wiki/Content_Delivery_Network\">CDNs</a> frei zur Verfügung gestellt:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Resurrected hat das Laden der folgenden Seite verhindert:",
+    "message": "uBlock Origin hat das Laden der folgenden Seite verhindert:",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

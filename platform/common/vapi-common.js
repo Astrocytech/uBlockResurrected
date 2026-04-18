@@ -142,11 +142,6 @@ vAPI.defer = {
 
 /******************************************************************************/
 
-// DEBUG: Test if vapi-common.js is loading
-console.log("[VAPI-COMMON] vapi-common.js starting...");
-
-/******************************************************************************/
-
 vAPI.webextFlavor = {
     major: 0,
     soup: new Set(),
@@ -294,7 +289,7 @@ vAPI.localStorage = {
     - Add code beyond the following code
     Reason:
     - https://github.com/gorhill/uBlock/pull/3721
-    - uBR never uses the return value from injected content scripts
+    - uBO never uses the return value from injected content scripts
 
 **/
 

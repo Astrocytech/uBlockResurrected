@@ -265,7 +265,7 @@
     - Add code beyond the following code
     Reason:
     - https://github.com/gorhill/uBlock/pull/3721
-    - uBR never uses the return value from injected content scripts
+    - uBO never uses the return value from injected content scripts
 
 **/
 

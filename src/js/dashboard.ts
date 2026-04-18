@@ -75,6 +75,7 @@ function loadDashboardPanel(pane, first) {
         dom.cl.add(tabButton, 'selected');
         tabButton.scrollIntoView();
         const iframe = qs$('#iframe');
+        iframe.setAttribute('src', pane);
         iframe.contentWindow.location.replace(pane);
         if ( pane !== 'no-dashboard.html' ) {
             iframe.addEventListener('load', ( ) => {

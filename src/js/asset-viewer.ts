@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Resurrected - a comprehensive, efficient content blocker
+    uBlock Origin - a comprehensive, efficient content blocker
     Copyright (C) 2014-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -17,169 +17,93 @@
     along with this program.  If not, see {http://www.gnu.org/licenses/}.
 
     Home: https://github.com/gorhill/uBlock
+*/
 
-******************************************************************************/
+/* global CodeMirror, uBlockDashboard */
 
 import './codemirror/ubo-static-filtering.js';
+import { dom, qs$ } from './dom.js';
 
-declare const CodeMirror: any;
-declare const vAPI: any;
-declare const uBlockDashboard: any;
+/******************************************************************************/
 
-const fallbackText = new Map([
-    [ 'assetViewerPageName', 'uBlock — Asset viewer' ],
-    [ 'subscribeButton', 'Subscribe' ],
-    [ 'extName', 'uBlock Resurrected' ],
-]);
-
-const browserRuntime = typeof browser !== 'undefined' ? browser.runtime : undefined;
-
-const sendMessage = async <T>(topic: string, payload: Record<string, unknown> = {}): Promise<T> => {
-    const message = { topic, payload };
-    if ( browserRuntime !== undefined ) {
-        return await browserRuntime.sendMessage(message) as T;
-    }
-    return await new Promise<T>((resolve, reject) => {
-        chrome.runtime.sendMessage(message, (response: T) => {
-            const lastError = chrome.runtime.lastError;
-            if ( lastError ) {
-                reject(new Error(lastError.message));
-                return;
-            }
-            resolve(response);
-        });
-    });
-};
-
-const applyFallbackTranslations = () => {
-    for ( const element of document.querySelectorAll<HTMLElement>('[data-i18n]') ) {
-        const key = element.dataset.i18n || '';
-        const fallback = fallbackText.get(key);
-        if ( fallback === undefined ) { continue; }
-        if ( element.textContent?.trim() === '' || element.textContent?.trim() === '_' ) {
-            element.textContent = fallback;
-        }
-    }
-};
-
-const applyThemeClasses = () => {
-    const root = document.documentElement;
-    const dark = typeof self.matchMedia === 'function' &&
-        self.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.classList.toggle('dark', dark);
-    root.classList.toggle('light', dark === false);
-    root.classList.add((navigator.maxTouchPoints || 0) > 0 ? 'mobile' : 'desktop');
-    if ( self.matchMedia('(min-resolution: 150dpi)').matches ) {
-        root.classList.add('hidpi');
-    }
-};
-
-const init = async () => {
+(async ( ) => {
     const subscribeURL = new URL(document.location);
     const subscribeParams = subscribeURL.searchParams;
     const assetKey = subscribeParams.get('url');
     if ( assetKey === null ) { return; }
 
-    const subscribeElem = document.getElementById('subscribe');
+    const subscribeElem = subscribeParams.get('subscribe') !== null
+        ? qs$('#subscribe')
+        : null;
     if ( subscribeElem !== null && subscribeURL.hash !== '#subscribed' ) {
         const title = subscribeParams.get('title');
-        const promptElem = document.getElementById('subscribePrompt');
-        if ( promptElem && title ) {
-            const spans = promptElem.querySelectorAll('span, a');
-            if ( spans[0] ) { spans[0].textContent = title; }
-            if ( spans[1] ) {
-                spans[1].textContent = assetKey;
-                (spans[1] as HTMLAnchorElement).href = assetKey;
-            }
-        }
-        subscribeElem.classList.remove('hide');
+        const promptElem = qs$('#subscribePrompt');
+        dom.text(promptElem.children[0], title);
+        const a = promptElem.children[1];
+        dom.text(a, assetKey);
+        dom.attr(a, 'href', assetKey);
+        dom.cl.remove(subscribeElem, 'hide');
     }
 
-    const cmEditor = new CodeMirror(
-        document.querySelector('#content') as HTMLElement,
-        {
-            autofocus: true,
-            foldGutter: true,
-            gutters: [
-                'CodeMirror-linenumbers',
-                { className: 'CodeMirror-lintgutter', style: 'width: 11px' },
-            ],
-            lineNumbers: true,
-            lineWrapping: true,
-            matchBrackets: true,
-            maxScanLines: 1,
-            maximizable: false,
-            readOnly: true,
-            styleActiveLine: {
-                nonEmpty: true,
-            },
+    const cmEditor = new CodeMirror(qs$('#content'), {
+        autofocus: true,
+        foldGutter: true,
+        gutters: [
+            'CodeMirror-linenumbers',
+            { className: 'CodeMirror-lintgutter', style: 'width: 11px' },
+        ],
+        lineNumbers: true,
+        lineWrapping: true,
+        matchBrackets: true,
+        maxScanLines: 1,
+        maximizable: false,
+        readOnly: true,
+        styleActiveLine: {
+            nonEmpty: true,
         },
-    );
+    });
 
-    if (typeof uBlockDashboard !== 'undefined') {
-        uBlockDashboard.patchCodeMirrorEditor(cmEditor);
-    }
+    uBlockDashboard.patchCodeMirrorEditor(cmEditor);
 
-    try {
-        const hints = await sendMessage<any>('dashboard', {
-            what: 'getAutoCompleteDetails',
-        });
-        if ( hints instanceof Object ) {
-            cmEditor.setOption('uboHints', hints);
-        }
-    } catch (e) {
-        console.error('Failed to get autocomplete details:', e);
-    }
+    vAPI.messaging.send('dashboard', {
+        what: 'getAutoCompleteDetails'
+    }).then(hints => {
+        if ( hints instanceof Object === false ) { return; }
+        cmEditor.setOption('uboHints', hints);
+    });
 
-    try {
-        const tokens = await sendMessage<any>('dashboard', {
-            what: 'getTrustedScriptletTokens',
-        });
+    vAPI.messaging.send('dashboard', {
+        what: 'getTrustedScriptletTokens',
+    }).then(tokens => {
         cmEditor.setOption('trustedScriptletTokens', tokens);
-    } catch (e) {
-        console.error('Failed to get scriptlet tokens:', e);
-    }
+    });
 
-    try {
-        const details = await sendMessage<{ content?: string; trustedSource?: boolean; sourceURL?: string }>('getAssetContent', {
-            url: assetKey,
-        });
-        
-        cmEditor.setOption('trustedSource', details.trustedSource === true);
-        cmEditor.setValue(details && details.content || '');
+    const details = await vAPI.messaging.send('default', {
+        what : 'getAssetContent',
+        url: assetKey,
+    });
+    cmEditor.setOption('trustedSource', details.trustedSource === true);
+    cmEditor.setValue(details && details.content || '');
 
-        if ( details.sourceURL ) {
-            const sourceUrlElem = document.querySelector('.cm-search-widget .sourceURL') as HTMLAnchorElement;
-            if ( sourceUrlElem ) {
-                sourceUrlElem.href = details.sourceURL;
-                sourceUrlElem.title = details.sourceURL;
-            }
-        }
-    } catch (e) {
-        console.error('Failed to get asset content:', e);
-    }
-
-    const subscribeButton = document.getElementById('subscribeButton');
-    if ( subscribeButton && subscribeElem ) {
-        subscribeButton.addEventListener('click', async () => {
-            subscribeElem.classList.add('hide');
-            try {
-                await sendMessage('scriptlets', {
-                    what: 'applyFilterListSelection',
-                    toImport: assetKey,
+    if ( subscribeElem !== null ) {
+        dom.on('#subscribeButton', 'click', ( ) => {
+            dom.cl.add(subscribeElem, 'hide');
+            vAPI.messaging.send('scriptlets', {
+                what: 'applyFilterListSelection',
+                toImport: assetKey,
+            }).then(( ) => {
+                vAPI.messaging.send('scriptlets', {
+                    what: 'reloadAllFilters'
                 });
-                await sendMessage('scriptlets', {
-                    what: 'reloadAllFilters',
-                });
-            } catch (e) {
-                console.error('Failed to subscribe to filter list:', e);
-            }
+            });
         }, { once: true });
     }
 
-    document.body.classList.remove('loading');
-};
+    if ( details.sourceURL ) {
+        const a = qs$('.cm-search-widget .sourceURL');
+        dom.attr(a, 'href', details.sourceURL);
+        dom.attr(a, 'title', details.sourceURL);
+    }
 
-applyThemeClasses();
-applyFallbackTranslations();
-void init();
+    dom.cl.remove(dom.body, 'loading');
+})();

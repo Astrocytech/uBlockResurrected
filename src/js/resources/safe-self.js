@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Resurrected - a comprehensive, efficient content blocker
+    uBlock Origin - a comprehensive, efficient content blocker
     Copyright (C) 2019-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -212,7 +212,7 @@ export function safeSelf() {
         safe.sendToLogger = (type, ...args) => {
             const text = safe.toLogText(type, ...args);
             if ( text === undefined ) { return; }
-            safe.log(`uBR ${text}`);
+            safe.log(`uBO ${text}`);
         };
     }
     return safe;

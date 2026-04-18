@@ -149,6 +149,11 @@ const setFirewallCellAction = async (
     scope: '/' | '.',
     action: 'block' | 'allow' | 'noop',
 ): Promise<void> => {
+    if ( action === 'allow' ) {
+        await popupPage.evaluate(() => {
+            document.body.classList.add('godMode');
+        });
+    }
     const cell = firewallCell(popupPage, rowType, scope);
     await cell.scrollIntoViewIfNeeded();
     await cell.hover();
@@ -167,6 +172,11 @@ const setFirewallHostCellAction = async (
     scope: '/' | '.',
     action: 'block' | 'allow' | 'noop',
 ): Promise<void> => {
+    if ( action === 'allow' ) {
+        await popupPage.evaluate(() => {
+            document.body.classList.add('godMode');
+        });
+    }
     const cell = firewallHostCell(popupPage, desHostname, rowType, scope);
     await cell.scrollIntoViewIfNeeded();
     await cell.hover();

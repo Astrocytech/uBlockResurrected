@@ -7,7 +7,8 @@
 
 ******************************************************************************/
 
-import { firewallTypeBitOffsets } from './sw-types.js';
+import { decomposeHostname, isThirdParty } from "./sw-helpers.js";
+import { firewallTypeBitOffsets } from "./sw-types.js";
 
 export type FirewallCount = {
     any: number;
@@ -29,16 +30,42 @@ export type HostnameDetails = {
     totals?: FirewallCounts;
 };
 
+const supportedDynamicTypes = new Set([
+    "3p",
+    "image",
+    "inline-script",
+    "1p-script",
+    "3p-script",
+    "3p-frame",
+]);
+
+const actionNames: Record<number, string> = {
+    1: "block",
+    2: "allow",
+    3: "noop",
+};
+
+const actionValues: Record<string, number> = {
+    block: 1,
+    allow: 2,
+    noop: 3,
+};
+
 export class DynamicFirewallRules {
     private rules = new Map<string, number>();
     private r = 0;
     private type = '';
     private y = '';
     private z = '';
+    private changed = false;
 
     reset() {
-        this.rules.clear();
-        this.clearRegisters();
+        this.r = 0;
+        this.type = "";
+        this.y = "";
+        this.z = "";
+        this.rules = new Map();
+        this.changed = false;
     }
 
     clearRegisters() {
@@ -46,11 +73,104 @@ export class DynamicFirewallRules {
         this.type = '';
         this.y = '';
         this.z = '';
+        return this;
     }
 
     assign(other: DynamicFirewallRules) {
-        this.rules = new Map(other.rules);
-        this.clearRegisters();
+        for ( const key of this.rules.keys() ) {
+            if ( other.rules.has(key) === false ) {
+                this.rules.delete(key);
+                this.changed = true;
+            }
+        }
+        for ( const entry of other.rules ) {
+            if ( this.rules.get(entry[0]) !== entry[1] ) {
+                this.rules.set(entry[0], entry[1]);
+                this.changed = true;
+            }
+        }
+    }
+
+    copyRules(
+        from: DynamicFirewallRules,
+        srcHostname: string,
+        desHostnames: Record<string, unknown>,
+    ) {
+        let thisBits = this.rules.get("* *");
+        let fromBits = from.rules.get("* *");
+        if ( fromBits !== thisBits ) {
+            if ( fromBits !== undefined ) {
+                this.rules.set("* *", fromBits);
+            } else {
+                this.rules.delete("* *");
+            }
+            this.changed = true;
+        }
+
+        let key = `${srcHostname} *`;
+        thisBits = this.rules.get(key);
+        fromBits = from.rules.get(key);
+        if ( fromBits !== thisBits ) {
+            if ( fromBits !== undefined ) {
+                this.rules.set(key, fromBits);
+            } else {
+                this.rules.delete(key);
+            }
+            this.changed = true;
+        }
+
+        for ( const desHostname in desHostnames ) {
+            key = `* ${desHostname}`;
+            thisBits = this.rules.get(key);
+            fromBits = from.rules.get(key);
+            if ( fromBits !== thisBits ) {
+                if ( fromBits !== undefined ) {
+                    this.rules.set(key, fromBits);
+                } else {
+                    this.rules.delete(key);
+                }
+                this.changed = true;
+            }
+            key = `${srcHostname} ${desHostname}`;
+            thisBits = this.rules.get(key);
+            fromBits = from.rules.get(key);
+            if ( fromBits !== thisBits ) {
+                if ( fromBits !== undefined ) {
+                    this.rules.set(key, fromBits);
+                } else {
+                    this.rules.delete(key);
+                }
+                this.changed = true;
+            }
+        }
+
+        return this.changed;
+    }
+
+    hasSameRules(
+        other: DynamicFirewallRules,
+        srcHostname: string,
+        desHostnames: Record<string, unknown>,
+    ) {
+        let key = "* *";
+        if ( this.rules.get(key) !== other.rules.get(key) ) {
+            return false;
+        }
+        key = `${srcHostname} *`;
+        if ( this.rules.get(key) !== other.rules.get(key) ) {
+            return false;
+        }
+        for ( const desHostname in desHostnames ) {
+            key = `* ${desHostname}`;
+            if ( this.rules.get(key) !== other.rules.get(key) ) {
+                return false;
+            }
+            key = `${srcHostname} ${desHostname}`;
+            if ( this.rules.get(key) !== other.rules.get(key) ) {
+                return false;
+            }
+        }
+        return true;
     }
 
     setCell(srcHostname: string, desHostname: string, type: string, state: number) {
@@ -58,17 +178,23 @@ export class DynamicFirewallRules {
         const key = `${srcHostname} ${desHostname}`;
         const oldBitmap = this.rules.get(key) || 0;
         const newBitmap = (oldBitmap & ~(3 << bitOffset)) | (state << bitOffset);
+        if ( newBitmap === oldBitmap ) {
+            return false;
+        }
         if (newBitmap === 0) {
             this.rules.delete(key);
         } else {
             this.rules.set(key, newBitmap);
         }
+        this.changed = true;
+        return true;
     }
 
     unsetCell(srcHostname: string, desHostname: string, type: string) {
         this.evaluateCellZY(srcHostname, desHostname, type);
         if (this.r === 0) { return false; }
         this.setCell(srcHostname, desHostname, type, 0);
+        this.changed = true;
         return true;
     }
 
@@ -80,82 +206,174 @@ export class DynamicFirewallRules {
 
     private evaluateCellZ(srcHostname: string, desHostname: string, type: string) {
         this.type = type;
-        this.evaluateCellZY(srcHostname, desHostname, type);
+        const bitOffset = firewallTypeBitOffsets[type];
+        for ( const srchn of decomposeHostname(srcHostname) ) {
+            this.z = srchn;
+            let value = this.rules.get(`${srchn} ${desHostname}`);
+            if ( value === undefined ) { continue; }
+            value = (value >>> bitOffset) & 3;
+            if ( value === 0 ) { continue; }
+            this.r = value;
+            return value;
+        }
+        this.r = 0;
+        return 0;
     }
 
-    private evaluateCellZY(srcHostname: string, desHostname: string, type: string) {
-        this.z = '';
-        if (srcHostname === '*' || desHostname === '*') {
-            this.r = this.evaluateCell('*', '*', type);
-            return;
+    evaluateCellZY(srcHostname: string, desHostname: string, type: string) {
+        if ( desHostname === "" ) {
+            this.r = 0;
+            return 0;
         }
-        if (srcHostname === desHostname) {
-            const root = srcHostname.split('.').slice(-2).join('.');
-            const domain = (this.evaluateCell(root, root, type) || this.evaluateCell('*', root, type) || this.evaluateCell('*', '*', type));
-            if (domain !== 0) {
-                this.r = domain;
-                this.z = root;
-                return;
+
+        for ( const deshn of decomposeHostname(desHostname) ) {
+            if ( deshn === "*" ) { break; }
+            this.y = deshn;
+            if ( this.evaluateCellZ(srcHostname, deshn, "*") !== 0 ) {
+                return this.r;
             }
-            this.r = this.evaluateCell('*', '*', type);
-            this.z = srcHostname;
-        } else {
-            const srcRoot = srcHostname.split('.').slice(-2).join('.');
-            const desRoot = desHostname.split('.').slice(-2).join('.');
-            let domain: number;
-            if (srcRoot !== desRoot) {
-                domain = this.evaluateCell('*', desRoot, type) || this.evaluateCell('*', '*', type);
-            } else {
-                domain = this.evaluateCell(srcHostname, desHostname, type) ||
-                    this.evaluateCell('*', desHostname, type) ||
-                    this.evaluateCell(srcRoot, '*', type) ||
-                    this.evaluateCell('*', '*', type);
-            }
-            if (domain !== 0) {
-                this.r = domain;
-                this.z = desHostname;
-                return;
-            }
-            this.r = this.evaluateCell('*', '*', type);
-            this.z = desHostname;
         }
+
+        const thirdParty = isThirdParty(srcHostname, desHostname);
+        this.y = "*";
+
+        if ( thirdParty ) {
+            if ( type === "script" ) {
+                if ( this.evaluateCellZ(srcHostname, "*", "3p-script") !== 0 ) {
+                    return this.r;
+                }
+            } else if ( type === "sub_frame" || type === "object" ) {
+                if ( this.evaluateCellZ(srcHostname, "*", "3p-frame") !== 0 ) {
+                    return this.r;
+                }
+            }
+            if ( this.evaluateCellZ(srcHostname, "*", "3p") !== 0 ) {
+                return this.r;
+            }
+        } else if ( type === "script" ) {
+            if ( this.evaluateCellZ(srcHostname, "*", "1p-script") !== 0 ) {
+                return this.r;
+            }
+        }
+
+        if ( supportedDynamicTypes.has(type) ) {
+            if ( this.evaluateCellZ(srcHostname, "*", type) !== 0 ) {
+                return this.r;
+            }
+            if ( type.startsWith("3p-") ) {
+                if ( this.evaluateCellZ(srcHostname, "*", "3p") !== 0 ) {
+                    return this.r;
+                }
+            }
+        }
+
+        if ( this.evaluateCellZ(srcHostname, "*", "*") !== 0 ) {
+            return this.r;
+        }
+
+        this.type = "";
+        return 0;
+    }
+
+    mustAllowCellZY(srcHostname: string, desHostname: string, type: string) {
+        return this.evaluateCellZY(srcHostname, desHostname, type) === 2;
+    }
+
+    mustBlockOrAllow() {
+        return this.r === 1 || this.r === 2;
+    }
+
+    mustBlock() {
+        return this.r === 1;
+    }
+
+    mustAbort() {
+        return this.r === 3;
     }
 
     lookupRuleData(srcHostname: string, desHostname: string, type: string) {
-        const bitmap = this.rules.get(`${srcHostname} ${desHostname}`);
-        if (bitmap === undefined) { return undefined; }
-        const value = (bitmap >> firewallTypeBitOffsets[type]) & 3;
-        if (value === 0) { return undefined; }
-        const actionNames: Record<number, string> = { 1: 'block', 2: 'allow', 3: 'noop' };
-        return actionNames[value];
+        const value = this.evaluateCellZY(srcHostname, desHostname, type);
+        if ( value === 0 || this.type === "" ) {
+            return;
+        }
+        return `${this.z} ${this.y} ${this.type} ${value}`;
+    }
+
+    toLogData() {
+        if ( this.r === 0 || this.type === "" ) {
+            return;
+        }
+        return {
+            source: "dynamicHost",
+            result: this.r,
+            raw: `${this.z} ${this.y} ${this.type} ${actionNames[this.r]}`,
+        };
+    }
+
+    private srcHostnameFromRule(rule: string) {
+        return rule.slice(0, rule.indexOf(" "));
+    }
+
+    private desHostnameFromRule(rule: string) {
+        return rule.slice(rule.indexOf(" ") + 1);
     }
 
     toArray(): string[] {
         const out: string[] = [];
-        for (const [key, bitmap] of this.rules) {
-            const [src, dest] = key.split(' ');
-            for (const type of Object.keys(firewallTypeBitOffsets)) {
-                const value = (bitmap >> firewallTypeBitOffsets[type]) & 3;
-                if (value === 0) { continue; }
-                const actionNames: Record<number, string> = { 1: 'block', 2: 'allow', 3: 'noop' };
+        for ( const key of this.rules.keys() ) {
+            const src = this.srcHostnameFromRule(key);
+            const dest = this.desHostnameFromRule(key);
+            for ( const type of Object.keys(firewallTypeBitOffsets) ) {
+                const value = this.evaluateCell(src, dest, type);
+                if ( value === 0 ) { continue; }
                 out.push(`${src} ${dest} ${type} ${actionNames[value]}`);
             }
         }
         return out;
     }
 
-    fromString(text: string) {
-        this.reset();
-        const lines = text.split('\n').filter(l => l.trim() !== '' && !l.trim().startsWith('#'));
-        for (const line of lines) {
-            const parts = line.trim().split(/\s+/);
-            if (parts.length < 4) { continue; }
-            const [src, dest, type, action] = parts;
-            const actionValues: Record<string, number> = { block: 1, allow: 2, noop: 3 };
-            const value = actionValues[action];
-            if (value) {
-                this.setCell(src, dest, type, value);
+    addFromRuleParts(parts: [string, string, string, string]) {
+        if ( parts.length < 4 ) {
+            return false;
+        }
+        const [src, dest, type, action] = parts;
+        const value = actionValues[action];
+        if (
+            value === undefined ||
+            firewallTypeBitOffsets[type] === undefined ||
+            (dest !== "*" && type !== "*")
+        ) {
+            return false;
+        }
+        this.setCell(src, dest, type, value);
+        return true;
+    }
+
+    removeFromRuleParts(parts: [string, string, string, string]) {
+        if ( parts.length < 4 ) {
+            return false;
+        }
+        const [src, dest, type] = parts;
+        if (
+            firewallTypeBitOffsets[type] === undefined ||
+            (dest !== "*" && type !== "*")
+        ) {
+            return false;
+        }
+        this.setCell(src, dest, type, 0);
+        return true;
+    }
+
+    fromString(text: string, append?: boolean) {
+        if ( append !== true ) {
+            this.reset();
+        }
+        for ( const line of text.split("\n") ) {
+            const trimmed = line.trim();
+            if ( trimmed === "" || trimmed.startsWith("#") ) {
+                continue;
             }
+            this.addFromRuleParts(trimmed.split(/\s+/) as [string, string, string, string]);
         }
     }
 

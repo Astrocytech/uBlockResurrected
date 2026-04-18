@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Abaikan penapis kosmetik generik",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Penapis kosmetik generik adalah penapis kosmetik itu mengubah kesemua laman web. Mendayakan tetapan ini akan mengurangkan penggunaan memori dan overhed CPU dari laman web sebagai hasil pengendalian penapis kosmetik generik.\n\nIa disyorkan untuk mengaktifkan tetapan ini untuk peranti yang lemah.",
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "Arahan laman web yang dipercayai menentukan halaman web mana uBlock Resurrected harus dilumpuhkan. Satu penyertaan setiap baris. Arahan tidak sah akan diam-diam diabaikan dan dikomentari.",
+    "message": "Arahan laman web yang dipercayai menentukan halaman web mana uBlock Origin harus dilumpuhkan. Satu penyertaan setiap baris. Arahan tidak sah akan diam-diam diabaikan dan dikomentari.",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "uBlock Resurrected wiki: Catatan",
+    "message": "uBlock Origin wiki: Catatan",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "disekat",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "Baca pendokumenan di <code>uBlock/wiki</code>  untuk belajar tentang kesemua ciri-ciri uBlock Resurrected.",
+    "message": "Baca pendokumenan di <code>uBlock/wiki</code>  untuk belajar tentang kesemua ciri-ciri uBlock Origin.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>Penting:</b> Elakkan menggunakan penyekat-penyekat lain yang serupa dengan uBlock Resurrected, kerana ia menimbulkan masalah penapis di laman web tertentu.",
+    "message": "<b>Penting:</b> Elakkan menggunakan penyekat-penyekat lain yang serupa dengan uBlock Origin, kerana ia menimbulkan masalah penapis di laman web tertentu.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Laporkan masalah dengan uBlock Resurrected sendiri ke <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> pengesan masalah</span>. Memerlukan akaun GitHub.",
+    "message": "Laporkan masalah dengan uBlock Origin sendiri ke <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> pengesan masalah</span>. Memerlukan akaun GitHub.",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Mengesan uBlock Resurrected",
+    "message": "Mengesan uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Rosak pabila uBlock Resurrected didayakan",
+    "message": "Rosak pabila uBlock Origin didayakan",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Senarai penapis",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Pergantungan luaran (serasi dengan GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Senarai penapis uBR sendiri dihoskan secara bebas di <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
+    "message": "Senarai penapis uBO sendiri dihoskan secara bebas di <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Resurrected menghalang halaman berikut memuatkan:",
+    "message": "uBlock Origin menghalang halaman berikut memuatkan:",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

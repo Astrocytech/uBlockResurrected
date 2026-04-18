@@ -29,8 +29,6 @@ import { faIconsInit } from './fa-icons.js';
 
 /******************************************************************************/
 
-// Define cloud object FIRST, before any early returns
-// This ensures window.cloud is always available
 self.cloud = {
     options: {},
     datakey: '',
@@ -38,11 +36,6 @@ self.cloud = {
     onPush: null,
     onPull: null,
 };
-
-// Also ensure it's on window in case module fails
-if (typeof window !== 'undefined') {
-    window.cloud = self.cloud;
-}
 
 /******************************************************************************/
 

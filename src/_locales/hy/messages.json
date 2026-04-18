@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Անտեսել ընդհանուր կոսմետիկ զտիչները",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Ընդհանուր կոսմետիկ զտիչներն այն կոսմետիկ զտիչներն են, որոնք նախատեսված են կիրառվել բոլոր կայքերում։ Այս ընտրանքը միացնելը կվերացնի հիշողության և մշակիչի բեռնվածությունը, որը կայքեջերի մոտ ավելանում է ընդհանուր կոսմետիկ զտիչների մշակման արդյունքում։\n\nԽորհուրդ է տրվում միացնել այս ընտրանքը ոչ բավականաչափ հզոր սարքերում։",
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "Վստահված կայքերի ցուցակը սահմանում է, թե որ կայքերում uBlock Resurrected-ը պիտի անջատված լինի։ Մեկ տողում մեկ գրառում։ Անճիշտ կանոններն առանց նախազգուշացման անտեսվելու և մեկնաբանվելու են։",
+    "message": "Վստահված կայքերի ցուցակը սահմանում է, թե որ կայքերում uBlock Origin-ը պիտի անջատված լինի։ Մեկ տողում մեկ գրառում։ Անճիշտ կանոններն առանց նախազգուշացման անտեսվելու և մեկնաբանվելու են։",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "uBlock Resurrected վիքի. Մատյան",
+    "message": "uBlock Origin վիքի. Մատյան",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "արգելափակված",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "Կարդացեք փաստաթղթերը <code>uBlock/wiki</code>-ում՝ uBlock Resurrected-ի բոլոր հնարավորությունների մասին իմանալու։",
+    "message": "Կարդացեք փաստաթղթերը <code>uBlock/wiki</code>-ում՝ uBlock Origin-ի բոլոր հնարավորությունների մասին իմանալու։",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>Կարևոր է.</b> Խուսափեք uBlock Resurrected-ի հետ մեկտեղ նման այլ արգելափակիչներ օգտագործելուց, քանի որ դա կարող է որոշակի կայքերում զտիչի հետ կապված խնդիրներ առաջացնել:",
+    "message": "<b>Կարևոր է.</b> Խուսափեք uBlock Origin-ի հետ մեկտեղ նման այլ արգելափակիչներ օգտագործելուց, քանի որ դա կարող է որոշակի կայքերում զտիչի հետ կապված խնդիրներ առաջացնել:",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Հաղորդեք uBlock Resurrected-ի սեփական սխալների մասին <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> խնդիրների հետագծիչի բաժնում</span>։ <u>Պահանջվում է GitHub հաշիվ։</u>",
+    "message": "Հաղորդեք uBlock Origin-ի սեփական սխալների մասին <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> խնդիրների հետագծիչի բաժնում</span>։ <u>Պահանջվում է GitHub հաշիվ։</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Հայտնաբերվում է uBlock Resurrected-ը",
+    "message": "Հայտնաբերվում է uBlock Origin-ը",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Անսարքություններ, երբ uBlock Resurrected-ը միացված է",
+    "message": "Անսարքություններ, երբ uBlock Origin-ը միացված է",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Զտիչների ցանկեր",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Արտաքին կախվածություններ (GPLv3-համատեղելի)՝",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBR-ի սեփական զտիչների ցանկերն ազատորեն տեղաբաշխված են հետևյալ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-երում</a>.",
+    "message": "uBO-ի սեփական զտիչների ցանկերն ազատորեն տեղաբաշխված են հետևյալ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-երում</a>.",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Resurrected֊ը կանխել է հետևյալ էջի բեռնումը՝",
+    "message": "uBlock Origin֊ը կանխել է հետևյալ էջի բեռնումը՝",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

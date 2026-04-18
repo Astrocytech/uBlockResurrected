@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "కాస్మెటిక్ వడపోతలను విస్మరించు",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "<p>సాధారణ కాస్మెటిక్ ఫిల్టర్లు అన్ని సైట్లపై ఉపయోగించబడుతాయి.<p>వీటిని uBlock₀ సమర్థవంతంగా ఉపయోగించగలిగినా, కొన్ని భారీ లేదా దీర్ఘకాలికంగా వీక్షిస్తున్న పేజీలలో CPU ఇంకా RAM వాడుకను ఇవి పెంచగలవు.<p>ఈ ఎంపికను ఎంచుకోవడంవలన, సాధారణ కాస్మెటిక్ ఫిల్టర్లు కొరకు అదనపు CPU ఉపయోగాన్ని నివారిస్తుంది, పైగా uBlock₀ యొక్క RAM వాడుక తగ్గడానికి తోడ్పడుతుంది.<p>అల్పసామర్ధ్య పరికరాలలో దీన్ని ఎంచుకోవడం శ్రేయస్కరం.",
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "uBlock Resurrected అచేతనబడించిన హోస్టూల జాబితా, ఇది మీరు కూర్చినది,. ఒక్కో పంక్తికి ఒక్కో నమోదు. చెల్లని నమోదులు మౌనంగా విస్మరించబడుతాయి.",
+    "message": "uBlock Origin అచేతనబడించిన హోస్టూల జాబితా, ఇది మీరు కూర్చినది,. ఒక్కో పంక్తికి ఒక్కో నమోదు. చెల్లని నమోదులు మౌనంగా విస్మరించబడుతాయి.",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "నిరోధించబడినవి",
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>Important:</b> Avoid using other similarly-purposed blockers along with uBlock Resurrected, as this may cause filter issues on specific websites.",
+    "message": "<b>Important:</b> Avoid using other similarly-purposed blockers along with uBlock Origin, as this may cause filter issues on specific websites.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Report issues with uBlock Resurrected itself to the <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> issue tracker</span>. <u>Requires a GitHub account.</u>",
+    "message": "Report issues with uBlock Origin itself to the <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> issue tracker</span>. <u>Requires a GitHub account.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Detects uBlock Resurrected",
+    "message": "Detects uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Malfunctions when uBlock Resurrected is enabled",
+    "message": "Malfunctions when uBlock Origin is enabled",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "జాబితాలను ఫిల్టర్ చేయండి",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "బాహ్య ఆధారపడటం (GPLv3- అనుకూలమైనది):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBR యొక్క సొంత ఫిల్టర్ జాబితాలు కింది వాటిలో ఉచితంగా హోస్ట్ చేయబడతాయి <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
+    "message": "uBO యొక్క సొంత ఫిల్టర్ జాబితాలు కింది వాటిలో ఉచితంగా హోస్ట్ చేయబడతాయి <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "ఈ తరువాయి పేజిని uBlock Resurrected బ్రౌజరులోకి ఎక్కిన్చనివ్వలేదు:",
+    "message": "ఈ తరువాయి పేజిని uBlock Origin బ్రౌజరులోకి ఎక్కిన్చనివ్వలేదు:",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

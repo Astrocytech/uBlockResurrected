@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Si otomaatig ah u cusbooneysii liisaska shaandhada",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Cusbooneysii hadda",
@@ -660,7 +660,7 @@
     "description": "English: URL"
   },
   "logRequestsHeaderFilter": {
-    "message": "Awaamiirta goobta lagu kalsoon yahay ayaa tilmaamaysa boggaga internetka ee uBlock Resurrected waa in la curyaamiyo. Hal gelitaan halkii sadar. Awaamiirta aan ansax ahayn si aamusnaan ah ayaa loo indhatiraa oo faallo looga bixin doonaa.",
+    "message": "Awaamiirta goobta lagu kalsoon yahay ayaa tilmaamaysa boggaga internetka ee uBlock Origin waa in la curyaamiyo. Hal gelitaan halkii sadar. Awaamiirta aan ansax ahayn si aamusnaan ah ayaa loo indhatiraa oo faallo looga bixin doonaa.",
     "description": "English: Filter"
   },
   "logAll": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "Nadiifi logger",
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Ka akhri dukumeentiga <code>uBlock/wiki</code> si aad wax uga ogaato dhammaan astaamaha uBlock Resurrected.",
+    "message": "Ka akhri dukumeentiga <code>uBlock/wiki</code> si aad wax uga ogaato dhammaan astaamaha uBlock Origin.",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Detects uBlock Resurrected",
+    "message": "Detects uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Malfunctions when uBlock Resurrected is enabled",
+    "message": "Malfunctions when uBlock Origin is enabled",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1024,7 +1024,7 @@
     "description": ""
   },
   "aboutCode": {
-    "message": "Ka warbixi arrimaha uBlock Resurrected laftiisa <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> arin tracker</span>. Wuxuu u baahan yahay akoon GitHub",
+    "message": "Ka warbixi arrimaha uBlock Origin laftiisa <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> arin tracker</span>. Wuxuu u baahan yahay akoon GitHub",
     "description": "English: Source code (GPLv3)"
   },
   "aboutContributors": {
@@ -1041,7 +1041,7 @@
   },
   "aboutFilterLists": {
     "message": "Dib u habeyn",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Aan waxba laga beddelin",
@@ -1080,7 +1080,7 @@
     "description": "Message to display when an error occurred during restore"
   },
   "aboutResetDataConfirm": {
-    "message": "Liisaska shaandhaynta uBR ayaa si xor ah loogu martigaliyay kuwa soo socda <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
+    "message": "Liisaska shaandhaynta uBO ayaa si xor ah loogu martigaliyay kuwa soo socda <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
     "description": "Message asking user to confirm reset"
   },
   "errorCantConnectTo": {

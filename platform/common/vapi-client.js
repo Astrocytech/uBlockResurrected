@@ -24,9 +24,6 @@
 
 /******************************************************************************/
 
-// DEBUG: Test if vapi-client.js is loading
-console.log("[VAPI-CLIENT] vapi-client.js starting...");
-
 // https://github.com/chrisaljoudi/uBlock/issues/456
 //   Skip if already injected.
 
@@ -118,30 +115,12 @@ vAPI.messaging = {
     //   This is an issue which surfaced when the element picker code was
     //   revisited to isolate the picker dialog DOM from the page DOM.
     messageListener: function(details) {
-        console.log("[VAPI-CLIENT] ★★★ messageListener CALLED, pending size:", this.pending.size);
-        const detailsStr = typeof details === 'object' && details !== null ? JSON.stringify(details).substring(0, 500) : String(details);
-        console.log("[VAPI-CLIENT] details:", detailsStr);
-        if ( typeof details !== 'object' || details === null ) { 
-            console.log("[VAPI-CLIENT] details not object or null, returning");
-            return; 
-        }
-        if ( details.msgId === undefined ) { 
-            console.log("[VAPI-CLIENT] msgId undefined, returning");
-            return; 
-        }
+        if ( typeof details !== 'object' || details === null ) { return; }
+        if ( details.msgId === undefined ) { return; }
         const resolver = this.pending.get(details.msgId);
-        console.log("[VAPI-CLIENT] resolver for msgId", details.msgId, ":", resolver ? "FOUND" : "NOT FOUND");
-        if ( resolver === undefined ) { 
-            console.log("[VAPI-CLIENT] messageListener - no pending resolver for msgId:", details.msgId);
-            return; 
-        }
-        console.log("[VAPI-CLIENT] messageListener - ★★★ RESOLVING msgId:", details.msgId);
-        const msgStr = details.msg !== undefined ? JSON.stringify(details.msg).substring(0, 500) : 'undefined';
-        console.log("[VAPI-CLIENT] details.msg (response):", msgStr);
+        if ( resolver === undefined ) { return; }
         this.pending.delete(details.msgId);
-        console.log("[VAPI-CLIENT] calling resolver with msg");
         resolver(details.msg);
-        console.log("[VAPI-CLIENT] resolver called");
     },
     messageListenerBound: null,
 
@@ -182,7 +161,6 @@ vAPI.messaging = {
     },
 
     createPort: function() {
-        console.log("[VAPI-CLIENT] createPort called, shuttingDown:", this.shuttingDown);
         if ( this.shuttingDown ) { return null; }
         if ( this.messageListenerBound === null ) {
             this.messageListenerBound = this.messageListener.bind(this);
@@ -190,11 +168,8 @@ vAPI.messaging = {
             this.portPollerBound = this.portPoller.bind(this);
         }
         try {
-            console.log("[VAPI-CLIENT] Attempting to connect with sessionId:", vAPI.sessionId);
             this.port = webextAPI?.runtime?.connect({name: vAPI.sessionId}) || null;
-            console.log("[VAPI-CLIENT] Port created:", this.port);
-        } catch(e) {
-            console.log("[VAPI-CLIENT] Error creating port:", e);
+        } catch {
             this.port = null;
         }
         // Not having a valid port at this point means the main process is
@@ -216,15 +191,10 @@ vAPI.messaging = {
     },
 
     getPort: function() {
-        console.log("[VAPI-CLIENT] getPort called, port is:", this.port !== null ? "exists" : "null");
         return this.port !== null ? this.port : this.createPort();
     },
 
     send: function(channel, msg) {
-        // DEBUG LOGGING
-        console.log("[VAPI-CLIENT] ★★★ send CALLED - channel:", channel, "msg:", JSON.stringify(msg));
-        console.log("[VAPI-CLIENT] send - pending.size BEFORE:", this.pending.size);
-        
         // Too large a gap between the last request and the last response means
         // the main process is no longer reachable: memory leaks and bad
         // performance become a risk -- especially for long-lived, dynamic
@@ -235,24 +205,17 @@ vAPI.messaging = {
             }
         }
         const port = this.getPort();
-        console.log("[VAPI-CLIENT] send - got port:", port !== null ? "exists" : "null");
         if ( port === null ) {
-            console.log("[VAPI-CLIENT] send - port is NULL, returning empty promise");
             return Promise.resolve();
         }
         if ( this.pending.size === 0 ) {
             this.waitStartTime = Date.now();
         }
         const msgId = this.msgIdGenerator++;
-        console.log("[VAPI-CLIENT] send - msgId assigned:", msgId);
         const promise = new Promise(resolve => {
-            console.log("[VAPI-CLIENT] send - setting resolver for msgId:", msgId, "pending.size:", this.pending.size);
             this.pending.set(msgId, resolve);
-            console.log("[VAPI-CLIENT] send - resolver set, pending.size NOW:", this.pending.size);
         });
-        console.log("[VAPI-CLIENT] send - about to call port.postMessage for msgId:", msgId);
         port.postMessage({ channel, msgId, msg });
-        console.log("[VAPI-CLIENT] send - postMessage called for msgId:", msgId);
         return promise;
     },
 };
@@ -282,7 +245,7 @@ vAPI.shutdown.add(( ) => {
     - Add code beyond the following code
     Reason:
     - https://github.com/gorhill/uBlock/pull/3721
-    - uBR never uses the return value from injected content scripts
+    - uBO never uses the return value from injected content scripts
 
 **/
 

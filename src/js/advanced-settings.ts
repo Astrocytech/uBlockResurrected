@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Resurrected - a comprehensive, efficient content blocker
+    uBlock Origin - a comprehensive, efficient content blocker
     Copyright (C) 2016-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -17,171 +17,176 @@
     along with this program.  If not, see {http://www.gnu.org/licenses/}.
 
     Home: https://github.com/gorhill/uBlock
+*/
 
-******************************************************************************/
+/* global CodeMirror, uBlockDashboard */
 
-declare const CodeMirror: any;
+import { dom, qs$ } from './dom.js';
 
-interface SettingsMap {
-    [key: string]: string;
-}
+/******************************************************************************/
 
-const fallbackText = new Map([
-    [ 'advancedSettingsPageName', 'Advanced settings' ],
-    [ 'advancedSettingsWarning', 'Changing these settings may affect the proper functioning of uBlock Origin.' ],
-    [ 'genericApplyChanges', 'Apply changes' ],
-]);
+let defaultSettings = new Map();
+let adminSettings = new Map();
+let beforeHash = '';
 
-const browserRuntime = typeof browser !== 'undefined' ? browser.runtime : undefined;
+/******************************************************************************/
 
-const sendMessage = async <T>(topic: string, payload: Record<string, unknown> = {}): Promise<T> => {
-    const message = { topic, payload };
-    if ( browserRuntime !== undefined ) {
-        return await browserRuntime.sendMessage(message) as T;
-    }
-    return await new Promise<T>((resolve, reject) => {
-        chrome.runtime.sendMessage(message, (response: T) => {
-            const lastError = chrome.runtime.lastError;
-            if ( lastError ) {
-                reject(new Error(lastError.message));
-                return;
+CodeMirror.defineMode('raw-settings', function() {
+    let lastSetting = '';
+
+    return {
+        token: function(stream) {
+            if ( stream.sol() ) {
+                stream.eatSpace();
+                const match = stream.match(/\S+/);
+                if ( match !== null && defaultSettings.has(match[0]) ) {
+                    lastSetting = match[0];
+                    return adminSettings.has(match[0])
+                        ? 'readonly keyword'
+                        : 'keyword';
+                }
+                stream.skipToEnd();
+                return 'line-cm-error';
             }
-            resolve(response);
-        });
-    });
-};
-
-const defaultSettings: SettingsMap = {
-    'userFilters': '',
-    'importedLists': '',
-    'lastBackupTime': '0',
-    'excludeAfter': '28',
-    'autoUpdateInterval': '168',
-    'manualUpdateAssetFetchInterval': '72',
-    'updateDelayAfterLaunch': '7',
-    'backupPeriod': '86400000',
-    'localSettings': '',
-    'remoteSettings': '',
-};
-
-const adminSettings: SettingsMap = {
-    'userFilters': 'true',
-    'importedLists': 'true',
-};
-
-const applyFallbackTranslations = () => {
-    for ( const element of document.querySelectorAll<HTMLElement>('[data-i18n]') ) {
-        const key = element.dataset.i18n || '';
-        const fallback = fallbackText.get(key);
-        if ( fallback === undefined ) { continue; }
-        if ( element.textContent?.trim() === '' || element.textContent?.trim() === '_' ) {
-            element.textContent = fallback;
+            stream.eatSpace();
+            const match = stream.match(/.*$/);
+            if ( match !== null ) {
+                if ( match[0].trim() !== defaultSettings.get(lastSetting) ) {
+                    return 'line-cm-strong';
+                }
+                if ( adminSettings.has(lastSetting) ) {
+                    return 'readonly';
+                }
+            }
+            stream.skipToEnd();
+            return null;
         }
-    }
-};
+    };
+});
 
-const applyThemeClasses = () => {
-    const root = document.documentElement;
-    const dark = typeof self.matchMedia === 'function' &&
-        self.matchMedia('(prefers-color-scheme: dark)').matches;
-    root.classList.toggle('dark', dark);
-    root.class.toggle('light', dark === false);
-    root.classList.add((navigator.maxTouchPoints || 0) > 0 ? 'mobile' : 'desktop');
-    if ( self.matchMedia('(min-resolution: 150dpi)').matches ) {
-        root.classList.add('hidpi');
-    }
-};
+const cmEditor = new CodeMirror(qs$('#advancedSettings'), {
+    autofocus: true,
+    lineNumbers: true,
+    lineWrapping: false,
+    styleActiveLine: true
+});
 
-const hashFromAdvancedSettings = (raw: string): string => {
-    const aa = arrayFromString(raw);
+uBlockDashboard.patchCodeMirrorEditor(cmEditor);
+
+/******************************************************************************/
+
+const hashFromAdvancedSettings = function(raw) {
+    const aa = typeof raw === 'string'
+        ? arrayFromString(raw)
+        : arrayFromObject(raw);
     aa.sort((a, b) => a[0].localeCompare(b[0]));
     return JSON.stringify(aa);
 };
 
-const arrayFromObject = (o: Record<string, string>): string[][] => {
-    const out: string[][] = [];
+/******************************************************************************/
+
+const arrayFromObject = function(o) {
+    const out = [];
     for ( const k in o ) {
         if ( Object.hasOwn(o, k) === false ) { continue; }
-        out.push([k, `${o[k]}`]);
+        out.push([ k, `${o[k]}` ]);
     }
     return out;
 };
 
-const arrayFromString = (s: string): string[][] => {
-    const out: string[][] = [];
-    for ( const line of s.split(/[\n\r]+/) ) {
-        const pos = line.indexOf('=');
-        if ( pos === -1 ) { continue; }
-        out.push([line.slice(0, pos).trim(), line.slice(pos + 1).trim()]);
+const arrayFromString = function(s) {
+    const out = [];
+    for ( let line of s.split(/[\n\r]+/) ) {
+        line = line.trim();
+        if ( line === '' ) { continue; }
+        const pos = line.indexOf(' ');
+        let k, v;
+        if ( pos !== -1 ) {
+            k = line.slice(0, pos);
+            v = line.slice(pos + 1);
+        } else {
+            k = line;
+            v = '';
+        }
+        out.push([ k.trim(), v.trim() ]);
     }
     return out;
 };
 
-const cmEditor = new CodeMirror(
-    document.querySelector('#advancedSettings') as HTMLElement,
-    {
-        autofocus: true,
-        lineNumbers: true,
-        lineWrapping: false,
-        styleActiveLine: true,
-    },
-);
+/******************************************************************************/
 
-if (typeof uBlockDashboard !== 'undefined') {
-    uBlockDashboard.patchCodeMirrorEditor(cmEditor);
-}
+const advancedSettingsChanged = (( ) => {
+    const handler = ( ) => {
+        const changed = hashFromAdvancedSettings(cmEditor.getValue()) !== beforeHash;
+        qs$('#advancedSettingsApply').disabled = !changed;
+        CodeMirror.commands.save = changed ? applyChanges : function(){};
+    };
 
-let beforeHash = '';
+    const timer = vAPI.defer.create(handler);
 
-const advancedSettingsChanged = () => {
-    const raw = cmEditor.getValue();
-    const afterHash = hashFromAdvancedSettings(raw);
-    const changed = beforeHash !== afterHash;
-    const applyBtn = document.querySelector('#advancedSettingsApply') as HTMLButtonElement;
-    if (applyBtn) {
-        applyBtn.disabled = !changed;
-    }
-};
+    return function() {
+        timer.offon(200);
+    };
+})();
 
 cmEditor.on('changes', advancedSettingsChanged);
 
-const applyAdvancedSettings = async () => {
-    const raw = cmEditor.getValue();
-    const pairs = arrayFromString(raw);
-    const settings: Record<string, string> = {};
-    for ( const [key, value] of pairs ) {
-        if ( adminSettings[key] !== undefined ) { continue; }
-        if ( defaultSettings[key] === undefined ) { continue; }
-        settings[key] = value;
-    }
-    await sendMessage('scriptlets', {
-        what: 'setAdvancedSettings',
-        settings,
+/******************************************************************************/
+
+const renderAdvancedSettings = async function(first) {
+    const details = await vAPI.messaging.send('dashboard', {
+        what: 'readHiddenSettings',
     });
-    beforeHash = hashFromAdvancedSettings(raw);
+    defaultSettings = new Map(arrayFromObject(details.default));
+    adminSettings = new Map(arrayFromObject(details.admin));
+    beforeHash = hashFromAdvancedSettings(details.current);
+    const pretty = [];
+    const roLines = [];
+    const entries = arrayFromObject(details.current);
+    let max = 0;
+    for ( const [ k ] of entries ) {
+        if ( k.length > max ) { max = k.length; }
+    }
+    for ( let i = 0; i < entries.length; i++ ) {
+        const [ k, v ] = entries[i];
+        pretty.push(' '.repeat(max - k.length) + `${k} ${v}`);
+        if ( adminSettings.has(k) ) {
+            roLines.push(i);
+        }
+    }
+    pretty.push('');
+    cmEditor.setValue(pretty.join('\n'));
+    if ( first ) {
+        cmEditor.clearHistory();
+    }
+    for ( const line of roLines ) {
+        cmEditor.markText(
+            { line, ch: 0 },
+            { line: line + 1, ch: 0 },
+            { readOnly: true }
+        );
+    }
     advancedSettingsChanged();
+    cmEditor.focus();
 };
 
-const loadAdvancedSettings = async () => {
-    const results = await sendMessage<any>('scriptlets', {
-        what: 'getAdvancedSettings',
+/******************************************************************************/
+
+const applyChanges = async function() {
+    await vAPI.messaging.send('dashboard', {
+        what: 'writeHiddenSettings',
+        content: cmEditor.getValue(),
     });
-    const entries: string[] = [];
-    for ( const key in defaultSettings ) {
-        let value = results[key] ?? defaultSettings[key];
-        if ( key === 'userFilters' ) { continue; }
-        entries.push(`${key}=${value}`);
-    }
-    const raw = entries.join('\n') + '\n';
-    cmEditor.setValue(raw);
-    beforeHash = hashFromAdvancedSettings(raw);
-    cmEditor.clearHistory();
+    renderAdvancedSettings();
 };
 
-document.getElementById('advancedSettingsApply')?.addEventListener('click', () => {
-    void applyAdvancedSettings();
+/******************************************************************************/
+
+dom.on('#advancedSettings', 'input', advancedSettingsChanged);
+dom.on('#advancedSettingsApply', 'click', ( ) => {
+    applyChanges();
 });
 
-applyThemeClasses();
-applyFallbackTranslations();
-void loadAdvancedSettings();
+renderAdvancedSettings(true);
+
+/******************************************************************************/

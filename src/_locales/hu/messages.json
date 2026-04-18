@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Általános kozmetikai szűrők figyelmen kívül hagyása",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "<p>Az általános kozmetikai szűrők azok a kozmetikai szűrők, amelyek minden weboldalra érvényesek.<p>Ugyan a uBlock₀ hatékonyan kezeli őket, az általános kozmetikai szűrők mégis mérhetően magasabb memória és CPU használatot eredményezhetnek néhány weboldalon, főleg nagy, és régóta futóak esetében.<p>Ennek az opciónak a bekapcsolása kiküszöböli az általános kozmetikai szűrők kezeléséből a weboldalakon adódó memória és CPU használat többletet, továbbá csökkenti a uBlock₀ által foglalt memóriát is.<p>Ajánlott bekapcsolni ezt az opciót a gyengébb eszközökön.",
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "uBlock Resurrected wiki: A naplózó",
+    "message": "uBlock Origin wiki: A naplózó",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "blokkolva",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "A uBlock Resurrected további funkcióihoz olvassa el a dokumentációt itt: <code>uBlock/wiki</code>.",
+    "message": "A uBlock Origin további funkcióihoz olvassa el a dokumentációt itt: <code>uBlock/wiki</code>.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>Fontos:</b> Ne használjon hasonló célú reklámblokkolókat a uBlock Resurrectednel egyidőben, mert ez szűrőhibákat okozhat bizonyos weboldalakon.",
+    "message": "<b>Fontos:</b> Ne használjon hasonló célú reklámblokkolókat a uBlock Originnel egyidőben, mert ez szűrőhibákat okozhat bizonyos weboldalakon.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "A uBlock Resurrected hibáit jelentse a <span data-url=\"https://github.com/uBlockOrigin/uAssets/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> hibakövetőben</span>. <u>GitHub-fiók szükséges.</u>",
+    "message": "A uBlock Origin hibáit jelentse a <span data-url=\"https://github.com/uBlockOrigin/uAssets/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> hibakövetőben</span>. <u>GitHub-fiók szükséges.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Észleli a uBlock Resurrectedt",
+    "message": "Észleli a uBlock Origint",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Hibásan működik, amikor a uBlock Resurrected be van kapcsolva",
+    "message": "Hibásan működik, amikor a uBlock Origin be van kapcsolva",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Szűrőlisták",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Külső függőségek (GPLv3-kompatibilis):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "A uBR saját szűrőlistáit a következő ingyenes <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-ek (angol)</a> szolgáltatják:",
+    "message": "A uBO saját szűrőlistáit a következő ingyenes <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN-ek (angol)</a> szolgáltatják:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Resurrected nem engedte a következő lap betöltését:",
+    "message": "uBlock Origin nem engedte a következő lap betöltését:",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

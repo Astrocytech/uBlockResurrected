@@ -54,14 +54,9 @@
     }
 
 .fa-icon > svg {
-    fill: currentColor;
     height: 1em;
     overflow: visible;
     width: 1em;
-    }
-.fa-icon > svg > path,
-.fa-icon > svg > use {
-    fill: inherit;
     }
 
 .fa-icon > .fa-icon_bar-chart {
@@ -156,7 +151,4 @@
     }
 .fa-icon > .fa-icon_bolt {
     width: calc(1em *  896 / 1792);
-    }
-.fa-icon > .fa-icon_lightbulb {
-    width: calc(1em * 512 / 1792);
     }

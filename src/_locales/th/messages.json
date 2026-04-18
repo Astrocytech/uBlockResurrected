@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ignore generic cosmetic filters",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "ตัวกรองส่วนแสดงผลทั่วไปคือตัวกรองที่สร้างขึ้นเพื่อใช้กับทุกเว็บไซต์ การเปิดใช้งานตัวเลือกนี้จะช่วยลดการใช้หน่วยความจำและ CPU ที่เพิ่มขึ้นบนหน้าเว็บ ซึ่งเกิดจากการทำงานของตัวกรองเหล่านี้\n\nแนะนำให้เปิดใช้งานตัวเลือกนี้บนอุปกรณ์ที่มีประสิทธิภาพต่ำ",
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "ระบุไซต์ที่เชื่อถือได้เพื่อกำหนดว่าควรปิดการใช้งาน uBlock Resurrected ที่หน้าเว็บใด พิมพ์หนึ่งรายการต่อบรรทัด",
+    "message": "ระบุไซต์ที่เชื่อถือได้เพื่อกำหนดว่าควรปิดการใช้งาน uBlock Origin ที่หน้าเว็บใด พิมพ์หนึ่งรายการต่อบรรทัด",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "uBlock Resurrected wiki: ตัวลงบันทึก",
+    "message": "uBlock Origin wiki: ตัวลงบันทึก",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "บล๊อกอยู่",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "อ่านเอกสารข้อมูลที่ <code>uBlock/wiki</code> เพื่อเรียนรู้ฟีเจอร์ทั้งหมดของ uBlock Resurrected",
+    "message": "อ่านเอกสารข้อมูลที่ <code>uBlock/wiki</code> เพื่อเรียนรู้ฟีเจอร์ทั้งหมดของ uBlock Origin",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>สำคัญ:</b> หลีกเลี่ยงการใช้ตัวบล๊อกอื่น ๆ ร่วมกันกับ uBlock Resurrected ซึ่งอาจทำให้เกิดปัญหาในการกรองของหน้าเว็บไซต์ที่ต้องการ",
+    "message": "<b>สำคัญ:</b> หลีกเลี่ยงการใช้ตัวบล๊อกอื่น ๆ ร่วมกันกับ uBlock Origin ซึ่งอาจทำให้เกิดปัญหาในการกรองของหน้าเว็บไซต์ที่ต้องการ",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "รายงานปัญหาด้วย uBlock Resurrected เอง <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> ปัญหาตัวติดตาม</span>. <u>ต้องใช้บัญชี GitHub</u>",
+    "message": "รายงานปัญหาด้วย uBlock Origin เอง <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> ปัญหาตัวติดตาม</span>. <u>ต้องใช้บัญชี GitHub</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "ตรวจหา uBlock Resurrected",
+    "message": "ตรวจหา uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "ความผิดปกติเมื่อเปิดใช้งาน uBlock Resurrected",
+    "message": "ความผิดปกติเมื่อเปิดใช้งาน uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "รายการตัวกรอง",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "External dependencies (GPLv3-compatible):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBR's ถือครองรายการตัวกรองที่เก็บไว้ที่ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
+    "message": "uBO's ถือครองรายการตัวกรองที่เก็บไว้ที่ <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Resurrected ป้องกันไม่ให้โหลดหน้าต่อไปนี้:",
+    "message": "uBlock Origin ป้องกันไม่ให้โหลดหน้าต่อไปนี้:",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

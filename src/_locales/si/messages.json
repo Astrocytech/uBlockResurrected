@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "සාමාන්‍ය රූපලාවන්‍ය පෙරහන් නොසලකා හරින්න.",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "සාමාන්‍ය රූපලාවන්‍ය පෙරහන් යනු සියලුම වෙබ් අඩවිවල යෙදීමට අදහස් කරන රූපලාවන්‍ය පෙරහන් වේ. මෙම විකල්පය සක්‍රීය කිරීමෙන් සාමාන්‍ය රූපලාවන්‍ය පෙරහන් හැසිරවීමේ ප්‍රතිඵලයක් ලෙස වෙබ් පිටුවලට එකතු වන මතකය සහ CPU උඩිස් බර ඉවත් කරනු ඇත.\n\nඅඩු බලවත් උපාංගවල මෙම විකල්පය සක්‍රීය කිරීම නිර්දේශ කෙරේ.",
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "විශ්වාසදායක අඩවි නියෝග මඟින් uBlock Resurrected අක්‍රිය කළ යුත්තේ කුමන වෙබ් පිටු මතද යන්න නියම කරයි. පේළියකට එක් ඇතුළත් කිරීමක් පමණි.",
+    "message": "විශ්වාසදායක අඩවි නියෝග මඟින් uBlock Origin අක්‍රිය කළ යුත්තේ කුමන වෙබ් පිටු මතද යන්න නියම කරයි. පේළියකට එක් ඇතුළත් කිරීමක් පමණි.",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "අවහිරයි",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "uBlock Resurrected හි සියලුම විශේෂාංග ගැන ඉගෙන ගැනීමට <code>uBlock/wiki</code> හි ඇති ලේඛන කියවන්න.",
+    "message": "uBlock Origin හි සියලුම විශේෂාංග ගැන ඉගෙන ගැනීමට <code>uBlock/wiki</code> හි ඇති ලේඛන කියවන්න.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>වැදගත්:</b> uBlock Resurrected සමඟ සමාන අරමුණු සහිත වෙනත් අවහිර කරන්නන් භාවිතා කිරීමෙන් වළකින්න, මන්ද මෙය නිශ්චිත වෙබ් අඩවි වල පෙරහන් ගැටළු ඇති කළ හැකිය.",
+    "message": "<b>වැදගත්:</b> uBlock Origin සමඟ සමාන අරමුණු සහිත වෙනත් අවහිර කරන්නන් භාවිතා කිරීමෙන් වළකින්න, මන්ද මෙය නිශ්චිත වෙබ් අඩවි වල පෙරහන් ගැටළු ඇති කළ හැකිය.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "uBlock Resurrected සමඟ ඇති ගැටළු <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> ගැටළු ට්‍රැකර්</span>වෙත වාර්තා කරන්න. <u>GitHub ගිණුමක් අවශ්‍යයි.</u>",
+    "message": "uBlock Origin සමඟ ඇති ගැටළු <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\"><code>uBlockOrigin/uBlock-issue</code> ගැටළු ට්‍රැකර්</span>වෙත වාර්තා කරන්න. <u>GitHub ගිණුමක් අවශ්‍යයි.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "uBlock Resurrected සක්‍රීය කර ඇති විට සිදුවන අක්‍රමිකතා",
+    "message": "uBlock Origin සක්‍රීය කර ඇති විට සිදුවන අක්‍රමිකතා",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "පෙරහන් ලැයිස්තු",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "බාහිර පරායත්ත (GPLv3-අනුකූල):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "uBR හි පෙරහන් ලැයිස්තු පහත <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>මත නිදහසේ සත්කාරකත්වය දරයි:",
+    "message": "uBO හි පෙරහන් ලැයිස්තු පහත <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDNs</a>මත නිදහසේ සත්කාරකත්වය දරයි:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Resurrected විසින් පහත පිටුව පූරණය වීම වළක්වා ඇත:",
+    "message": "uBlock Origin විසින් පහත පිටුව පූරණය වීම වළක්වා ඇත:",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

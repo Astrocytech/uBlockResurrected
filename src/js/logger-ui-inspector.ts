@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Resurrected - a comprehensive, efficient content blocker
+    uBlock Origin - a comprehensive, efficient content blocker
     Copyright (C) 2015-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -64,7 +64,6 @@ let uidGenerator = 1;
 const contentInspectorChannel = (( ) => {
     let bcChannel;
     let toContentPort;
-    const webextAPI = typeof self.browser !== 'undefined' ? self.browser : chrome;
 
     const start = ( ) => {
         bcChannel = new globalThis.BroadcastChannel('contentInspectorChannel');
@@ -72,11 +71,11 @@ const contentInspectorChannel = (( ) => {
             const msg = ev.data || {};
             connect(msg.tabId, msg.frameId);
         };
-        webextAPI.webNavigation.onDOMContentLoaded.addListener(onContentLoaded);
+        browser.webNavigation.onDOMContentLoaded.addListener(onContentLoaded);
     };
 
     const shutdown = ( ) => {
-        webextAPI.webNavigation.onDOMContentLoaded.removeListener(onContentLoaded);
+        browser.webNavigation.onDOMContentLoaded.removeListener(onContentLoaded);
         disconnect();
         bcChannel.close();
         bcChannel.onmessage = null;
@@ -86,7 +85,7 @@ const contentInspectorChannel = (( ) => {
     const connect = (tabId, frameId) => {
         disconnect();
         try {
-            toContentPort = webextAPI.tabs.connect(tabId, { frameId });
+            toContentPort = browser.tabs.connect(tabId, { frameId });
             toContentPort.onMessage.addListener(onContentMessage);
             toContentPort.onDisconnect.addListener(onContentDisconnect);
         } catch {

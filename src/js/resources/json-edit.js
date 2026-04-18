@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-    uBlock Resurrected - a comprehensive, efficient content blocker
+    uBlock Origin - a comprehensive, efficient content blocker
     Copyright (C) 2019-present Raymond Hill
 
     This program is free software: you can redistribute it and/or modify
@@ -82,7 +82,7 @@ registerScriptlet(editOutboundObjectFn, {
  * Property chain of the method to trap.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * */
 
@@ -108,7 +108,7 @@ registerScriptlet(editOutboundObject, {
  * Property chain of the method to trap.
  * 
 * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * */
 
@@ -133,7 +133,7 @@ registerScriptlet(trustedEditOutboundObject, {
  * Properties can only be removed.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * */
 
@@ -156,7 +156,7 @@ registerScriptlet(jsonEdit, {
  * Properties can be assigned new values.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * */
 
@@ -253,7 +253,7 @@ registerScriptlet(editInboundObjectFn, {
  * to the end.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * */
 
@@ -283,7 +283,7 @@ registerScriptlet(editInboundObject, {
  * to the end.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * */
 
@@ -387,7 +387,7 @@ registerScriptlet(jsonEditXhrResponseFn, {
  * Properties can only be removed.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is
@@ -414,7 +414,7 @@ registerScriptlet(jsonEditXhrResponse, {
  * Properties can be assigned new values.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is
@@ -505,7 +505,7 @@ registerScriptlet(jsonEditXhrRequestFn, {
  * Properties can only be removed.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is
@@ -532,7 +532,7 @@ registerScriptlet(jsonEditXhrRequest, {
  * Properties can be assigned new values.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is
@@ -627,7 +627,7 @@ registerScriptlet(jsonEditFetchResponseFn, {
  * Properties can only be removed.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is
@@ -654,7 +654,7 @@ registerScriptlet(jsonEditFetchResponse, {
  * Properties can be assigned new values.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is
@@ -746,7 +746,7 @@ registerScriptlet(jsonEditFetchRequestFn, {
  * Properties can only be removed.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when fetch() is called.
@@ -772,7 +772,7 @@ registerScriptlet(jsonEditFetchRequest, {
  * Properties can be assigned new values.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when fetch() is called.
@@ -904,7 +904,7 @@ registerScriptlet(jsonlEditXhrResponseFn, {
  * Properties can only be removed.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is
@@ -931,7 +931,7 @@ registerScriptlet(jsonlEditXhrResponse, {
  * Properties can be assigned new values.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is
@@ -1032,7 +1032,7 @@ registerScriptlet(jsonlEditFetchResponseFn, {
  * Properties can only be removed.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is
@@ -1059,7 +1059,7 @@ registerScriptlet(jsonlEditFetchResponse, {
  * Properties can be assigned new values.
  * 
  * @param jsonq
- * A uBR-flavored JSONPath query.
+ * A uBO-flavored JSONPath query.
  * 
  * @param [propsToMatch, value]
  * An optional vararg detailing the arguments to match when xhr.open() is

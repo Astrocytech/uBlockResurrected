@@ -23,26 +23,15 @@
 
 /******************************************************************************/
 
-// EMERGENCY DEBUG - write to document title to verify script is running
-try {
-    document.title = "uBR LOADING...";
-    console.log("VAPI JS EXECUTING");
-} catch(e) {
-    // Ignore
-}
-
-// DEBUG: Test if vapi.js is loading
-console.log("[VAPI] vapi.js starting...");
-
-// Fix for Chrome MV3 - ensure chrome/browser API is available at the very top
-if (typeof chrome === 'undefined' && typeof browser !== 'undefined') {
+if (
+    self.browser instanceof Object &&
+    (
+        typeof Element === 'undefined' ||
+        self.browser instanceof Element === false
+    )
+) {
     self.chrome = self.browser;
-} else if (typeof chrome !== 'undefined' && typeof browser === 'undefined') {
-    self.browser = self.chrome;
-} else if (typeof browser === 'undefined' && typeof chrome !== 'undefined') {
-    self.browser = self.chrome;
-}
-if (typeof browser === 'undefined' && typeof chrome !== 'undefined') {
+} else {
     self.browser = self.chrome;
 }
 
@@ -62,11 +51,6 @@ var vAPI = self.vAPI; // jshint ignore:line
 // https://forums.lanik.us/viewtopic.php?f=64&t=31522
 //   Skip text/plain documents.
 
-// Initialize vAPI properly for both service worker and popup contexts
-// The condition should check if we need to (re)initialize vAPI with proper localStorage
-// We want to run this block if:
-// 1. We're in a document context (popup, content script, etc.) AND
-// 2. Either vAPI doesn't exist yet OR it exists but doesn't have uBR: true flag
 if (
     (
         typeof document !== 'undefined' &&
@@ -79,67 +63,10 @@ if (
         /^image\/|^text\/plain/.test(document.contentType || '') === false
     ) &&
     (
-        typeof self.vAPI === 'undefined' || 
-        self.vAPI === null ||
-        self.vAPI.uBR !== true
+        self.vAPI instanceof Object === false || vAPI.uBO !== true
     )
 ) {
-    vAPI = self.vAPI = { 
-        uBR: true,
-        // Add localStorage for MV3 Chrome - use chrome.storage.local
-        localStorage: {
-getItemAsync: function(key) { 
-  // For Chrome MV3, use chrome.storage.local
-  if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-    return chrome.storage.local.get(key).then(function(data) { 
-      var result = data[key];
-      // Return empty string for missing/undefined/null keys to prevent .split() errors
-      return result === undefined || result === null ? "" : result;
-    }); 
-  }
-  // Fallback for testing
-  return Promise.resolve("");
-},
-            setItemAsync: function(key, value) { 
-                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                    return chrome.storage.local.set({[key]: value});
-                }
-                return Promise.resolve();
-            },
-            removeItemAsync: function(key) { 
-                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                    return chrome.storage.local.remove(key);
-                }
-                return Promise.resolve();
-            },
-            getItem: function(key, callback) { 
-                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                    chrome.storage.local.get(key, function(data) { 
-                        callback(data[key] || ""); 
-                    });
-                } else {
-                    callback("");
-                }
-            },
-            setItem: function(key, value) { 
-                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                    chrome.storage.local.set({[key]: value});
-                }
-            },
-            removeItem: function(key) { 
-                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                    chrome.storage.local.remove(key);
-                }
-            },
-            clear: function() { 
-                if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                    return chrome.storage.local.clear();
-                }
-                return Promise.resolve();
-            },
-            start: function() { return Promise.resolve(); }
-        }
-    };
+    vAPI = self.vAPI = { uBO: true };
 }
 
 
@@ -152,7 +79,7 @@ getItemAsync: function(key) {
     - Add code beyond the following code
     Reason:
     - https://github.com/gorhill/uBlock/pull/3721
-    - uBR never uses the return value from injected content scripts
+    - uBO never uses the return value from injected content scripts
 
 **/
 

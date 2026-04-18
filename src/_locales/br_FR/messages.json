@@ -1,6 +1,6 @@
 {
   "extName": {
-    "message": "uBlock Resurrected",
+    "message": "uBlock Origin",
     "description": "extension name."
   },
   "extShortDesc": {
@@ -449,7 +449,7 @@
   },
   "3pIgnoreGenericCosmeticFilters": {
     "message": "Ober fae ouzh ar siloù kenedel hollek",
-    "description": "This will cause uBR to ignore all generic cosmetic filters."
+    "description": "This will cause uBO to ignore all generic cosmetic filters."
   },
   "3pIgnoreGenericCosmeticFiltersInfo": {
     "message": "Ar siloù kenedel hollek a zo siloù kenedel bet savet evit bezañ implijet war an holl lec'hiennoù. Ma'z enaouit an dibarzh-mañ e vo implijer nebeutoc'h a vevor hag ar reizhiad korvoiñ (CPU) war al lec'hiennoù-se.\n\nErbedet eo deoc'h enaouiñ an dibarzh-mañ m'emaoc'h oc'h ober gant un ardivink re zic'halloudek.",
@@ -628,7 +628,7 @@
     "description": "English: a sort option for list of rules."
   },
   "whitelistPrompt": {
-    "message": "En ur dermeniñ peseurt lec'hiennoù a zo sur e lavarit da uBlock Resurrected e peseurt lec'hiennoù e rank bezañ diweredekaet. Un enmont dre linenn.",
+    "message": "En ur dermeniñ peseurt lec'hiennoù a zo sur e lavarit da uBlock Origin e peseurt lec'hiennoù e rank bezañ diweredekaet. Un enmont dre linenn.",
     "description": "A concise description of the 'Trusted sites' pane."
   },
   "whitelistImport": {
@@ -688,7 +688,7 @@
     "description": "Tooltip for the popup panel button in the logger page"
   },
   "loggerInfoTip": {
-    "message": "Pajenn wiki uBlock Resurrected: An Deizlevr",
+    "message": "Pajenn wiki uBlock Origin: An Deizlevr",
     "description": "Tooltip for the top-right info label in the logger page"
   },
   "loggerClearTip": {
@@ -721,7 +721,7 @@
   },
   "loggerRowFiltererBuiltinEventful": {
     "message": "eventful",
-    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBR doing something (blocked, allowed, redirected, etc.)"
+    "description": "A keyword in the built-in row filtering expression: all items corresponding to uBO doing something (blocked, allowed, redirected, etc.)"
   },
   "loggerRowFiltererBuiltinBlocked": {
     "message": "stanket",
@@ -912,7 +912,7 @@
     "description": "Header of 'Documentation' section in Support pane"
   },
   "supportS1P1": {
-    "message": "Lennit an teuliadur en <code>uBlock/wiki</code> evit gouzout hiroc'h diwar-benn uBlock Resurrected ha pep tra a c'hall ober.",
+    "message": "Lennit an teuliadur en <code>uBlock/wiki</code> evit gouzout hiroc'h diwar-benn uBlock Origin ha pep tra a c'hall ober.",
     "description": "First paragraph of 'Documentation' section in Support pane"
   },
   "supportS2H": {
@@ -932,7 +932,7 @@
     "description": "First paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P2": {
-    "message": "<b>A-bouez:</b> Chomit hep ober gant meur a stanker a zo heñvel ouzh uBlock Resurrected war un dro rak kement-se a c'hallfe degas kudennoù e lod lec'hiennoù zo.",
+    "message": "<b>A-bouez:</b> Chomit hep ober gant meur a stanker a zo heñvel ouzh uBlock Origin war un dro rak kement-se a c'hallfe degas kudennoù e lod lec'hiennoù zo.",
     "description": "Second paragraph of 'Filter issues' section in Support pane"
   },
   "supportS3P3": {
@@ -944,7 +944,7 @@
     "description": "Header of 'Bug report' section in Support pane"
   },
   "supportS4P1": {
-    "message": "Danevellit kudennoù gant uBlock Resurrected e-unan e-barzh <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\">roll evezhiañ kudennoù <code>uBlockOrigin/uBlock-issue</code></span>. <u>Ur c'hont GitHub zo rekis.</u>",
+    "message": "Danevellit kudennoù gant uBlock Origin e-unan e-barzh <span data-url=\"https://github.com/uBlockOrigin/uBlock-issues/issues?q=is%3Aissue\">roll evezhiañ kudennoù <code>uBlockOrigin/uBlock-issue</code></span>. <u>Ur c'hont GitHub zo rekis.</u>",
     "description": "First paragraph of 'Bug report' section in Support pane"
   },
   "supportS5H": {
@@ -992,7 +992,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option3": {
-    "message": "Diskoachañ a ra uBlock Resurrected",
+    "message": "Diskoachañ a ra uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option4": {
@@ -1000,7 +1000,7 @@
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option5": {
-    "message": "Ne ya ket mat en-dro p'eo enaouet uBlock Resurrected",
+    "message": "Ne ya ket mat en-dro p'eo enaouet uBlock Origin",
     "description": "An entry in the widget used to select the type of issue"
   },
   "supportS6Select1Option6": {
@@ -1041,14 +1041,14 @@
   },
   "aboutFilterLists": {
     "message": "Rolloù ar siloù",
-    "description": "Link text to uBR's own filter lists repo"
+    "description": "Link text to uBO's own filter lists repo"
   },
   "aboutDependencies": {
     "message": "Dalc'hioù diavaez (a glot gant GPLv3):",
     "description": "Shown in the About pane"
   },
   "aboutCDNs": {
-    "message": "Ar rolloù siloù a zo da uBR e-unan a zo herberc'hiet digoust war ar <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>où-mañ:",
+    "message": "Ar rolloù siloù a zo da uBO e-unan a zo herberc'hiet digoust war ar <a href=\"https://wikipedia.org/wiki/Content_delivery_network\">CDN</a>où-mañ:",
     "description": "Shown in the About pane"
   },
   "aboutCDNsInfo": {
@@ -1132,7 +1132,7 @@
     "description": "Used as a title for the document-blocked page"
   },
   "docblockedPrompt1": {
-    "message": "uBlock Resurrected en deus miret ar bajenn-mañ da gargañ:",
+    "message": "uBlock Origin en deus miret ar bajenn-mañ da gargañ:",
     "description": "Used in the strict-blocking page"
   },
   "docblockedPrompt2": {

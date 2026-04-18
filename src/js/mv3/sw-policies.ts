@@ -186,6 +186,11 @@ export const getFilterListState = async (
     const selectedListSet = new Set(selectedFilterLists);
     selectedListSet.add(FILTER_LIST_USER_PATH);
     const available = buildAvailableFilterLists(catalog, importedLists, selectedListSet);
+    for ( const details of Object.values(available) ) {
+        if ( details?.parent == null ) {
+            delete details.parent;
+        }
+    }
     const counts = estimateFilterCounts(available);
 
     await chrome.storage.local.set({

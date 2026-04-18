@@ -28,6 +28,22 @@ import { getFirewallRulesForPopup } from "./sw-firewall.js";
 
 import type { PopupRequest, HostnameDetails } from "./sw-types.js";
 
+const hasSameHostnameSwitches = (
+  hostname: string,
+  sessionSwitches: Record<string, Record<string, boolean>>,
+  permanentSwitches: Record<string, Record<string, boolean>>,
+) => {
+  const session = sessionSwitches[hostname] || {};
+  const permanent = permanentSwitches[hostname] || {};
+  const keys = new Set([...Object.keys(session), ...Object.keys(permanent)]);
+  for (const key of keys) {
+    if ((session[key] === true) !== (permanent[key] === true)) {
+      return false;
+    }
+  }
+  return true;
+};
+
 export const getPopupData = async (request: PopupRequest) => {
   await ensurePopupState();
   const tab = await getTabForRequest(request.tabId);
@@ -179,6 +195,19 @@ export const getPopupData = async (request: PopupRequest) => {
     pageStore?.remoteFontCount ?? switchMetrics.remoteFontCount;
   const popupBlockedCount =
     pageStore?.popupBlockedCount ?? switchMetrics.popupBlockedCount;
+  const hiddenSettings =
+    (await chrome.storage.local.get("hiddenSettings")).hiddenSettings || {};
+  const matrixIsDirty =
+    popupState.sessionFirewall.hasSameRules(
+      popupState.permanentFirewall,
+      pageHostname,
+      hostnameDict,
+    ) === false ||
+    hasSameHostnameSwitches(
+      pageHostname,
+      popupState.sessionHostnameSwitches,
+      popupState.permanentHostnameSwitches,
+    ) === false;
 
   return {
     advancedUserEnabled: popupState.userSettings.advancedUserEnabled,
@@ -190,7 +219,7 @@ export const getPopupData = async (request: PopupRequest) => {
     cosmeticFilteringSwitch: noCosmeticFiltering !== true,
     firewallPaneMinimized: popupState.userSettings.firewallPaneMinimized,
     firewallRules: getFirewallRulesForPopup(pageHostname, hostnameDict),
-    godMode: popupState.userSettings.filterAuthorMode === true,
+    godMode: hiddenSettings.filterAuthorMode === true,
     globalAllowedRequestCount: popupState.globalAllowedRequestCount,
     globalBlockedRequestCount: popupState.globalBlockedRequestCount,
     hasUnprocessedRequest: (() => {
@@ -217,6 +246,7 @@ export const getPopupData = async (request: PopupRequest) => {
     tooltipsDisabled: popupState.userSettings.tooltipsDisabled,
     netFilteringSwitch,
     largeMediaCount,
+    matrixIsDirty,
     remoteFontCount,
     noPopups,
     noLargeMedia,

@@ -270,9 +270,6 @@ html#ublock0-epicker,
     stroke: var(--ink-1);
     stroke-width: 3px;
 }
-#ublock0-epicker #windowbar #quit {
-    pointer-events: auto;
-}
 #ublock0-epicker #windowbar #move {
     background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAYAAACtBE5DAAAAFElEQVQI12NgwAfKy8v/M5ANYLoBshgEyQo6H9UAAAAASUVORK5CYII=');
     cursor: grab;

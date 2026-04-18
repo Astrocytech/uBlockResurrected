@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="css/fa-icons.css">
 <link rel="stylesheet" href="css/logger-ui.css">
 <link rel="stylesheet" href="css/logger-ui-inspector.css">
-<link rel="icon" type="image/svg+xml" href="img/ublock-defs.svg">
+<link rel="icon" type="image/png" href="img/icon_64.png">
 <title data-i18n="statsPageName"></title>
 <style id="vwRendererRuntimeStyles"></style>
 </head>
@@ -24,13 +24,13 @@
         </select>&ensp;
         <button id="refresh" class="iconified notext disabled needdom" data-i18n-title="loggerReloadTip" type="button"><span class="fa-icon">refresh</span><span class="hover"></span></button>
         <button id="showdom" class="iconified notext disabled needdom" data-i18n-title="loggerDomInspectorTip" type="button"><span class="fa-icon">code</span><span class="hover"></span></button>
-        <button id="showpopup" class="iconified notext disabled needdom" data-i18n-title="loggerPopupPanelTip" type="button"><span class="fa-icon"><svg><use href="/img/ublock-defs.svg#ubo-resurrected"></use></svg></span><span class="hover"></span></button>
+        <button id="showpopup" class="iconified notext disabled needdom" data-i18n-title="loggerPopupPanelTip" type="button"><span class="fa-icon"><svg><use href="/img/ublock-defs.svg#ubo-solid"></use></svg></span><span class="hover"></span></button>
     </div>
     <div>
         <button class="logConsole iconified notext" title="Show/hide console" type="button"><span class="fa-icon">terminal</span><span class="hover"></span></button>
     </div>
     <div>
-        
+        <a class="wikilink fa-icon" href="https://github.com/gorhill/uBlock/wiki/The-logger" target="_blank" data-i18n-title="loggerInfoTip">book</a>
     </div>
 </div>
 
@@ -236,17 +236,14 @@
 
 <script src="lib/hsluv/hsluv-0.1.0.min.js"></script>
 
+<script src="js/fa-icons.js" type="module"></script>
 <script src="js/vapi.js"></script>
 <script src="js/vapi-common.js"></script>
 <script src="js/vapi-client.js"></script>
-<script src="js/fa-icons-bundle.js"></script>
-<script src="js/theme-bundle.js"></script>
-<script src="js/i18n-bundle.js"></script>
-<script src="js/webext-bundle.js"></script>
-<script src="js/messaging-bundle.js"></script>
-<script src="js/dashboard-common-bundle.js"></script>
-<script src="js/logger-ui-bundle.js"></script>
-<script src="js/logger-ui-inspector-bundle.js"></script>
+<script src="js/theme.js" type="module"></script>
+<script src="js/i18n.js" type="module"></script>
+<script src="js/logger-ui.js" type="module"></script>
+<script src="js/logger-ui-inspector.js" type="module"></script>
 
 </body>
 </html>
