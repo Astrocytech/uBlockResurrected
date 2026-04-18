@@ -14,6 +14,66 @@ import {
     FILTER_LIST_USER_PATH,
 } from './sw-policies.js';
 
+const MV3_HIDDEN_SETTINGS_DEFAULTS = {
+    allowGenericProceduralFilters: false,
+    assetFetchTimeout: 30,
+    autoCommentFilterTemplate: '{{date}} {{origin}}',
+    autoUpdateAssetFetchPeriod: 5,
+    autoUpdateDelayAfterLaunch: 37,
+    autoUpdatePeriod: 1,
+    benchmarkDatasetURL: 'unset',
+    blockingProfiles: '11111/#F00 11010/#C0F 11001/#00F 00001',
+    cacheStorageCompression: true,
+    cacheStorageCompressionThreshold: 65536,
+    cacheStorageMultithread: 2,
+    cacheControlForFirefox1376932: 'unset',
+    cloudStorageCompression: true,
+    cnameIgnoreList: 'unset',
+    cnameIgnore1stParty: true,
+    cnameIgnoreExceptions: true,
+    cnameIgnoreRootDocument: true,
+    cnameReplayFullURL: false,
+    consoleLogLevel: 'unset',
+    debugAssetsJson: false,
+    debugScriptlets: false,
+    debugScriptletInjector: false,
+    differentialUpdate: true,
+    disableWebAssembly: false,
+    dnsCacheTTL: 600,
+    dnsResolveEnabled: true,
+    extensionUpdateForceReload: false,
+    filterAuthorMode: false,
+    loggerPopupType: 'popup',
+    manualUpdateAssetFetchPeriod: 500,
+    modifyWebextFlavor: 'unset',
+    noScriptingCSP: 'script-src http: https:',
+    popupFontSize: 'unset',
+    popupPanelDisabledSections: 0,
+    popupPanelHeightMode: 0,
+    popupPanelLockedSections: 0,
+    popupPanelOrientation: 'unset',
+    requestJournalProcessPeriod: 1000,
+    requestStatsDisabled: false,
+    selfieDelayInSeconds: 53,
+    strictBlockingBypassDuration: 120,
+    toolbarWarningTimeout: 60,
+    trustedListPrefixes: 'ublock-',
+    uiPopupConfig: 'unset',
+    uiStyles: 'unset',
+    updateAssetBypassBrowserCache: false,
+    userResourcesLocation: 'unset',
+};
+
+const coerceHiddenSettingValue = (raw: string): unknown => {
+    if ( raw === 'true' ) { return true; }
+    if ( raw === 'false' ) { return false; }
+    if ( raw === 'null' ) { return null; }
+    if ( /^-?\d+(?:\.\d+)?$/.test(raw) ) {
+        return Number(raw);
+    }
+    return raw;
+};
+
 type DashboardRequest = {
     what: string;
     [key: string]: any;
@@ -733,13 +793,13 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
         }
         case 'supportUpdateNow': {
             try {
-                const stored = await chrome.storage.local.get('selectedFilterLists');
-                const lists = stored?.selectedFilterLists || [];
-                if ( !lists.includes('support') ) {
-                    lists.push('support');
-                    await chrome.storage.local.set({ selectedFilterLists: lists });
-                }
-                await updateFilterListsNow({ assetKeys: ['support'] });
+                const assetKeys = Array.isArray(request.assetKeys)
+                    ? request.assetKeys.filter((key): key is string => typeof key === 'string' && key !== '')
+                    : [];
+                await updateFilterListsNow({
+                    assetKeys,
+                    preferOrigin: true,
+                });
             } catch (e) {
                 console.log('[MV3] supportUpdateNow error:', e);
             }
@@ -748,14 +808,14 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
         case 'readHiddenSettings': {
             const stored = await chrome.storage.local.get('hiddenSettings');
             const storedAdmin = await chrome.storage.local.get('adminHiddenSettings');
+            const current = {
+                ...MV3_HIDDEN_SETTINGS_DEFAULTS,
+                ...(stored?.hiddenSettings || {}),
+            };
             return {
-                defaults: {
-                    benchmarkDatasetURL: 'unset',
-                    debugScriptlet: false,
-                    profiler: false,
-                },
+                default: MV3_HIDDEN_SETTINGS_DEFAULTS,
                 admin: storedAdmin?.adminHiddenSettings || {},
-                current: stored?.hiddenSettings || {},
+                current,
             };
         }
         case 'writeHiddenSettings': {
@@ -766,15 +826,15 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
                 try {
                     parsedSettings = JSON.parse(content);
                 } catch {
-                    const pairs = content.split('\n').filter(p => p.includes('='));
-                    for ( const pair of pairs ) {
-                        const [ key, ...valueParts ] = pair.split('=');
-                        if ( key && valueParts.length > 0 ) {
-                            let value: unknown = valueParts.join('=').trim();
-                            if ( value === 'true' ) value = true;
-                            else if ( value === 'false' ) value = false;
-                            parsedSettings[key.trim()] = value;
-                        }
+                    const lines = content.split(/\r?\n/);
+                    for ( const rawLine of lines ) {
+                        const line = rawLine.trim();
+                        if ( line === '' ) { continue; }
+                        const pos = line.indexOf(' ');
+                        const key = pos === -1 ? line : line.slice(0, pos).trim();
+                        const value = pos === -1 ? '' : line.slice(pos + 1).trim();
+                        if ( key === '' ) { continue; }
+                        parsedSettings[key] = coerceHiddenSettingValue(value);
                     }
                 }
             } else if ( hiddenSettings ) {
@@ -847,17 +907,41 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
             const filterLists = await chrome.storage.local.get('filterLists');
             const hiddenSettings = await chrome.storage.local.get('hiddenSettings');
             const manifest = chrome.runtime.getManifest();
+            const availableFilterLists = await chrome.storage.local.get('availableFilterLists');
+            const userFilters = await chrome.storage.local.get([
+                'userFilters',
+                FILTER_LIST_USER_PATH,
+            ]);
             let cosmeticFilterCount = 0;
             try {
                 const stored = await chrome.storage.local.get('cosmeticFiltersData');
                 const data = parseStoredCosmeticFilterData(stored.cosmeticFiltersData);
                 cosmeticFilterCount = (data.genericCosmeticFilters?.length || 0) + (data.specificCosmeticFilters?.length || 0);
             } catch {}
+            const userFilterText = typeof userFilters?.userFilters === 'string'
+                ? userFilters.userFilters
+                : typeof userFilters?.[FILTER_LIST_USER_PATH] === 'string'
+                    ? userFilters[FILTER_LIST_USER_PATH]
+                    : '';
+            const filterset = userFilterText
+                .split(/\s*\n+\s*/)
+                .filter(line => line !== '' && /^![^#]/.test(line) === false);
+            const currentLists = filterLists?.filterLists || availableFilterLists?.availableFilterLists || {};
+            const enabledListset: Record<string, string | null> = {};
+            for ( const key of selectedLists?.selectedFilterLists || [] ) {
+                enabledListset[key] = null;
+            }
             return {
+                [manifest?.name || 'uBlock Resurrected']: manifest?.version || '1.0.0',
                 userSettings: userSettings?.userSettings || {},
                 selectedFilterLists: selectedLists?.selectedFilterLists || [],
-                filterLists: filterLists?.filterLists || {},
-                hiddenSettings: hiddenSettings?.hiddenSettings || {},
+                filterLists: currentLists,
+                listset: enabledListset,
+                'filterset (user)': filterset,
+                hiddenSettings: {
+                    ...MV3_HIDDEN_SETTINGS_DEFAULTS,
+                    ...(hiddenSettings?.hiddenSettings || {}),
+                },
                 version: manifest?.version || '1.0.0',
                 platform: 'chrome',
                 filterCount: 0,

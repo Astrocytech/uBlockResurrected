@@ -37,43 +37,43 @@ Important caveat:
 ## Current Overall Assessment
 
 High-level state today:
-- Popup/firewall: `Partial`
-- Logger: `Partial`
-- Settings: `Partial`
-- Dynamic rules: `Partial`
-- Trusted sites: `Partial`
+- Popup/firewall: `Mirrored-ish`
+- Logger: `Mirrored-ish`
+- Settings: `Mirrored-ish`
+- Dynamic rules: `Mirrored-ish`
+- Trusted sites: `Mirrored-ish`
 - Dashboard shell and remaining tabs: `Partial`
-- MV3 backend/service worker: `Not mirrored`
-- Shared assets, locales, web-accessible resources: `Not mirrored`
+- MV3 backend/service worker: `Partial`
+- Shared assets, locales, web-accessible resources: `Partial`
 - Build/platform layout: `Structural drift`
 
 Bottom line:
 - The project is not yet a full mirror of the reference.
-- The remaining parity gap is still substantial.
+- The remaining parity gap is now concentrated in long-tail pages/tools and platform/layout drift.
 
 ## Section A: HTML/UI Surface Inventory
 
 These are source HTML files currently reported as different from the reference.
 
 ### Dashboard and major UI pages
-- `src/1p-filters.html` — `Partial`
-- `src/3p-filters.html` — `Partial`
-- `src/about.html` — `Partial`
-- `src/advanced-settings.html` — `Not mirrored`
+- `src/1p-filters.html` — `Mirrored-ish`
+- `src/3p-filters.html` — `Mirrored-ish`
+- `src/about.html` — `Mirrored-ish`
+- `src/advanced-settings.html` — `Mirrored-ish`
 - `src/asset-viewer.html` — `Not mirrored`
 - `src/background.html` — `Not mirrored`
 - `src/cloud-ui.html` — `Not mirrored`
 - `src/code-viewer.html` — `Not mirrored`
-- `src/dashboard.html` — `Partial`
+- `src/dashboard.html` — `Mirrored-ish`
 - `src/devtools.html` — `Not mirrored`
 - `src/document-blocked.html` — `Not mirrored`
-- `src/dyna-rules.html` — `Partial`
-- `src/logger-ui.html` — `Partial`
+- `src/dyna-rules.html` — `Mirrored-ish`
+- `src/logger-ui.html` — `Mirrored-ish`
 - `src/no-dashboard.html` — `Not mirrored`
-- `src/popup-fenix.html` — `Partial`
-- `src/settings.html` — `Partial`
-- `src/support.html` — `Partial`
-- `src/whitelist.html` — `Partial`
+- `src/popup-fenix.html` — `Mirrored-ish`
+- `src/settings.html` — `Mirrored-ish`
+- `src/support.html` — `Mirrored-ish`
+- `src/whitelist.html` — `Mirrored-ish`
 
 ### Extra HTML files only in this repo
 - `src/matched-rules.html` — `Structural drift`
@@ -88,12 +88,12 @@ These are source HTML files currently reported as different from the reference.
 ## Section B: CSS/Theming Inventory
 
 ### CSS files differing from the reference
-- `src/css/3p-filters.css` — `Partial`
+- `src/css/3p-filters.css` — `Mirrored-ish`
 - `src/css/click2load.css` — `Not mirrored`
 - `src/css/common.css` — `Not mirrored`
-- `src/css/epicker-ui.css` — `Partial`
-- `src/css/fa-icons.css` — `Not mirrored`
-- `src/css/logger-ui.css` — `Partial`
+- `src/css/epicker-ui.css` — `Mirrored-ish`
+- `src/css/fa-icons.css` — `Partial`
+- `src/css/logger-ui.css` — `Mirrored-ish`
 - `src/css/themes/default.css` — `Not mirrored`
 
 ### CSS files missing here but present in the reference
@@ -111,19 +111,21 @@ These are source HTML files currently reported as different from the reference.
 
 ## Section C: Image/Icon Asset Inventory
 
-### Assets present in the reference but missing here
-- `src/img/cloud.png` — `Not mirrored`
-- `src/img/help16.png` — `Not mirrored`
-- `src/img/icon_128.png` — `Not mirrored`
-- `src/img/icon_16-loading.png` — `Not mirrored`
-- `src/img/icon_16-off.png` — `Not mirrored`
-- `src/img/icon_16.png` — `Not mirrored`
-- `src/img/icon_32-loading.png` — `Not mirrored`
-- `src/img/icon_32-off.png` — `Not mirrored`
-- `src/img/icon_32.png` — `Not mirrored`
-- `src/img/icon_64-loading.png` — `Not mirrored`
-- `src/img/icon_64-off.png` — `Not mirrored`
-- `src/img/icon_64.png` — `Not mirrored`
+### Assets present in the reference and already mirrored here
+- `src/img/cloud.png` — `Mirrored-ish`
+- `src/img/help16.png` — `Mirrored-ish`
+- `src/img/icon_128.png` — `Mirrored-ish`
+- `src/img/icon_16-loading.png` — `Mirrored-ish`
+- `src/img/icon_16-off.png` — `Mirrored-ish`
+- `src/img/icon_16.png` — `Mirrored-ish`
+- `src/img/icon_32-loading.png` — `Mirrored-ish`
+- `src/img/icon_32-off.png` — `Mirrored-ish`
+- `src/img/icon_32.png` — `Mirrored-ish`
+- `src/img/icon_64-loading.png` — `Mirrored-ish`
+- `src/img/icon_64-off.png` — `Mirrored-ish`
+- `src/img/icon_64.png` — `Mirrored-ish`
+
+### Assets still missing here but present in the reference
 - `src/img/flags-of-the-world/` — `Not mirrored`
 - `src/img/fontawesome/` — `Not mirrored`
 
@@ -133,7 +135,6 @@ These are source HTML files currently reported as different from the reference.
 - `src/img/ublock.svg` — `Partial`
 
 ### Extra assets only in this repo
-- `src/img/photon.svg.backup` — `Structural drift`
 - `src/img/ublock16.png` — `Structural drift`
 - `src/img/ublock32.png` — `Structural drift`
 - `src/img/ublock48.png` — `Structural drift`
@@ -219,8 +220,8 @@ All of the following locale catalogs currently differ from the reference:
 - `src/_locales/zh_TW/messages.json`
 
 Assessment:
-- Locale parity is `Not mirrored`.
-- This is likely both functional and UX-affecting.
+- Locale parity is `Mirrored-ish`.
+- The locale tree is now in parity at the file-content level against the reference.
 
 ## Section E: JS/Controller Inventory
 
@@ -231,9 +232,9 @@ The JS tree has two different kinds of drift:
 ### Pages/controllers currently known to still differ functionally or semantically
 - `src/js/cloud-ui.js` — `Partial`
 - `src/js/theme.js` — `Partial`
-- `src/js/logger-ui.ts` — `Partial`
+- `src/js/logger-ui.ts` — `Mirrored-ish`
 - `src/js/logger-ui-inspector.ts` — `Partial`
-- `src/js/advanced-settings.ts` — `Not mirrored`
+- `src/js/advanced-settings.ts` — `Mirrored-ish`
 - `src/js/asset-viewer.ts` — `Not mirrored`
 - `src/js/devtools.ts` — `Not mirrored`
 - `src/js/document-blocked.ts` — `Not mirrored`
@@ -243,15 +244,34 @@ The JS tree has two different kinds of drift:
 - `src/js/storage.ts` — `Partial`
 - `src/js/assets.ts` — `Partial`
 - `src/js/redirect-engine.ts` — `Partial`
+- `src/js/support.ts` — `Mirrored-ish`
+- `src/js/settings.ts` — `Mirrored-ish`
+- `src/js/whitelist.ts` — `Mirrored-ish`
+- `src/js/dyna-rules.ts` — `Mirrored-ish`
+- `src/js/popup-fenix.ts` — `Mirrored-ish`
+- `src/js/3p-filters.ts` — `Mirrored-ish`
+- `src/js/1p-filters.ts` — `Mirrored-ish`
+- `src/js/dashboard.ts` — `Mirrored-ish`
+- `src/js/about.ts` — `Mirrored-ish`
 
 ### MV3/backend-specific code only in this repo
-- `src/js/mv3/` — `Not mirrored`
+- `src/js/mv3/` — `Partial`
 - `src/js/dnr-integration.ts` — `Not mirrored`
 - `src/js/blocker-adapter.ts` — `Not mirrored`
 - `src/js/filter-storage.ts` — `Not mirrored`
 - `src/js/filtering-compiler.ts` — `Not mirrored`
-- `src/js/contentscript/` — `Structural drift` with possible functional impact
-- `src/js/scripting/` — `Structural drift` with possible functional impact
+- `src/js/contentscript/` — `Partial`
+- `src/js/scripting/` — `Partial`
+
+### Completed parity blocks that were previously open
+- Popup/logger open-path and embedded popup sizing/icon behavior — `Done`
+- Firewall matrix semantics, rule persistence, and MV3 DNR sync — `Done`
+- Settings / Trusted sites / Dynamic rules dashboard pages — `Done`
+- My Filters end-to-end MV3 behavior including persistence and automatic application — `Done`
+- Filter-list first-run defaults and DNR bootstrap — `Done`
+- Advanced settings / support dashboard contracts — `Done`
+- Locale tree parity — `Done`
+- Static favicon/icon packaging normalization — `Done`
 
 ### Generated bundle files only in this repo
 

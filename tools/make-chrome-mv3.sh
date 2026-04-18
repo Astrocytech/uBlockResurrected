@@ -457,7 +457,6 @@ VAPICONTENTEOF
 # Clean up MV2-specific files
 echo "*** uBlock0.chromium-mv3: Cleaning up MV2-specific files"
 rm -f $DES/js/start.js 2>/dev/null || true
-rm -f $DES/img/icon_128.png 2>/dev/null || true
 
 echo "*** uBlock0.chromium-mv3: Package done."
 echo "*** uBlock0.chromium-mv3: Build complete."
