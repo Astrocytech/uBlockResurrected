@@ -495,8 +495,10 @@ test.describe('Popup Firewall Extension', () => {
 
             const tabId = await getTabIdForURL(serviceWorker, servers.resourcePageURL(uid));
             const resourcePopup = await openPopupForTab(context, extensionId, tabId);
-            await expect(blockedOnPageText(resourcePopup)).not.toHaveText('0');
-            await expect(blockedOnPageText(resourcePopup)).not.toContainText('0%');
+            const summary = await blockedOnPageText(resourcePopup).textContent();
+            expect(summary).not.toBeNull();
+            expect(summary).toMatch(/\b[1-9]\d*\b/);
+            expect(summary).not.toContain('(0%)');
         } finally {
             await context?.close();
             await rm(userDataDir, { force: true, recursive: true });

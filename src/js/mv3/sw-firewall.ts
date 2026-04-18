@@ -199,13 +199,11 @@ export const compileFirewallRulesToDnr = async (
 };
 
 export const syncFirewallDnrRules = async (): Promise<void> => {
-  const firewall = popupState.sessionFirewall;
-  const addRules = await compileFirewallRulesToDnr(firewall);
-
   const existing = await chrome.declarativeNetRequest.getDynamicRules();
   const toRemove = existing
     .map((r) => r.id)
     .filter((id) => id >= FIREWALL_RULE_ID_MIN && id < POWER_RULE_ID_MIN);
+  const addRules = await compileFirewallRulesToDnr(popupState.permanentFirewall);
 
   if (toRemove.length > 0) {
     await chrome.declarativeNetRequest.updateDynamicRules({
@@ -215,6 +213,24 @@ export const syncFirewallDnrRules = async (): Promise<void> => {
   if (addRules.length > 0) {
     await chrome.declarativeNetRequest.updateDynamicRules({ addRules });
   }
+
+  if ( typeof chrome.declarativeNetRequest.getSessionRules !== "function" ) {
+    return;
+  }
+
+  const existingSessionRules = await chrome.declarativeNetRequest.getSessionRules();
+  const sessionRemoveRuleIds = existingSessionRules
+    .map((rule) => rule.id)
+    .filter((id) => id >= FIREWALL_RULE_ID_MIN && id < POWER_RULE_ID_MIN);
+  const sessionAddRules = popupState.sessionFirewall.toString() ===
+    popupState.permanentFirewall.toString()
+    ? []
+    : await compileFirewallRulesToDnr(popupState.sessionFirewall);
+
+  await chrome.declarativeNetRequest.updateSessionRules({
+    removeRuleIds: sessionRemoveRuleIds,
+    addRules: sessionAddRules,
+  });
 };
 
 export const compilePowerSwitchDnrRules = async (

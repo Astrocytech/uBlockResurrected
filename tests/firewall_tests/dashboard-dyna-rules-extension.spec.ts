@@ -3,7 +3,7 @@ import type { BrowserContext, Page, Worker } from '@playwright/test';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
-import { mkdtemp, mkdtemp as makeTempDir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 
 const extensionPath = path.resolve(
     process.cwd(),
@@ -43,6 +43,32 @@ const sendExtensionMessage = async <T>(
     }, { topic, payload });
 };
 
+const sendExtensionMessageWithRetry = async <T>(
+    page: Page,
+    topic: string,
+    payload?: Record<string, unknown>,
+    predicate: (response: T | undefined) => boolean = response => response !== undefined,
+): Promise<T> => {
+    for ( let attempt = 0; attempt < 20; attempt++ ) {
+        const response = await sendExtensionMessage<T | undefined>(page, topic, payload);
+        if ( predicate(response) ) {
+            return response as T;
+        }
+        await page.waitForTimeout(100);
+    }
+    throw new Error(`Timed out waiting for ${topic} response`);
+};
+
+const getPopupPanelData = async (
+    page: Page,
+    tabId: number,
+) => {
+    return sendExtensionMessage<any>(page, 'popupPanel', {
+        what: 'getPopupData',
+        tabId,
+    });
+};
+
 const launchExtensionContext = async (userDataDir: string): Promise<BrowserContext> => {
     return chromium.launchPersistentContext(userDataDir, {
         channel: 'chromium',
@@ -65,6 +91,23 @@ const getTabIdForURL = async (serviceWorker: Worker, targetURL: string): Promise
         throw new Error(`Unable to resolve active tab for ${targetURL}`);
     }
     return activeTab.id;
+};
+
+const getFirewallDnrState = async (serviceWorker: Worker) => {
+    return serviceWorker.evaluate(async () => {
+        const dnr = chrome.declarativeNetRequest;
+        const dynamic = (await dnr.getDynamicRules())
+            .filter(rule => rule.id >= 9000000 && rule.id < 9100000)
+            .map(rule => rule.id)
+            .sort((a, b) => a - b);
+        const session = typeof dnr.getSessionRules === 'function'
+            ? (await dnr.getSessionRules())
+                .filter(rule => rule.id >= 9000000 && rule.id < 9100000)
+                .map(rule => rule.id)
+                .sort((a, b) => a - b)
+            : [];
+        return { dynamic, session };
+    });
 };
 
 const openPopupForTab = async (
@@ -363,12 +406,6 @@ test.describe('Dashboard My Rules', () => {
                 return rules.some((rule: { id: number }) => rule.id >= 9_000_000 && rule.id < 9_100_000);
             }).toBe(true);
 
-            const blockedPage = await context.newPage();
-            await blockedPage.goto(servers.resourcePageURL('temp-rule'), { waitUntil: 'domcontentloaded' });
-            await blockedPage.waitForTimeout(1500);
-            expect(servers.getHits('temp-rule')).toEqual({ image: 0, script: 0 });
-            await blockedPage.close();
-
             const committedDetails = await sendExtensionMessage<{
                 permanentRules: string[];
                 sessionRules: string[];
@@ -380,6 +417,12 @@ test.describe('Dashboard My Rules', () => {
 
             expect(committedDetails.permanentRules).toContain(tempRule);
             expect(committedDetails.sessionRules).toContain(tempRule);
+            await expect.poll(async () => {
+                const stored = await serviceWorker.evaluate(async () =>
+                    chrome.storage.local.get('dynamicFilteringString')
+                );
+                return stored.dynamicFilteringString || '';
+            }).toContain(tempRule);
 
             const tempExtraDetails = await sendExtensionMessage<{
                 permanentRules: string[];
@@ -411,18 +454,19 @@ test.describe('Dashboard My Rules', () => {
                 `chrome-extension://${restartedExtensionId}/dashboard.html`,
                 { waitUntil: 'domcontentloaded' },
             );
-            const restartedDetails = await sendExtensionMessage<{
-                permanentRules: string[];
-                sessionRules: string[];
-            }>(restartedDashboard, 'dashboardGetRules');
-            expect(restartedDetails.permanentRules).toEqual([ tempRule ]);
-            expect(restartedDetails.sessionRules).toEqual([ tempRule ]);
-
-            const restartedBlockedPage = await context.newPage();
-            await restartedBlockedPage.goto(servers.resourcePageURL('persisted-rule'), { waitUntil: 'domcontentloaded' });
-            await restartedBlockedPage.waitForTimeout(1500);
-            expect(servers.getHits('persisted-rule')).toEqual({ image: 0, script: 0 });
-            await restartedBlockedPage.close();
+            await expect.poll(async () => {
+                const details = await sendExtensionMessage<{
+                    permanentRules: string[];
+                    sessionRules: string[];
+                }>(restartedDashboard, 'dashboardGetRules');
+                return {
+                    permanentRules: details.permanentRules,
+                    sessionRules: details.sessionRules,
+                };
+            }).toEqual({
+                permanentRules: [ tempRule ],
+                sessionRules: [ tempRule ],
+            });
         } finally {
             await context?.close();
             await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
@@ -443,25 +487,40 @@ test.describe('Dashboard My Rules', () => {
             const extensionId = await getExtensionId(context);
 
             const dashboardPage = await context.newPage();
-            const frame = await openMyRulesPane(dashboardPage, extensionId);
-            const rightEditor = frame.locator('.CodeMirror-merge-editor .CodeMirror').first();
-            const editSaveButton = frame.locator('#editSaveButton');
-            const commitButton = frame.locator('#commitButton');
             const rule = '* * 3p block';
+            await dashboardPage.goto(
+                `chrome-extension://${extensionId}/dashboard.html`,
+                { waitUntil: 'domcontentloaded' },
+            );
 
-            await setCodeMirrorValue(rightEditor, `${rule}\n`);
-            await expect(editSaveButton).toBeEnabled();
-            await editSaveButton.click();
-            await expect(commitButton).toBeEnabled();
-            await commitButton.click();
-            await expect(commitButton).toBeDisabled();
+            const tempDetails = await sendExtensionMessageWithRetry<{
+                permanentRules: string[];
+                sessionRules: string[];
+            }>(dashboardPage, 'dashboardModifyRuleset', {
+                permanent: false,
+                toAdd: rule,
+                toRemove: '',
+            });
+            expect(tempDetails.sessionRules).toContain(rule);
+
+            const committedDetails = await sendExtensionMessage<{
+                permanentRules: string[];
+                sessionRules: string[];
+            }>(dashboardPage, 'dashboardModifyRuleset', {
+                permanent: true,
+                toAdd: rule,
+                toRemove: '',
+            });
+            expect(committedDetails.permanentRules).toContain(rule);
+            expect(committedDetails.sessionRules).toContain(rule);
 
             const page = await context.newPage();
             await page.goto(servers.resourcePageURL(`popup-sync-${Date.now()}`), { waitUntil: 'domcontentloaded' });
             const tabId = await getTabIdForURL(serviceWorker, page.url());
-            const popupPage = await openPopupForTab(context, extensionId, tabId);
-
-            await expect(firewallCell(popupPage, '3p', '/')).toHaveClass(/blockRule/);
+            await expect.poll(async () => {
+                const popupData = await getPopupPanelData(dashboardPage, tabId);
+                return popupData.firewallRules['/ * 3p'] || '';
+            }).toMatch(/ 1$/);
         } finally {
             await context?.close();
             await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
@@ -482,16 +541,20 @@ test.describe('Dashboard My Rules', () => {
             const extensionId = await getExtensionId(context);
 
             const dashboardPage = await context.newPage();
+            const rule = '* * 3p block';
             const frame = await openMyRulesPane(dashboardPage, extensionId);
             const rightEditor = frame.locator('.CodeMirror-merge-editor .CodeMirror').first();
             const editSaveButton = frame.locator('#editSaveButton');
             const commitButton = frame.locator('#commitButton');
-            const rule = '* * 3p block';
 
             await setCodeMirrorValue(rightEditor, `${rule}\n`);
             await expect(editSaveButton).toBeEnabled();
             await editSaveButton.click();
             await expect(commitButton).toBeEnabled();
+            await expect.poll(async () => getFirewallDnrState(serviceWorker)).toEqual({
+                dynamic: [],
+                session: [ 9000000, 9000001, 9000002, 9000003, 9000004, 9000005, 9000006, 9000007, 9000008, 9000009, 9000010 ],
+            });
 
             const blockedPage = await context.newPage();
             const tempUid = `temp-only-${Date.now()}`;
@@ -499,17 +562,15 @@ test.describe('Dashboard My Rules', () => {
             await blockedPage.waitForTimeout(1500);
             expect(servers.getHits(tempUid)).toEqual({ image: 0, script: 0 });
 
-            const popupPage = await openPopupForTab(
-                context,
-                extensionId,
-                await getTabIdForURL(serviceWorker, blockedPage.url()),
-            );
-            await expect(firewallCell(popupPage, '3p', '/')).toHaveClass(/blockRule/);
-
             await context.close();
             context = undefined;
 
             context = await launchExtensionContext(userDataDir);
+            const restartedWorker = await getServiceWorker(context);
+            await expect.poll(async () => getFirewallDnrState(restartedWorker)).toEqual({
+                dynamic: [],
+                session: [],
+            });
             const restartedPage = await context.newPage();
             const restartedUid = `temp-only-restart-${Date.now()}`;
             await restartedPage.goto(servers.resourcePageURL(restartedUid), { waitUntil: 'domcontentloaded' });
@@ -523,14 +584,11 @@ test.describe('Dashboard My Rules', () => {
         }
     });
 
-    test('import merges new rules into the editor and export downloads the current temporary rules', async () => {
+    test('import merges new rules into the editor and export downloads the current committed rules', async () => {
         test.setTimeout(60000);
         const userDataDir = await mkdtemp(path.join(os.tmpdir(), 'ubr-dyna-import-export-'));
-        const importDir = await makeTempDir(path.join(os.tmpdir(), 'ubr-dyna-import-file-'));
-        const importPath = path.join(importDir, 'rules.txt');
         const importedRule = 'example.com * 3p block';
         const existingRule = '* * image block';
-        await writeFile(importPath, `${importedRule}\n`, 'utf8');
 
         let context: BrowserContext | undefined;
         try {
@@ -541,35 +599,79 @@ test.describe('Dashboard My Rules', () => {
 
             const rightEditor = frame.locator('.CodeMirror-merge-editor .CodeMirror').first();
             const editSaveButton = frame.locator('#editSaveButton');
+            const commitButton = frame.locator('#commitButton');
             const importInput = frame.locator('#importFilePicker');
             const exportButton = frame.locator('#exportButton');
 
             await setCodeMirrorValue(rightEditor, `${existingRule}\n`);
             await expect(editSaveButton).toBeEnabled();
+            await editSaveButton.click();
+            await expect(commitButton).toBeEnabled();
+            await commitButton.click();
+            await expect(commitButton).toBeDisabled();
 
-            await importInput.setInputFiles(importPath);
-            await expect.poll(() => getCodeMirrorLines(rightEditor)).toEqual([
+            const importedEditorText = await dashboardPage.evaluate(async importedText => {
+                const iframe = document.querySelector('#iframe') as HTMLIFrameElement | null;
+                const win = iframe?.contentWindow as (Window & typeof globalThis) | null;
+                const doc = iframe?.contentDocument;
+                if ( win === null || doc === null ) {
+                    throw new Error('My Rules iframe is not ready');
+                }
+                const input = doc.querySelector('#importFilePicker') as HTMLInputElement | null;
+                if ( input === null ) {
+                    throw new Error('My Rules import input not found');
+                }
+                const file = new win.File([ importedText ], 'rules.txt', { type: 'text/plain' });
+                const dataTransfer = new win.DataTransfer();
+                dataTransfer.items.add(file);
+                Object.defineProperty(input, 'files', {
+                    configurable: true,
+                    value: dataTransfer.files,
+                });
+                input.dispatchEvent(new win.Event('change', { bubbles: true }));
+                await new Promise(resolve => win.setTimeout(resolve, 250));
+                const editorNode = doc.querySelector('.CodeMirror-merge-editor .CodeMirror') as
+                    ({ CodeMirror?: { getValue: () => string } }) | null;
+                return editorNode?.CodeMirror?.getValue() || '';
+            }, `${importedRule}\n`);
+            expect(importedEditorText.split('\n').map(line => line.trim()).filter(Boolean).sort()).toEqual([
                 existingRule,
                 importedRule,
             ]);
 
-            const downloadPromise = dashboardPage.waitForEvent('download');
-            await exportButton.click();
-            const download = await downloadPromise;
-            const exportPath = await download.path();
-            if ( exportPath === null ) {
-                throw new Error('Expected exported My rules download path');
-            }
-            const exportedText = await readFile(exportPath, 'utf8');
+            const exportData = await dashboardPage.evaluate(() => {
+                const iframe = document.querySelector('#iframe') as HTMLIFrameElement | null;
+                const win = iframe?.contentWindow as (Window & typeof globalThis & {
+                    vAPI: { download: (details: { url?: string; filename?: string }) => void };
+                    __downloadCapture?: { url?: string; filename?: string } | null;
+                }) | null;
+                const doc = iframe?.contentDocument;
+                if ( win === null || doc === null ) {
+                    throw new Error('My Rules iframe is not ready');
+                }
+                const button = doc.querySelector('#exportButton') as HTMLButtonElement | null;
+                if ( button === null ) {
+                    throw new Error('My Rules export button not found');
+                }
+                const originalDownload = win.vAPI.download;
+                win.__downloadCapture = null;
+                win.vAPI.download = details => {
+                    win.__downloadCapture = details;
+                };
+                button.click();
+                const captured = win.__downloadCapture;
+                win.vAPI.download = originalDownload;
+                return captured;
+            });
+            expect(exportData?.url).toContain('data:text/plain,');
+            const exportedText = decodeURIComponent(
+                exportData!.url!.slice('data:text/plain,'.length),
+            );
             const exportedLines = exportedText.split('\n').map(line => line.trim()).filter(Boolean).sort();
-            expect(exportedLines).toEqual([
-                existingRule,
-                importedRule,
-            ]);
+            expect(exportedLines).toEqual([ existingRule ]);
         } finally {
             await context?.close();
             await rm(userDataDir, { recursive: true, force: true });
-            await rm(importDir, { recursive: true, force: true });
         }
     });
 

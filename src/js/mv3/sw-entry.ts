@@ -139,6 +139,17 @@ import {
   compileFirewallRulesToDnr,
 } from "./sw-firewall.js";
 
+void ensurePopupState()
+  .then(async () => {
+    await syncFirewallDnrRules();
+    await syncHostnameSwitchDnrRules();
+    await syncPowerSwitchDnrRules();
+    await syncWhitelistDnrRules();
+  })
+  .catch((error) => {
+    console.log("[MV3] startup state sync failed:", error);
+  });
+
 import {
   getTabSwitchMetrics,
   getHiddenElementCountForTab as getHiddenElementCountForTabFromModule,
