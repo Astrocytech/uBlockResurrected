@@ -93,6 +93,11 @@ let originalState = {
     filters: '',
 };
 
+// Keep fresh-profile interactions aligned with the reference behavior while
+// the initial async settings load is still in flight.
+qs$('#enableMyFilters input').checked = true;
+qs$('#trustMyFilters input').checked = false;
+
 function getCurrentState() {
     const enabled = qs$('#enableMyFilters input').checked;
     return {

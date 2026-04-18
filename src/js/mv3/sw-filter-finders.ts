@@ -17,12 +17,21 @@ export const findFilterListFromNetFilter = async (rawFilter: string): Promise<an
     const filterPattern = isWhitelist ? normalizedFilter.slice(2) : normalizedFilter;
     
     try {
-        const stored = await chrome.storage.local.get(['filterLists', 'selectedFilterLists', 'userFilters']);
+        const stored = await chrome.storage.local.get([
+            'filterLists',
+            'selectedFilterLists',
+            'userFilters',
+            'user-filters',
+        ]);
         const selectedFilterLists = stored.selectedFilterLists || [];
         const filterLists = stored.filterLists || {};
         
         // Also check user filters
-        const userFiltersContent = stored.userFilters || '';
+        const userFiltersContent = typeof stored.userFilters === 'string'
+            ? stored.userFilters
+            : typeof stored['user-filters'] === 'string'
+                ? stored['user-filters']
+                : '';
         
         // Check user filters first
         if (userFiltersContent.toLowerCase().includes(filterPattern)) {
@@ -74,12 +83,21 @@ export const findFilterListFromCosmeticFilter = async (rawFilter: string): Promi
         .toLowerCase();
     
     try {
-        const stored = await chrome.storage.local.get(['filterLists', 'selectedFilterLists', 'userFilters']);
+        const stored = await chrome.storage.local.get([
+            'filterLists',
+            'selectedFilterLists',
+            'userFilters',
+            'user-filters',
+        ]);
         const selectedFilterLists = stored.selectedFilterLists || [];
         const filterLists = stored.filterLists || {};
         
         // Check user filters for cosmetic rules
-        const userFiltersContent = stored.userFilters || '';
+        const userFiltersContent = typeof stored.userFilters === 'string'
+            ? stored.userFilters
+            : typeof stored['user-filters'] === 'string'
+                ? stored['user-filters']
+                : '';
         if (userFiltersContent.toLowerCase().includes(normalizedFilter) || 
             userFiltersContent.toLowerCase().includes(rawFilter.trim().toLowerCase())) {
             results.push({

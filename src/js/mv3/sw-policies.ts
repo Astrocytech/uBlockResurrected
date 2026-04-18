@@ -151,6 +151,36 @@ const generateFallbackRules = (): chrome.declarativeNetRequest.Rule[] => {
     return rules;
 };
 
+const replaceDynamicRules = async (
+    addRules: chrome.declarativeNetRequest.Rule[],
+    idRange: { min: number; max: number } = { min: 100, max: 10000 },
+): Promise<number> => {
+    const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
+    const removeRuleIds = existingRules
+        .map(rule => rule.id)
+        .filter(id => id >= idRange.min && id < idRange.max);
+
+    await chrome.declarativeNetRequest.updateDynamicRules({
+        removeRuleIds,
+        addRules,
+    });
+
+    const refreshedRules = await chrome.declarativeNetRequest.getDynamicRules();
+    return refreshedRules.filter(rule => (
+        rule.id >= idRange.min && rule.id < idRange.max
+    )).length;
+};
+
+const installFallbackRules = async (): Promise<number> => {
+    const fallbackRules = generateFallbackRules();
+    try {
+        return await replaceDynamicRules(fallbackRules);
+    } catch (e) {
+        console.warn('[DNR] Fallback rule installation failed:', e);
+        return 0;
+    }
+};
+
 export const getFilterListState = async (
     popupState: PopupState,
     ensurePopupState: () => Promise<void>
@@ -334,6 +364,7 @@ export const syncFilterListDnrRules = async (): Promise<void> => {
                 importedLists,
                 selectedListSet,
             );
+            selectedLists = Array.from(selectedListSet);
             await chrome.storage.local.set({
                 selectedFilterLists: selectedLists,
                 availableFilterLists: available,
@@ -351,10 +382,15 @@ export const syncFilterListDnrRules = async (): Promise<void> => {
         const filterLists: { key: string; text: string }[] = [];
         for ( const listKey of selectedLists ) {
             if ( listKey === FILTER_LIST_USER_PATH ) {
-                const userFiltersStored = await chrome.storage.local.get('userFilters');
-                const userFilters = typeof userFiltersStored.userFilters === 'string' 
-                    ? userFiltersStored.userFilters 
-                    : '';
+                const userFiltersStored = await chrome.storage.local.get([
+                    'userFilters',
+                    FILTER_LIST_USER_PATH,
+                ]);
+                const userFilters = typeof userFiltersStored.userFilters === 'string'
+                    ? userFiltersStored.userFilters
+                    : typeof userFiltersStored[FILTER_LIST_USER_PATH] === 'string'
+                        ? userFiltersStored[FILTER_LIST_USER_PATH]
+                        : '';
                 if ( userFilters ) {
                     filterLists.push({ key: FILTER_LIST_USER_PATH, text: userFilters });
                     console.log('[DNR] Loaded user filters:', userFilters.length, 'chars');
@@ -434,17 +470,11 @@ export const syncFilterListDnrRules = async (): Promise<void> => {
             console.log('[DNR] Result:', dnrData);
         }
         
-        let addRules: chrome.declarativeNetRequest.Rule[] = [];
+        let installedRuleCount = 0;
         
         if ( dnrData?.network?.ruleset && dnrData.network.ruleset.length > 0 ) {
             console.log('[DNR] Generated rules:', dnrData.network.ruleset.length);
-
-            const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-            const removeRuleIds = existingRules
-                .map(rule => rule.id)
-                .filter(id => id >= 100 && id < 10000);
-
-            addRules = dnrData.network.ruleset.slice(0, 3000).map((rule: any, index: number) => {
+            const addRules = dnrData.network.ruleset.slice(0, 3000).map((rule: any, index: number) => {
                 // Skip rules with regexFilter over 2KB (DNR limit)
                 const regexFilter = rule.condition?.regexFilter;
                 if (regexFilter && regexFilter.length > 2048) {
@@ -464,11 +494,11 @@ export const syncFilterListDnrRules = async (): Promise<void> => {
             }).filter(Boolean);
             
             try {
-                await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds, addRules });
-                console.log('[DNR] Installed', addRules.length, 'filter list rules');
+                installedRuleCount = await replaceDynamicRules(addRules);
+                console.log('[DNR] Installed', installedRuleCount, 'filter list rules');
             } catch (e) {
-                // Some rules may be skipped (e.g., regex > 2KB) - that's OK
-                console.log('[DNR] Installed filter list rules (some may have been skipped)');
+                console.warn('[DNR] Compiled filter rule installation failed, falling back:', e);
+                installedRuleCount = await installFallbackRules();
             }
             
             const cosmeticFiltersData = serializeCosmeticFilterData(dnrData);
@@ -476,24 +506,15 @@ export const syncFilterListDnrRules = async (): Promise<void> => {
             console.log('[DNR] Stored cosmetic filters:', 
                 cosmeticFiltersData.genericCosmeticFilters.length, 'generic,',
                 cosmeticFiltersData.specificCosmeticFilters.length, 'specific');
+
+            if ( installedRuleCount === 0 ) {
+                console.log('[DNR] No compiled rules were active after install, using fallback rules');
+                installedRuleCount = await installFallbackRules();
+            }
         } else {
             console.log('[DNR] No rules from filter lists, installing fallback blocking rules');
-            const fallbackRules = generateFallbackRules();
-            const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
-            const removeRuleIds = existingRules
-                .map(rule => rule.id)
-                .filter(id => id >= 100 && id < 10000);
-            
-            if (removeRuleIds.length > 0) {
-                await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: removeRuleIds });
-            }
-            
-            try {
-                await chrome.declarativeNetRequest.updateDynamicRules({ addRules: fallbackRules });
-                console.log('[DNR] Installed', fallbackRules.length, 'fallback rules');
-            } catch (e) {
-                console.log('[DNR] Installed fallback rules (some may have been skipped)');
-            }
+            installedRuleCount = await installFallbackRules();
+            console.log('[DNR] Installed', installedRuleCount, 'fallback rules');
         }
         
     } catch ( e ) {

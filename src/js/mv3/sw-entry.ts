@@ -1239,10 +1239,21 @@ Messaging.on("default", async (request, callback) => {
     const filter = request.filter as string;
     if (filter) {
       try {
-        const stored = await chrome.storage.local.get("userFilters");
-        const userFilters = stored?.userFilters || "";
+        const stored = await chrome.storage.local.get([
+          "userFilters",
+          "user-filters",
+        ]);
+        const userFilters =
+          typeof stored?.userFilters === "string"
+            ? stored.userFilters
+            : typeof stored?.["user-filters"] === "string"
+              ? stored["user-filters"]
+              : "";
         const newFilters = userFilters + "\n" + filter;
-        await chrome.storage.local.set({ userFilters: newFilters });
+        await chrome.storage.local.set({
+          userFilters: newFilters,
+          "user-filters": newFilters,
+        });
         await reloadAllFilterLists(popupState, ensurePopupState);
       } catch (e) {
         /* ignore */
@@ -1629,12 +1640,24 @@ ensurePopupState()
     });
   },
   saveUserFilters: async (filters: string) => {
-    await chrome.storage.local.set({ userFilters: filters });
+    await chrome.storage.local.set({
+      userFilters: filters,
+      "user-filters": filters,
+    });
     await reloadAllFilterLists(popupState, ensurePopupState);
   },
   loadUserFilters: async () => {
-    const stored = await chrome.storage.local.get("userFilters");
-    return stored?.userFilters || "";
+    const stored = await chrome.storage.local.get([
+      "userFilters",
+      "user-filters",
+    ]);
+    if (typeof stored?.userFilters === "string") {
+      return stored.userFilters;
+    }
+    if (typeof stored?.["user-filters"] === "string") {
+      return stored["user-filters"];
+    }
+    return "";
   },
   saveSelectedFilterLists: async (lists: string[]) => {
     await chrome.storage.local.set({ selectedFilterLists: lists });
@@ -1655,7 +1678,11 @@ ensurePopupState()
     return applyFilterListSelection(request, popupState, ensurePopupState);
   },
   createUserFilters: async (request: any) => {
-    await chrome.storage.local.set({ userFilters: request.filters || "" });
+    const filters = request.filters || "";
+    await chrome.storage.local.set({
+      userFilters: filters,
+      "user-filters": filters,
+    });
     await reloadAllFilterLists(popupState, ensurePopupState);
     return { success: true };
   },

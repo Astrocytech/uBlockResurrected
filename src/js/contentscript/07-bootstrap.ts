@@ -87,6 +87,7 @@ interface BootstrapResponse {
 }
 
 type StorageBin = {
+  userFilters?: string;
   "user-filters"?: string;
   selectedFilterLists?: string[];
   perSiteFiltering?: Record<string, boolean>;
@@ -365,6 +366,7 @@ const applyStoredUserFilters = async (): Promise<void> => {
   }
 
   const bin = await storageGet([
+    "userFilters",
     "user-filters",
     "selectedFilterLists",
     "perSiteFiltering",
@@ -401,15 +403,32 @@ const applyStoredUserFilters = async (): Promise<void> => {
   if (bin.selectedFilterLists.includes("user-filters") === false) {
     return;
   }
+  let userFilters =
+    typeof bin["user-filters"] === "string"
+      ? bin["user-filters"]
+      : typeof bin.userFilters === "string"
+        ? bin.userFilters
+        : "";
   if (
-    typeof bin["user-filters"] !== "string" ||
-    bin["user-filters"].trim() === ""
+    userFilters.trim() === "" &&
+    bin.selectedFilterLists.includes("user-filters") &&
+    typeof vAPI?.messaging?.send === "function"
   ) {
+    try {
+      const liveDetails = (await vAPI.messaging.send("dashboard", {
+        what: "readUserFilters",
+      })) as { content?: string };
+      if (typeof liveDetails?.content === "string") {
+        userFilters = liveDetails.content;
+      }
+    } catch {}
+  }
+  if (userFilters.trim() === "") {
     return;
   }
 
   const selectors = collectStoredCosmeticSelectors(
-    bin["user-filters"],
+    userFilters,
     pageHostname,
   );
   if (selectors.length === 0) {

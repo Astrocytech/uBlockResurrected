@@ -66,6 +66,24 @@ export const createDashboardHandlers = (deps: {
         cosmeticFilteringEngine,
     } = deps;
 
+    const waitForStoredUserFilters = async (expected: string) => {
+        for ( let attempt = 0; attempt < 8; attempt += 1 ) {
+            const stored = await chrome.storage.local.get([
+                'userFilters',
+                'user-filters',
+            ]);
+            const actual = typeof stored.userFilters === 'string'
+                ? stored.userFilters
+                : typeof stored['user-filters'] === 'string'
+                    ? stored['user-filters']
+                    : '';
+            if ( actual === expected ) {
+                return;
+            }
+            await new Promise(resolve => self.setTimeout(resolve, 25));
+        }
+    };
+
     const handleDashboardMessage = async (request: PopupRequest) => {
         switch ( request.what ) {
         case 'getLists':
@@ -93,32 +111,69 @@ export const createDashboardHandlers = (deps: {
         case 'resetUserData':
             return resetUserData();
         case 'readUserFilters': {
-            const items = await chrome.storage.local.get('userFilters');
-            const enabled = await chrome.storage.local.get('userFiltersEnabled');
+            const items = await chrome.storage.local.get([
+                'userFilters',
+                'user-filters',
+            ]);
             const selectedLists = await chrome.storage.local.get('selectedFilterLists');
-            
-            const userFiltersPath = 'userfilters';
+            const userSettingsStored = await chrome.storage.local.get('userSettings');
+
+            const userFiltersPath = 'user-filters';
             const isSelected = selectedLists?.selectedFilterLists?.includes(userFiltersPath) || false;
-            const isTrusted = popupState.trustedLists?.[userFiltersPath] === true;
+            const userSettings = userSettingsStored?.userSettings || popupState.userSettings || {};
+            const userFilters = typeof items.userFilters === 'string'
+                ? items.userFilters
+                : typeof items['user-filters'] === 'string'
+                    ? items['user-filters']
+                    : '';
+            let enabled = isSelected;
+            if ( enabled === false && userFilters.trim() === '' ) {
+                enabled = true;
+                await chrome.storage.local.set({
+                    selectedFilterLists: [ 'user-filters', ...(selectedLists?.selectedFilterLists || []) ],
+                });
+            }
             
             return { 
-                userFilters: items.userFilters || '',
-                enabled: enabled?.userFiltersEnabled !== false ? isSelected : false,
-                trusted: isTrusted,
+                userFilters,
+                enabled,
+                trusted: userSettings.userFiltersTrusted === true,
             };
         }
         case 'writeUserFilters': {
-            const userFilters = request.userFilters as string;
+            const userFilters = (request.content ?? request.userFilters) as string;
             const enabled = request.enabled as boolean;
+            const trusted = request.trusted === true;
             if ( typeof userFilters === 'string' ) {
                 const MAX_FILTER_SIZE = 10 * 1024 * 1024;
                 if (userFilters.length > MAX_FILTER_SIZE) {
                     return { success: false, error: 'Filter size exceeds limit' };
                 }
-                await chrome.storage.local.set({ userFilters });
-                if (typeof enabled === 'boolean') {
-                    await chrome.storage.local.set({ userFiltersEnabled: enabled });
+                const selectedLists = await chrome.storage.local.get('selectedFilterLists');
+                const selected = new Set(
+                    Array.isArray(selectedLists?.selectedFilterLists)
+                        ? selectedLists.selectedFilterLists
+                        : []
+                );
+                if ( enabled ) {
+                    selected.add('user-filters');
+                } else {
+                    selected.delete('user-filters');
                 }
+                const userSettingsStored = await chrome.storage.local.get('userSettings');
+                const nextUserSettings = {
+                    ...(popupState.userSettings || {}),
+                    ...(userSettingsStored?.userSettings || {}),
+                    userFiltersTrusted: trusted,
+                };
+                popupState.userSettings = nextUserSettings;
+                await chrome.storage.local.set({
+                    userFilters,
+                    'user-filters': userFilters,
+                    selectedFilterLists: Array.from(selected),
+                    userSettings: nextUserSettings,
+                });
+                await waitForStoredUserFilters(userFilters);
                 await reloadAllFilterLists(popupState, ensurePopupState);
                 return { success: true };
             }

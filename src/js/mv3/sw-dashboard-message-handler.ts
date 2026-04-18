@@ -11,6 +11,7 @@
 import {
     getFilterListState,
     applyFilterListSelection,
+    FILTER_LIST_USER_PATH,
 } from './sw-policies.js';
 
 type DashboardRequest = {
@@ -75,6 +76,24 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
         getEngineState,
     } = deps;
 
+    const waitForStoredUserFilters = async (expected: string) => {
+        for ( let attempt = 0; attempt < 8; attempt += 1 ) {
+            const stored = await chrome.storage.local.get([
+                'userFilters',
+                FILTER_LIST_USER_PATH,
+            ]);
+            const actual = typeof stored.userFilters === 'string'
+                ? stored.userFilters
+                : typeof stored[FILTER_LIST_USER_PATH] === 'string'
+                    ? stored[FILTER_LIST_USER_PATH]
+                    : '';
+            if ( actual === expected ) {
+                return;
+            }
+            await new Promise(resolve => self.setTimeout(resolve, 25));
+        }
+    };
+
     return async (request: DashboardRequest) => {
         switch ( request.what ) {
         case 'getLists':
@@ -102,30 +121,68 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
         case 'resetUserData':
             return resetUserData();
         case 'readUserFilters': {
-            const items = await chrome.storage.local.get('userFilters');
-            const enabled = await chrome.storage.local.get('userFiltersEnabled');
+            const items = await chrome.storage.local.get([
+                'userFilters',
+                FILTER_LIST_USER_PATH,
+            ]);
             const selectedLists = await chrome.storage.local.get('selectedFilterLists');
-            const userFiltersPath = 'userfilters';
-            const isSelected = selectedLists?.selectedFilterLists?.includes(userFiltersPath) || false;
-            const isTrusted = popupState.trustedLists?.[userFiltersPath] === true;
+            const userSettingsStored = await chrome.storage.local.get('userSettings');
+            const selected = Array.isArray(selectedLists?.selectedFilterLists)
+                ? selectedLists.selectedFilterLists
+                : [];
+            const userSettings = userSettingsStored?.userSettings || popupState.userSettings || {};
+            const content = typeof items.userFilters === 'string'
+                ? items.userFilters
+                : typeof items[FILTER_LIST_USER_PATH] === 'string'
+                    ? items[FILTER_LIST_USER_PATH]
+                    : '';
+            let enabled = selected.includes(FILTER_LIST_USER_PATH);
+            if ( enabled === false && content.trim() === '' ) {
+                enabled = true;
+                await chrome.storage.local.set({
+                    selectedFilterLists: [ FILTER_LIST_USER_PATH, ...selected ],
+                });
+            }
             return {
-                content: items.userFilters || '',
-                enabled: enabled?.userFiltersEnabled !== false ? isSelected : false,
-                trusted: isTrusted,
+                content,
+                enabled,
+                trusted: userSettings.userFiltersTrusted === true,
             };
         }
         case 'writeUserFilters': {
             const userFilters = (request.content ?? request.userFilters) as string;
             const enabled = request.enabled as boolean;
+            const trusted = request.trusted === true;
             if ( typeof userFilters === 'string' ) {
                 const maxFilterSize = 10 * 1024 * 1024;
                 if ( userFilters.length > maxFilterSize ) {
                     return { success: false, error: 'Filter size exceeds limit' };
                 }
-                await chrome.storage.local.set({ userFilters });
-                if ( typeof enabled === 'boolean' ) {
-                    await chrome.storage.local.set({ userFiltersEnabled: enabled });
+                const selectedStored = await chrome.storage.local.get('selectedFilterLists');
+                const selected = new Set(
+                    Array.isArray(selectedStored?.selectedFilterLists)
+                        ? selectedStored.selectedFilterLists
+                        : []
+                );
+                if ( enabled ) {
+                    selected.add(FILTER_LIST_USER_PATH);
+                } else {
+                    selected.delete(FILTER_LIST_USER_PATH);
                 }
+                const userSettingsStored = await chrome.storage.local.get('userSettings');
+                const nextUserSettings = {
+                    ...(popupState.userSettings || {}),
+                    ...(userSettingsStored?.userSettings || {}),
+                    userFiltersTrusted: trusted,
+                };
+                popupState.userSettings = nextUserSettings;
+                await chrome.storage.local.set({
+                    userFilters,
+                    [FILTER_LIST_USER_PATH]: userFilters,
+                    selectedFilterLists: Array.from(selected),
+                    userSettings: nextUserSettings,
+                });
+                await waitForStoredUserFilters(userFilters);
                 await reloadAllFilterLists();
                 return { success: true };
             }
@@ -737,8 +794,15 @@ export const createDashboardMessageHandler = (deps: DashboardMessageHandlerDeps)
             return { success: true };
         }
         case 'getAutoCompleteDetails': {
-            const stored = await chrome.storage.local.get('userFilters');
-            const userFilters = stored?.userFilters || '';
+            const stored = await chrome.storage.local.get([
+                'userFilters',
+                FILTER_LIST_USER_PATH,
+            ]);
+            const userFilters = typeof stored?.userFilters === 'string'
+                ? stored.userFilters
+                : typeof stored?.[FILTER_LIST_USER_PATH] === 'string'
+                    ? stored[FILTER_LIST_USER_PATH]
+                    : '';
             const lines = userFilters.split('\n').filter(line => line.trim() !== '');
             const redirectResources: string[] = [];
             try {
