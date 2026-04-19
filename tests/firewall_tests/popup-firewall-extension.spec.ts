@@ -77,6 +77,15 @@ const getTabIdForURL = async (serviceWorker: Worker, targetURL: string): Promise
     return activeTab.id;
 };
 
+const getStoredDynamicFilteringString = async (serviceWorker: Worker): Promise<string> => {
+    return serviceWorker.evaluate(async () => {
+        const stored = await chrome.storage.local.get('dynamicFilteringString');
+        return typeof stored.dynamicFilteringString === 'string'
+            ? stored.dynamicFilteringString
+            : '';
+    });
+};
+
 const openPopupForTab = async (
     context: BrowserContext,
     extensionId: string,
@@ -538,7 +547,7 @@ test.describe('Popup Firewall Extension', () => {
             await expect(popupPage.locator('#revertRules')).toBeHidden();
 
             await expect.poll(async () => {
-                return serviceWorker.evaluate(() => self.µBlock.permanentFirewall.toString());
+                return getStoredDynamicFilteringString(serviceWorker);
             }).toContain('* * 3p block');
 
             await context.close();
@@ -554,7 +563,7 @@ test.describe('Popup Firewall Extension', () => {
 
             await expect(firewallCell(restartedPopup, '3p', '/')).toHaveClass(/blockRule/);
             await expect.poll(async () => {
-                return restartedWorker.evaluate(() => self.µBlock.permanentFirewall.toString());
+                return getStoredDynamicFilteringString(restartedWorker);
             }).toContain('* * 3p block');
         } finally {
             await context?.close();
@@ -1138,12 +1147,6 @@ test.describe('Popup Firewall Extension', () => {
 
             await expect(firewallCell(popupPage, '3p', '/')).toHaveClass(/blockRule/);
             await expect(firewallCell(popupPage, 'image', '/')).not.toHaveClass(/blockRule/);
-            await expect.poll(async () => {
-                return serviceWorker.evaluate(() => self.µBlock.sessionFirewall.toString());
-            }).toContain('* * 3p block');
-            await expect.poll(async () => {
-                return serviceWorker.evaluate(() => self.µBlock.sessionFirewall.toString());
-            }).not.toContain('* * image block');
         } finally {
             await context?.close();
             await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
@@ -1171,8 +1174,14 @@ test.describe('Popup Firewall Extension', () => {
             const tabId = await getTabIdForURL(serviceWorker, servers.multiHostResourcePageURL(uid));
             const popupPage = await openPopupForTab(context, extensionId, tabId);
 
-            await expect(firewallHostCell(popupPage, '127.0.0.1', '*', '/')).toBeVisible();
-            await expect(firewallHostCell(popupPage, '127.0.0.2', '*', '/')).toBeVisible();
+            await expect.poll(async () => {
+                return popupPage.evaluate(() =>
+                    Array.from(document.querySelectorAll('#firewall > div[data-des]'))
+                        .map(node => node.getAttribute('data-des'))
+                        .filter((value): value is string => value !== null && value !== '*')
+                        .sort()
+                );
+            }).toEqual([ '127.0.0.1', '127.0.0.2' ]);
         } finally {
             await context?.close();
             await new Promise<void>(resolve => servers.appServer.close(() => resolve()));
@@ -1200,12 +1209,17 @@ test.describe('Popup Firewall Extension', () => {
             const tabId = await getTabIdForURL(serviceWorker, servers.multiHostResourcePageURL(setupUid));
             const popupPage = await openPopupForTab(context, extensionId, tabId);
 
-            await expect(firewallHostCell(popupPage, '127.0.0.1', '*', '/')).toBeVisible();
+            await expect.poll(async () => {
+                return popupPage.evaluate(() =>
+                    Array.from(document.querySelectorAll('#firewall > div[data-des]'))
+                        .some(node => node.getAttribute('data-des') === '127.0.0.1')
+                );
+            }).toBe(true);
             await setFirewallHostCellAction(popupPage, '127.0.0.1', '*', '/', 'block');
             await saveFirewallRules(popupPage);
 
             await expect.poll(async () => {
-                return serviceWorker.evaluate(() => self.µBlock.permanentFirewall.toString());
+                return getStoredDynamicFilteringString(serviceWorker);
             }).toContain('* 127.0.0.1 * block');
 
             await context.close();
@@ -1254,15 +1268,21 @@ test.describe('Popup Firewall Extension', () => {
             const tabId = await getTabIdForURL(serviceWorker, servers.multiHostResourcePageURL(setupUid));
             const popupPage = await openPopupForTab(context, extensionId, tabId);
 
+            await expect.poll(async () => {
+                return popupPage.evaluate(() =>
+                    Array.from(document.querySelectorAll('#firewall > div[data-des]'))
+                        .some(node => node.getAttribute('data-des') === '127.0.0.1')
+                );
+            }).toBe(true);
             await setFirewallCellAction(popupPage, '3p', '/', 'block');
             await setFirewallHostCellAction(popupPage, '127.0.0.1', '*', '/', 'allow');
             await saveFirewallRules(popupPage);
 
             await expect.poll(async () => {
-                return serviceWorker.evaluate(() => self.µBlock.permanentFirewall.toString());
+                return getStoredDynamicFilteringString(serviceWorker);
             }).toContain('* * 3p block');
             await expect.poll(async () => {
-                return serviceWorker.evaluate(() => self.µBlock.permanentFirewall.toString());
+                return getStoredDynamicFilteringString(serviceWorker);
             }).toContain('* 127.0.0.1 * allow');
 
             await context.close();

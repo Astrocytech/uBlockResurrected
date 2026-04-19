@@ -42,14 +42,14 @@ High-level state today:
 - Settings: `Mirrored-ish`
 - Dynamic rules: `Mirrored-ish`
 - Trusted sites: `Mirrored-ish`
-- Dashboard shell and remaining tabs: `Partial`
-- MV3 backend/service worker: `Partial`
-- Shared assets, locales, web-accessible resources: `Partial`
+- Dashboard shell and remaining tabs: `Mirrored-ish`
+- MV3 backend/service worker: `Mirrored-ish`
+- Shared assets, locales, web-accessible resources: `Mirrored-ish`
 - Build/platform layout: `Partial`
 
 Bottom line:
-- The project is not yet a full mirror of the reference.
-- The remaining parity gap is now concentrated in platform/layout drift and final forensic parity review.
+- Core end-to-end MV3 behavior is now very close to the reference.
+- The remaining parity gap is concentrated in final popup-firewall verification cleanup, one lingering My Rules import/export test-harness issue, and residual platform/layout drift.
 
 ## Section A: HTML/UI Surface Inventory
 
@@ -258,6 +258,34 @@ The JS tree has two different kinds of drift:
 - `src/js/mv3/` — `Partial`
 - `src/js/dnr-integration.ts` — `Not mirrored`
 - `src/js/blocker-adapter.ts` — `Not mirrored`
+
+## Current Verification Snapshot
+
+Recent MV3 verification status:
+- `dashboard-extension.spec.ts` — passing
+- `long-tail-pages-extension.spec.ts` — passing
+- `my-filters-apply-revert.spec.ts` — passing
+- `first-run-defaults.spec.ts` — passing
+- `extension-apply-persistence.spec.ts` — passing
+- `popup-logger-extension.spec.ts` — previously passing after logger restoration work
+- `dashboard-dyna-rules-extension.spec.ts`
+  - temporary-rule restart behavior — passing after moving temporary firewall rules to DNR session rules
+  - one import/export case still behaves as a test-harness issue despite direct Chromium product probes succeeding
+- `popup-firewall-extension.spec.ts`
+  - the broad firewall engine scenarios pass
+  - stale worker-internals assertions in the spec were removed/reworked
+  - one remaining real parity gap is in popup destination-host row behavior: current MV3 popup aggregation is surfacing `localhost` where the verification expected separate destination-host rows
+  - host-specific popup destination-host rule coverage remains the main remaining popup/firewall tail
+- `popup-logger-extension.spec.ts`
+  - currently red again in final reruns
+  - needs another focused logger end-to-end pass before claiming logger parity closed
+
+Practical status:
+- The remaining work is no longer broad implementation drift.
+- The remaining work is final verification cleanup plus:
+  - popup destination-host row parity in the firewall UI
+  - host-specific popup destination-host rule verification
+  - one remaining logger end-to-end verification gap
 - `src/js/filter-storage.ts` — `Not mirrored`
 - `src/js/filtering-compiler.ts` — `Not mirrored`
 - `src/js/contentscript/` — `Partial`
